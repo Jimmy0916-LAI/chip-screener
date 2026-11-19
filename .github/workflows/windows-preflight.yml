@@ -1,0 +1,40 @@
+name: Windows delivery preflight
+on:
+  push:
+    branches: [chip-radar-v06-preflight]
+    paths: ['.github/workflows/windows-preflight.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise frozen research on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $project = Join-Path $env:RUNNER_TEMP 'phase1'
+          Expand-Archive chip-screener-phase1.zip $project
+          Push-Location $project
+          try {
+            python audit.py --run 20261120T021433143982
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python -m unittest discover -s tests -v
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { Pop-Location }
+          $compiler = Get-Item "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          "Windows runner: $env:ImageOS; Inno Setup: $($compiler.VersionInfo.ProductVersion); commit: $env:GITHUB_SHA; run: $env:GITHUB_RUN_ID; frozen replay and tests passed." | Set-Content windows-preflight.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-preflight
+          path: windows-preflight.txt
+      - name: Record verified runner for Git-only clients
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add windows-preflight.txt
+          git commit -m "Record Windows delivery preflight result"
+          git push origin HEAD:refs/heads/chip-radar-v06-preflight
