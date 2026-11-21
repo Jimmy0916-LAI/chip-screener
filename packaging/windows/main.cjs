@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, Menu, protocol, shell } = require('electron');
+const { app, BrowserWindow, Menu, protocol, shell, ipcMain } = require('electron');
 const { readFile } = require('node:fs/promises');
 const path = require('node:path');
 
@@ -16,6 +16,21 @@ app.setPath('userData', path.join(process.env.LOCALAPPDATA || app.getPath('appDa
 app.commandLine.appendSwitch('disable-background-networking');
 
 async function openWindow() {
+  const { LocalStore } = require('./storage.cjs');
+  const store = new LocalStore(path.join(app.getPath('userData'), 'store-v1'));
+  for (const action of ['read', 'save']) {
+    ipcMain.on('storage:' + action, (event, kind, value) => {
+      try {
+        if (event.senderFrame !== event.sender.mainFrame || event.senderFrame.url !== dashboard) throw Error('來源無效');
+        if (action === 'save') {
+          event.returnValue = {ok:true, ...store.save(kind, value)};
+        } else {
+          const {value: saved, slot, damaged} = store.read(kind);
+          event.returnValue = {ok:true, value:saved, slot, damaged, version:app.getVersion()};
+        }
+      } catch (error) { event.returnValue = {ok:false,error:error.message}; }
+    });
+  }
   protocol.handle('radar', async request => {
     if (request.url !== dashboard) return new Response(null, { status: 404 });
     const html = await readFile(path.join(__dirname, 'dashboard.html'));
@@ -28,7 +43,7 @@ async function openWindow() {
   const win = new BrowserWindow({
     title: '台股籌碼雷達', width: 1360, height: 880, minWidth: 800, minHeight: 570,
     backgroundColor: '#0c131f', show: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') }
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (officialLinks.has(url)) shell.openExternal(url).catch(console.error);

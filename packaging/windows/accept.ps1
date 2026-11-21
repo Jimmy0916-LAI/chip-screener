@@ -1,7 +1,7 @@
 param([Parameter(Mandatory)][string]$Zip, [Parameter(Mandatory)][string]$ExpectedHash)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$root = Join-Path $env:RUNNER_TEMP ('b02-' + [guid]::NewGuid().ToString('N'))
+$root = Join-Path $env:RUNNER_TEMP ('b03-' + [guid]::NewGuid().ToString('N'))
 $extract = Join-Path $root 'first launch'
 $move = Join-Path $root '台股 移動 測試'
 $out = (New-Item -Type Directory -Path 'evidence' -Force).FullName
@@ -20,8 +20,15 @@ $relocated = Join-Path $dest 'ChipScreener.exe'
 $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'fresh-local')).FullName
 $env:TEMP = (New-Item -Type Directory -Path (Join-Path $root 'runtime-temp')).FullName
 $env:TMP = $env:TEMP
-$runtime = Join-Path $env:TEMP 'ChipScreener-B02-offline-v1\ChipScreener.exe'
-$group = 'B02-' + [guid]::NewGuid().ToString('N')
+$runtime = Join-Path $env:TEMP 'ChipScreener-B03-v1\ChipScreener.exe'
+$group = 'B03-' + [guid]::NewGuid().ToString('N')
+$upgradeDir = (New-Item -Type Directory -Path (Join-Path $root '同位置 換版')).FullName
+$upgrade = Join-Path $upgradeDir 'ChipScreener.exe'
+$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B03-v0\ChipScreener.exe'
+function Test-Stored([string]$file,[string]$phase) {
+    node "$PSScriptRoot/gui.cjs" $file $out $phase
+    if ($LASTEXITCODE) { throw "B03 GUI failure: $phase" }
+}
 function Get-VisibleWindow {
     Get-Process -Name ChipScreener -ErrorAction SilentlyContinue | Where-Object {
         $_.MainWindowHandle -ne 0 -and $_.Path -eq $runtime -and $_.MainWindowTitle -like '*籌碼雷達*'
@@ -54,15 +61,17 @@ function Test-ShellLaunch([string]$file) {
 }
 try {
     if (@(Get-NetFirewallProfile -PolicyStore ActiveStore | Where-Object Enabled -ne 'True').Count) { throw 'Runner firewall is not fully enabled' }
-    foreach ($program in @($exe,$relocated,$runtime)) {
+    foreach ($program in @($exe,$relocated,$runtime,$upgrade,$oldRuntime)) {
         New-NetFirewallRule -DisplayName "$group $program" -Group $group -Direction Outbound -Action Block -Profile Any -Program $program -RemoteAddress '0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null
     }
-    if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object { $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }).Count -ne 3) { throw 'Outbound isolation not active' }
+    if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object { $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }).Count -ne 5) { throw 'Outbound isolation not active' }
     if (@(Get-ChildItem $env:LOCALAPPDATA -Force).Count) { throw 'Expected clean app data' }
     $first = Test-ShellLaunch $exe
     $qa = Join-Path $PSScriptRoot 'gui.cjs'
     node $qa $exe $out 'first'
     if ($LASTEXITCODE) { throw 'Offline GUI verification failed' }
+    Test-Stored $exe 'seed'
+    Test-Stored $exe 'reopen'
     if (@(Get-ChildItem $dest -Force).Count) { throw 'Destination is not empty' }
     Move-Item -LiteralPath $exe -Destination $relocated
     if ((Get-FileHash $relocated).Hash.ToLowerInvariant() -ne $exeHash) { throw 'Moved EXE hash changed' }
@@ -70,8 +79,29 @@ try {
     node $qa $relocated $out 'moved'
     if ($LASTEXITCODE) { throw 'Relocated GUI verification failed' }
     if (@(Get-ChildItem $dest -Force).Count -ne 1) { throw 'Extra files beside portable EXE' }
-    $report = [ordered]@{commit=$env:B02_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
-        os=(Get-CimInstance Win32_OperatingSystem).Caption; runtimePE='x64'; zeroArgumentWindows=@($first,$second);
+    Test-Stored $relocated 'moved-stored'
+    Test-Stored $relocated 'write-failure'
+    Test-Stored $relocated 'after-failure'
+    $userStore = Join-Path $env:LOCALAPPDATA 'ChipScreener/store-v1'
+    foreach ($kind in @('snapshot','settings')) {
+        $primary = Join-Path $userStore "$kind.current.json"
+        if (!(Test-Path $primary -PathType Leaf)) { throw "Missing committed $kind" }
+        [IO.File]::WriteAllText($primary,'truncated')
+    }
+    Test-Stored $relocated 'recovered'
+    # Independent upgrade path. Seed an actual older build, overwrite only the EXE,
+    # then reopen the exact deliverable on the same account and storage location.
+    $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'upgrade-local')).FullName
+    Copy-Item -LiteralPath 'qa-predecessor/ChipScreener.exe' -Destination $upgrade
+    $oldHash = (Get-FileHash $upgrade).Hash.ToLowerInvariant()
+    if ($oldHash -eq $exeHash) { throw 'Expected two distinct application builds' }
+    Test-Stored $upgrade 'upgrade-source'
+    Copy-Item -LiteralPath $relocated -Destination $upgrade -Force
+    if ((Get-FileHash $upgrade).Hash.ToLowerInvariant() -ne $exeHash) { throw 'Replacement is not the ZIP executable' }
+    Test-Stored $upgrade 'upgrade-result'
+    if (@(Get-ChildItem $upgradeDir -Force).Count -ne 1) { throw 'Extra file in replacement directory' }
+    $report = [ordered]@{commit=$env:B03_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
+        os=(Get-CimInstance Win32_OperatingSystem).Caption; priorVersionExeSha256=$oldHash; runtimePE='x64'; zeroArgumentWindows=@($first,$second);
         offline='Windows Firewall blocked non-loopback outbound connections for both launchers and the verified GUI executable';
         movedTo=$relocated; windows11Physical='not tested'}
     $report | ConvertTo-Json | Tee-Object -FilePath "$out/package.json"
