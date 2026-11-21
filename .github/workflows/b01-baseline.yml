@@ -1,0 +1,33 @@
+name: B01 frozen v0.5 baseline
+on:
+  pull_request:
+    branches: [docs/v06-development-governance, main]
+    paths:
+      - 'baseline/v0.5/**'
+      - 'chip-screener-phase1.zip'
+      - '.github/workflows/b01-baseline.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify clean checkout, frozen data, seven pages and exact rebuild
+        shell: bash
+        run: |
+          set -eu
+          git rev-parse HEAD
+          test -z "$(git status --porcelain --untracked-files=all)"
+          python -X utf8 baseline/v0.5/verify.py
+          test -z "$(git status --porcelain --untracked-files=all)"
