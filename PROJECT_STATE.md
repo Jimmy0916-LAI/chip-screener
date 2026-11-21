@@ -1,6 +1,6 @@
 # 台股籌碼雷達專案狀態
 
-**2026-11-21（台北）｜產品所有者已批准 PR #1 路線圖。B01 已獲產品所有者接受。B02 Windows Server Runner 驗收通過，Windows 11 實機待驗，B03 待授權。**
+**B01 已驗收。B02 的 Windows Runner 驗收已獲接受。B03 的 Windows Server 2022 成品驗收通過，Windows 11 實機雙擊待驗。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)
 
@@ -75,6 +75,24 @@ Windows Server 2022 Datacenter x64 實測通過。在獨立 Runner 下載同一�
 | 首次啟動與搬移 | Windows 防火牆封鎖兩個外層 EXE 路徑與實際 GUI 執行檔對外連線，僅保留本機驗收通道。確認 GUI PE 為 x64。搬到 `台股 移動 測試\ChipScreener.exe` 前資料夾為空，搬後 EXE 雜湊相同，資料夾內仍只有該檔。 |
 | 操作證據 | 上述 Windows CI 的 `accept` 作業先下載 artifact 原始位元組；`accept.ps1` 驗證 ZIP 並執行預設開啟動作；`gui.cjs` 點選七頁、核對漢唐圖表與數字。證據 ZIP 內有 `package.json`、`first-gui.json`、`moved-gui.json` 和各頁 PNG。 |
 
+## B03｜本機資料與設定儲存
+
+[測試 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44922075589/artifacts/14714082864) · [成品驗收日誌](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44922075589/job/136901695195) · [截圖與逐次啟動 JSON](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44922075589/artifacts/14714736237) · [B03 PR #4](https://github.com/Jimmy0916-LAI/chip-screener/pull/4)
+
+以 B02 程式 `970952a` 與狀態文件提交 `9a00191` 為基線。[交付程式 `91c96f25053f12e86e75992c053b44954151a3fb`](https://github.com/Jimmy0916-LAI/chip-screener/commit/91c96f25053f12e86e75992c053b44954151a3fb) 位於 `b03/local-storage`。Actions ZIP SHA-256 為 `c95d82f4fa150032394bc8fe0df1be62d440c9014e7a42762e1907de2376b22d`，唯一成員 `ChipScreener.exe` 的 SHA-256 為 `f958e895c694ab855651ed53d2c4bd528121696f4be12db7e4cc7113eeb21281`。
+
+同一 Windows 帳號讀寫 `%LOCALAPPDATA%\ChipScreener\store-v1`。設定保留原 `chip-screener-config-v1` 的 applied、draft、presets 欄位，首次可沿用 B02 的本機設定。資料從內建基線加載已驗證、帶來源的額外週快照。設定與快照分開寫入，暫存檔沖刷、讀回後才取代主檔；另留當次鏡像及上一版，開啟時檢查格式與 SHA-256。
+
+| Windows Server 2022 成品驗收 | 結果 |
+|---|---|
+| 首次離線、搬移 | 獨立 Runner 下載原始 Actions ZIP，核對雜湊及單一成員。防火牆阻斷應用程式對外連線後，原位置與中文空格路徑「台股 移動 測試」均可用 Windows 預設開啟動作零參數啟動。兩次各通過七頁及漢唐固定增股 796,897、579,084 股。 |
+| 經畫面保存與重開 | 「B03 保存驗收」方案、已套用策略與草稿皆為 400 張／0.77 pp。由資料頁匯入合成的 2026-09-18 測試週，個股頁顯示 2404 的 400 張線 54,000 股，分母 136,000。重啟及只搬動 EXE 後顯示相同。 |
+| 更換不同 EXE | 另以 QA 用的 `0.6.0-b03.0` 建立同一案例，關閉後只替換為交付 ZIP 的 `0.6.0-b03.1`。兩顆 EXE 雜湊不同，畫面版本變更，方案、快照與股數相同。 |
+| 寫入中斷及損毀 | 暫存檔沖刷後、重新命名前終止寫入程序，重開讀到上一成功版本。另在實際視窗強制設定和快照寫入失敗，失敗的 09-25 期未出現在個股頁，重開保有 09-18 快照。截斷設定、快照兩個主檔後，畫面分別顯示從備份復原，方案和股數相符。 |
+| 測試平台 | Windows Server 2022 Datacenter x64。Windows 11 實機雙擊待驗。09-18 快照由驗收腳本匯入至測試帳號，交付 EXE 首開仍載入內建資料。 |
+
+重現命令為 `python -X utf8 baseline/v0.5/verify.py` 與 `node --test packaging/windows/storage.test.cjs`。Windows 建置與成品驗收見 [B03 工作流程](https://github.com/Jimmy0916-LAI/chip-screener/blob/91c96f25053f12e86e75992c053b44954151a3fb/.github/workflows/b03-windows.yml)。工作流程另跑凍結研究測試 5/5，建置 ZIP 後於獨立 Runner 執行 `packaging/windows/accept.ps1`，透過實際渲染器保存逐次驗收結果。
+
 ## 下次恢復位置
 
-Windows 11 實機待以相同 ZIP 驗證。若另行批准 B03，先核對 [PR #3](https://github.com/Jimmy0916-LAI/chip-screener/pull/3) 的實際合併狀態、上述 B02 產品提交與 [ROADMAP 的 B03 欄位](ROADMAP.md)，再開始使用者資料及設定的持久化驗收。B02 使用固定 v0.5 資料；正式發布、合併與 B03 均須後續指令。
+從 [B03 PR #4](https://github.com/Jimmy0916-LAI/chip-screener/pull/4) 與上述交付提交恢復。保留 Windows 11 實機驗收項目。下一批為 [ROADMAP](ROADMAP.md) 的 B04 週篩選與同窗 A/B 校正，待另行授權。B05 集保及 B06 行情自動更新依路線圖接續。
