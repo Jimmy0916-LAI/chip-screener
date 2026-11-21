@@ -1,10 +1,10 @@
 # 台股籌碼雷達專案狀態
 
-**2026-11-21（台北）｜管理制度重整，路線圖待批准。**
+**2026-11-21（台北）｜產品所有者已批准 PR #1 路線圖。B01 四項驗收通過，B02 待獨立開工指令。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)
 
-## GitHub 可查狀態
+## 管理批次結束時的 GitHub 紀錄（B01 之前）
 
 | 項目 | 核對結果 |
 | --- | --- |
@@ -16,7 +16,7 @@
 | Windows CI | [唯一既有執行 `44618446774`](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44618446774) 已失敗。Windows Runner 開始執行且重播通過，`test_failed_refresh_preserves_last_good` 印出中文時因 Windows 輸出編碼出現 `UnicodeEncodeError`，共五項測試、一項錯誤。Inno Setup 檢查及產物上傳尚未執行。這條流程原本只做預檢。 |
 | 發布及其他 PR | 本輪開始時 PR 清單為空，Releases 無版本或資產。上述 CI 無 Artifact。這個工作區未掛載 Git checkout，無從核對先前獨立工作階段是否留有未推送檔案。 |
 
-## 驗證結果與未完成工作
+## B01 之前的驗證結果與未完成工作
 
 | 工作項 | 已保存或重驗 | 未完成及阻塞 |
 | --- | --- | --- |
@@ -37,8 +37,27 @@
 - 研究 ZIP 解壓至隔離目錄，在包根目錄執行 `python -X utf8 audit.py --run 20261120T021433143982`，逐一比對 `reports/20261120T021433143982/` 同名七份檔案。再執行 `python -X utf8 -m unittest discover -s tests -v`，得到 `Ran 5 tests`、`OK`。輸入附件的 `git hash-object` 與 GitHub 的 blob SHA 一致。
 - OneClick ZIP 另解至隔離目錄，從包根目錄執行 `node source/test_webapp.js`，輸出 `all 7 routes passed.`。執行 `python source/build_webapp.py` 後，以位元組比對 `source/開啟籌碼雷達.html` 與隨附 `dashboard.html`，兩者相同，共 1,038,837 bytes。這次使用已隨 v0.5 附帶的 `web_data.json`。Node 測試為模擬 DOM。
 
-## 批次狀態及下次恢復指令
+## B01｜v0.5 基線入庫與重建：通過
 
-B01 至 B11 均待路線圖批准。本輪管理文件提交走獨立 PR，沒有開發批次在執行。優先解決 B01 的 v0.5 來源可重建，之後的 Windows、持久化、週訊號與更新依賴關係見 ROADMAP。主要風險是附件存取權、舊 CI 的 UTF-8 相容性、官方來源歷史覆蓋及時點證據。尚未定案的重大研究政策維持原狀。
+- 單一代理執行。來源為已核對 SHA-256 的 OneClick ZIP 及儲存庫根目錄的凍結研究 ZIP。從附件直接取用 v0.5 原件與 source，保留舊 Windows 草稿在原工作區。
+- [B01 PR #2](https://github.com/Jimmy0916-LAI/chip-screener/pull/2) 以 PR #1 的管理分支為基底，起點 [83e7520](https://github.com/Jimmy0916-LAI/chip-screener/commit/83e75206abacace748b87fb122e325d0d215c667)。[驗收提交 `fe1ab0a41d03c3982f7932b9c2acb6dda48bad28`](https://github.com/Jimmy0916-LAI/chip-screener/commit/fe1ab0a41d03c3982f7932b9c2acb6dda48bad28) 的 Git tree 為 `76aa0c8be7255b733a3e3e9405669f67f6fd5b8f`。程式與固定資料位置為 `baseline/v0.5/`。
+- 乾淨 Git checkout 本地實跑（Linux、Python 3.12.14、Node 24.22.3），GitHub Actions 也從同一個 PR head SHA 重新 checkout 執行；驗收步驟前後均檢查工作樹乾淨。[CI #44897117131 與逐步日誌](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44897117131/job/136825045265)
 
-> 路線圖獲准後，只執行 ROADMAP 的 B01。先從 GitHub 核對本管理 PR、開發基準 SHA、現存分支及未完成工作，確認未有人先做 B01。讀取本文件列出的兩個 ZIP、`PRODUCT_SPEC.md` 的 v0.5 基線段及 B01 驗收列。從固定 GitHub 與附件連結取得並核對輸入雜湊，建立單獨 B01 分支。沿用現有前端，提交可從 checkout 重建與測試的基線及證據。已有檢查點則續做剩餘單元。若附件無法存取或雜湊不符，保存阻塞及恢復入口。完成或阻塞都停在 B01，維持 B02 未開始。
+從儲存庫根目錄執行：
+
+```sh
+python -X utf8 baseline/v0.5/verify.py
+```
+
+| 驗收項目 | 實際結果 |
+|---|---|
+| 七頁 | 原版 Node 模擬 DOM 測試輸出 `all 7 routes passed.`，涵蓋首頁與其餘六頁。 |
+| HTML | 重建與原 OneClick 的 `dashboard.html` 逐位元相同，1,038,837 bytes；SHA-256 `4cae8ad967e027414bfd99ae8c0af6294081d9a60e2451ff46600844e05230d7`。 |
+| 漢唐 2404 | 400 張線兩個連續週增量為 796,897 股、579,084 股，Node 斷言通過。 |
+| 凍結研究 ZIP | SHA-256 `9fb3a26dff260f575b6e9d8a016a79aec67472311ba8ad7db8a1b9b026534bab`，與已驗收版本一致。 |
+
+同一命令亦從凍結研究 ZIP 重新生成 `web_data.json`，967,816 bytes 與前端固定資料逐位元相同。原建置腳本僅將最後一行檔案寫入改用 UTF-8 位元組，確保跨平台換行一致；既有 v0.5 研究限制仍見上方紀錄。
+
+## 下次恢復位置
+
+待產品所有者明確授權 B02，先核對 [PR #2 最新提交](https://github.com/Jimmy0916-LAI/chip-screener/pull/2/commits)、上述 B01 驗收提交、當時的 PR 合併狀態，以及 [ROADMAP 的 B02 驗收列](ROADMAP.md)。若先前工作區仍在，可讀 `workv06/` 的 Windows 封裝與 QA 草稿；它們尚未驗收，B01 的重建不依賴它們。B02、合併及正式發布各自等候後續指令。
