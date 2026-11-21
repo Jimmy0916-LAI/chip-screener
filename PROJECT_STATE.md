@@ -1,6 +1,6 @@
 # 台股籌碼雷達專案狀態
 
-**2026-11-21（台北）｜產品所有者已批准 PR #1 路線圖。B01 四項驗收通過，B02 待獨立開工指令。**
+**2026-11-21（台北）｜產品所有者已批准 PR #1 路線圖。B01 已獲產品所有者接受。B02 Windows Server Runner 驗收通過，Windows 11 實機待驗，B03 待授權。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)
 
@@ -58,6 +58,23 @@ python -X utf8 baseline/v0.5/verify.py
 
 同一命令亦從凍結研究 ZIP 重新生成 `web_data.json`，967,816 bytes 與前端固定資料逐位元相同。原建置腳本僅將最後一行檔案寫入改用 UTF-8 位元組，確保跨平台換行一致；既有 v0.5 研究限制仍見上方紀錄。
 
+## B02｜Windows 單檔離線封裝
+
+[Windows x64 測試 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44897911360/artifacts/14704399756) · [七頁截圖與 JSON 驗收證據](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44897911360/artifacts/14704428254) · [Windows CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44897911360)
+
+本批以 [B01 `0411661`](https://github.com/Jimmy0916-LAI/chip-screener/commit/0411661507139e488b676830dba2c6de30d7addd) 為基準，沿用固定 v0.5 HTML。產品提交 [`970952a53c2ce295f954f7a947a87cc56e210891`](https://github.com/Jimmy0916-LAI/chip-screener/commit/970952a53c2ce295f954f7a947a87cc56e210891)。GitHub 登入具此私人 repo 權限的帳號後可下載測試 ZIP，解壓後只含 `ChipScreener.exe`，雙擊即開啟。ZIP SHA-256 為 `86f0ca9fb0abad5a910f888ffdfdf778c00c02eab6023fd9148b242f43a17974`。
+
+Windows Server 2022 Datacenter x64 實測通過。在獨立 Runner 下載同一份 Actions 原始 ZIP，核對 ZIP 和 EXE 雜湊，採全新使用者資料目錄，先以 Windows 防火牆阻斷應用程式對外連線，再以 ShellExecute 的預設開啟動作零參數啟動。原位置及搬至中文空格空資料夾後均開出獨立視窗並正常關閉。真實 Chromium 渲染器在兩個位置各驗七頁、漢唐持股圖、日 K 線、796,897 及 579,084 股，並保存 14 張 PNG。Windows 11 實機待驗。本批停在測試產物。
+
+| 項目 | 驗收結果 |
+|---|---|
+| 分支與 PR | [B02 PR #3](https://github.com/Jimmy0916-LAI/chip-screener/pull/3) 以仍開放的 PR #2 分支為基底。未合併或正式發布。 |
+| 建置基線 | Windows 以 `python -X utf8 baseline/v0.5/verify.py` 通過 B01，並從凍結研究 ZIP 解壓後執行 `python -X utf8 -m unittest discover -s tests -v`，5/5 通過。 |
+| 封裝 | `packaging/windows/` 採用鎖定版本的 Electron／electron-builder。拷入同一 B01 dashboard.html，`npm ci`、`npm run dist` 生成 portable EXE。沿用舊草稿的 portable 目標、PE 檢查及 GUI 驗收方法。原 v0.5 七頁、資料和策略邏輯隨包提供；桌面端補上 Electron 缺少的方案命名輸入框。 |
+| 交付檔案 | GitHub Actions ZIP 大小 110,573,072 bytes，只含根目錄的一個 EXE。EXE SHA-256 `eb40486a3a10fff1f959afac4090a3b47b092a63d7f470d3934803677717d59e`。下載有效期限以 GitHub 為準，本次標示台北時間 2026-12-21 19:15。 |
+| 首次啟動與搬移 | Windows 防火牆封鎖兩個外層 EXE 路徑與實際 GUI 執行檔對外連線，僅保留本機驗收通道。確認 GUI PE 為 x64。搬到 `台股 移動 測試\ChipScreener.exe` 前資料夾為空，搬後 EXE 雜湊相同，資料夾內仍只有該檔。 |
+| 操作證據 | 上述 Windows CI 的 `accept` 作業先下載 artifact 原始位元組；`accept.ps1` 驗證 ZIP 並執行預設開啟動作；`gui.cjs` 點選七頁、核對漢唐圖表與數字。證據 ZIP 內有 `package.json`、`first-gui.json`、`moved-gui.json` 和各頁 PNG。 |
+
 ## 下次恢復位置
 
-待產品所有者明確授權 B02，先核對 [PR #2 最新提交](https://github.com/Jimmy0916-LAI/chip-screener/pull/2/commits)、上述 B01 驗收提交、當時的 PR 合併狀態，以及 [ROADMAP 的 B02 驗收列](ROADMAP.md)。若先前工作區仍在，可讀 `workv06/` 的 Windows 封裝與 QA 草稿；它們尚未驗收，B01 的重建不依賴它們。B02、合併及正式發布各自等候後續指令。
+Windows 11 實機待以相同 ZIP 驗證。若另行批准 B03，先核對 [PR #3](https://github.com/Jimmy0916-LAI/chip-screener/pull/3) 的實際合併狀態、上述 B02 產品提交與 [ROADMAP 的 B03 欄位](ROADMAP.md)，再開始使用者資料及設定的持久化驗收。B02 使用固定 v0.5 資料；正式發布、合併與 B03 均須後續指令。
