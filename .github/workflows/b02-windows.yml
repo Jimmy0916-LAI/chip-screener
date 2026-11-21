@@ -1,0 +1,116 @@
+name: B02 Windows offline portable
+on:
+  pull_request:
+    branches: [b01/v05-baseline]
+    paths:
+      - 'packaging/windows/**'
+      - '.github/workflows/b02-windows.yml'
+      - 'baseline/v0.5/**'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.delta.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - id: delta
+        env:
+          PREVIOUS: ${{ github.event.before }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          build=true
+          if [[ "$ACTION" == synchronize ]] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null && git diff --quiet "$PREVIOUS" HEAD -- packaging/windows baseline/v0.5 chip-screener-phase1.zip .github/workflows/b02-windows.yml; then build=false; fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+  package:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 18
+    outputs:
+      id: ${{ steps.upload.outputs.artifact-id }}
+      digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify frozen Python research and the B01 frontend on Windows
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          python -X utf8 baseline/v0.5/verify.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $project = Join-Path $env:RUNNER_TEMP 'frozen'
+          Expand-Archive -LiteralPath chip-screener-phase1.zip -DestinationPath $project
+          Push-Location $project
+          try { python -X utf8 -m unittest discover -s tests -v; if ($LASTEXITCODE) { exit $LASTEXITCODE } } finally { Pop-Location }
+      - name: Build one portable EXE with its own x64 Chromium
+        working-directory: packaging/windows
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          Copy-Item ../../baseline/v0.5/dashboard.html .
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run dist
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/ChipScreener.exe -PathType Leaf)) { throw 'Expected portable EXE' }
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ChipScreener-Windows-x64
+          path: packaging/windows/dist/ChipScreener.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+  accept:
+    needs: package
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      B02_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: packaging/windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download the user-facing Actions ZIP intact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.package.outputs.id }}
+        run: |
+          curl.exe --fail --silent --show-error --location --retry 4 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/$env:ARTIFACT_ID/zip" --output "$env:RUNNER_TEMP/ChipScreener-Windows-x64.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify offline ShellExecute, seven pages and Chinese path relocation
+        shell: pwsh
+        env:
+          EXPECTED: ${{ needs.package.outputs.digest }}
+        run: |
+          ./packaging/windows/accept.ps1 -Zip "$env:RUNNER_TEMP/ChipScreener-Windows-x64.zip" -ExpectedHash $env:EXPECTED
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: B02-Windows-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
