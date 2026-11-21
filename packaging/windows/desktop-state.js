@@ -4,7 +4,7 @@ function loadLocal(kind) {
   const result = window.desktopStore.read(kind);
   if (!result.ok) storageNotes.push('無法讀取本機檔案：' + result.error);
   if (result.slot && result.slot !== 'current') storageNotes.push((kind === 'settings' ? '策略設定' : '資料快照') + '已從備份復原');
-  else if (result.damaged) storageNotes.push('本機檔案損毀，已載入預設內容');
+  else if (!result.slot && result.damaged) storageNotes.push('本機檔案損毀，已載入預設內容');
   return result;
 }
 const configFile = loadLocal('settings'), snapshotFile = loadLocal('snapshot');

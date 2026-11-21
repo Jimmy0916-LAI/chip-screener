@@ -2,7 +2,7 @@ param([Parameter(Mandatory)][string]$Zip, [Parameter(Mandatory)][string]$Expecte
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = Join-Path $env:RUNNER_TEMP ('b03-' + [guid]::NewGuid().ToString('N'))
-$extract = Join-Path $root 'first launch'
+$extract = Join-Path $root 'v0.6.0-b03.2'
 $move = Join-Path $root '台股 移動 測試'
 $out = (New-Item -Type Directory -Path 'evidence' -Force).FullName
 $zipPath = (Resolve-Path $Zip).Path
@@ -20,11 +20,13 @@ $relocated = Join-Path $dest 'ChipScreener.exe'
 $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'fresh-local')).FullName
 $env:TEMP = (New-Item -Type Directory -Path (Join-Path $root 'runtime-temp')).FullName
 $env:TMP = $env:TEMP
-$runtime = Join-Path $env:TEMP 'ChipScreener-B03-v1\ChipScreener.exe'
+$runtime = Join-Path $env:TEMP 'ChipScreener-B03-v2\ChipScreener.exe'
 $group = 'B03-' + [guid]::NewGuid().ToString('N')
 $upgradeDir = (New-Item -Type Directory -Path (Join-Path $root '同位置 換版')).FullName
 $upgrade = Join-Path $upgradeDir 'ChipScreener.exe'
-$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B03-v0\ChipScreener.exe'
+$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B03-v1\ChipScreener.exe'
+$olderDir = (New-Item -Type Directory -Path (Join-Path $root 'v0.6.0-b03.1')).FullName
+$older = Join-Path $olderDir 'ChipScreener.exe'
 function Test-Stored([string]$file,[string]$phase) {
     node "$PSScriptRoot/gui.cjs" $file $out $phase
     if ($LASTEXITCODE) { throw "B03 GUI failure: $phase" }
@@ -61,10 +63,10 @@ function Test-ShellLaunch([string]$file) {
 }
 try {
     if (@(Get-NetFirewallProfile -PolicyStore ActiveStore | Where-Object Enabled -ne 'True').Count) { throw 'Runner firewall is not fully enabled' }
-    foreach ($program in @($exe,$relocated,$runtime,$upgrade,$oldRuntime)) {
+    foreach ($program in @($exe,$relocated,$runtime,$upgrade,$oldRuntime,$older)) {
         New-NetFirewallRule -DisplayName "$group $program" -Group $group -Direction Outbound -Action Block -Profile Any -Program $program -RemoteAddress '0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null
     }
-    if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object { $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }).Count -ne 5) { throw 'Outbound isolation not active' }
+    if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object { $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }).Count -ne 6) { throw 'Outbound isolation not active' }
     if (@(Get-ChildItem $env:LOCALAPPDATA -Force).Count) { throw 'Expected clean app data' }
     $first = Test-ShellLaunch $exe
     $qa = Join-Path $PSScriptRoot 'gui.cjs'
@@ -100,6 +102,20 @@ try {
     if ((Get-FileHash $upgrade).Hash.ToLowerInvariant() -ne $exeHash) { throw 'Replacement is not the ZIP executable' }
     Test-Stored $upgrade 'upgrade-result'
     if (@(Get-ChildItem $upgradeDir -Force).Count -ne 1) { throw 'Extra file in replacement directory' }
+    # Make both distinct versions available side by side without touching the older folder.
+    Copy-Item 'qa-predecessor/ChipScreener.exe' $older
+    Copy-Item $relocated $exe
+    $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'revision-local')).FullName
+    Test-Stored $older 'revision-seed'
+    $store = Join-Path $env:LOCALAPPDATA 'ChipScreener/store-v1'
+    foreach ($kind in @('snapshot','settings')) {
+        $current = Join-Path $store "$kind.current.json"
+        Copy-Item $current "$current.tmp"
+        [IO.File]::WriteAllText($current,'truncated')
+    }
+    Test-Stored $exe 'revision-recover'
+    Test-Stored $exe 'revision-reopen'
+    if ((Get-FileHash $older).Hash.ToLowerInvariant() -ne $oldHash -or (Get-FileHash $exe).Hash.ToLowerInvariant() -ne $exeHash) { throw 'Version folder contents changed' }
     $report = [ordered]@{commit=$env:B03_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
         os=(Get-CimInstance Win32_OperatingSystem).Caption; priorVersionExeSha256=$oldHash; runtimePE='x64'; zeroArgumentWindows=@($first,$second);
         offline='Windows Firewall blocked non-loopback outbound connections for both launchers and the verified GUI executable';

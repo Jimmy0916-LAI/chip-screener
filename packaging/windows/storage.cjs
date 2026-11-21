@@ -13,6 +13,9 @@ function validateConfig(config) {
     requireValue(record(s) && ['200','400','600','1000'].includes(s.band), '策略級距無效');
     for (const key of ['needShares','needPeak','needPrice']) requireValue(typeof s[key] === 'boolean', '條件無效');
     for (const key of ['weeks','minPp','weeklyMin','profitDays','feeBuy','feeSell','slip','warmup','grid','retention','dropPp','lowPosition','peakMin','rangeDays']) requireValue(Number.isFinite(s[key]), '設定不是數值');
+    const ranges = {minPp:[0,20],weeklyMin:[0,10],feeBuy:[0,.03],feeSell:[0,.03],slip:[0,.03],
+      retention:[0,100],dropPp:[0,30],peakMin:[0,60],lowPosition:[5,80],rangeDays:[20,250]};
+    for (const [key,[min,max]] of Object.entries(ranges)) requireValue(s[key]>=min && s[key]<=max, '策略參數超出範圍');
     requireValue(Number.isInteger(s.weeks) && s.weeks >= 1 && s.weeks <= 4 && [150,200,500].includes(s.warmup) && [.75,1,1.25].includes(s.grid), '研究區間無效');
   }
 }
@@ -46,18 +49,20 @@ class LocalStore {
   read(kind) {
     requireValue(Object.hasOwn(validators, kind), '未知儲存類型');
     let damaged = false;
+    let best = {value:null, revision:0, slot:null};
     for (const slot of ['current','mirror','previous']) {
-      let raw;
-      try { raw = fs.readFileSync(this.filename(kind,slot), 'utf8'); }
-      catch (e) { if(e.code === 'ENOENT') continue; throw e; }
       try {
+        const raw = fs.readFileSync(this.filename(kind,slot), 'utf8');
         const {body, sha256} = JSON.parse(raw);
         requireValue(body.schema === 1 && body.kind === kind && natural(body.revision) && body.revision > 0 && checksum(body) === sha256, '校驗失敗');
         validate(kind, body.value);
-        return {value:body.value, revision:body.revision, slot, raw, damaged};
-      } catch { damaged = true; }
+        // Equal revisions use current, then mirror, then previous.
+        if (body.revision > best.revision) best = {value:body.value, revision:body.revision, slot, raw};
+      } catch (error) {
+        if (error.code !== 'ENOENT') damaged = true;
+      }
     }
-    return {value:null,revision:0,slot:null,damaged};
+    return {...best, damaged};
   }
   atomic(kind, slot, raw) {
     const target = this.filename(kind, slot), stage = target + '.tmp';
