@@ -1,16 +1,16 @@
 {
   "name": "chip-screener",
-  "version": "0.6.0-b02.1",
+  "version": "0.6.0-b03.2",
   "private": true,
-  "description": "台股籌碼雷達 B02 離線測試版",
+  "description": "台股籌碼雷達 B03 本機保存測試版",
   "author": "ChipScreener",
   "main": "main.cjs",
   "scripts": { "dist": "electron-builder --win portable --x64 --publish never" },
   "devDependencies": { "electron": "45.4.1", "electron-builder": "26.18.0" },
   "build": {
     "appId": "tw.chipscreener.desktop", "productName": "ChipScreener", "asar": true,
-    "files": ["main.cjs", "preset-dialog.js", "dashboard.html", "package.json"],
+    "files": ["main.cjs", "preload.cjs", "storage.cjs", "preset-dialog.js", "dashboard.html", "package.json"],
     "win": { "target": ["portable"], "signAndEditExecutable": false },
-    "portable": { "artifactName": "ChipScreener.exe", "unpackDirName": "ChipScreener-B02-offline-v1" }
+    "portable": { "artifactName": "ChipScreener.exe", "unpackDirName": "ChipScreener-B03-v2" }
   }
 }

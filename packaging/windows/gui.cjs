@@ -69,9 +69,147 @@ async function click(selector) {
 async function nav(route) {await click(`#nav [data-nav="${route}"]`);await waitFor(()=>evaluate(`document.querySelector('#nav [data-nav="${route}"]')?.classList.contains('active') && !!document.querySelector('#page h1')`),5000,'route '+route);}
 async function screenshot(name) {const {data}=await renderer.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});const png=Buffer.from(data,'base64');assert(png.length>5000 && png.readUInt32BE(0)===0x89504e47);await fs.writeFile(path.join(out,phase+'-'+name+'.png'),png);report.screenshots.push(name+'.png');}
 
+const sampleDay = '2026-09-18';
+const samplePreset = 'B03 保存驗收';
+async function change(selector, value) {
+  await evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});el.value=${JSON.stringify(value)};el.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+}
+async function importWeek(day, name, scale=1) {
+  const file = path.join(out,name+'.csv');
+  const lines = ['資料日期,證券代號,持股分級,人數,股數'];
+  for (let level=1;level<=17;level++) {
+    const holders = level===17 ? 120 : level===16 ? 0 : level;
+    lines.push([day.replaceAll('-',''),'2404',level,holders,(level===17?136000:1000*level)*scale].join(','));
+  }
+  await fs.writeFile(file,lines.join('\r\n'),'utf8');
+  const {root} = await renderer.call('DOM.getDocument');
+  const {nodeId} = await renderer.call('DOM.querySelector',{nodeId:root.nodeId,selector:'#importTDCC'});
+  await renderer.call('DOM.setFileInputFiles',{nodeId,files:[file]});
+}
+async function seedStorage() {
+  await nav('settings');
+  await change('[data-setting="minPp"]','0.77');
+  await click('#applySetting');
+  await nav('settings');
+  await click('#savePreset');
+  await renderer.call('Input.insertText',{text:samplePreset});
+  await click('dialog[open] button');
+  await nav('data');
+  await importWeek(sampleDay,'B03-合成快照');
+  await waitFor(()=>evaluate("document.querySelector('#importStatus')?.textContent.includes('1 檔通過')"),6000,'snapshot persisted');
+}
+async function verifyStored() {
+  await nav('settings');
+  const config = await evaluate(`({
+    draft:document.querySelector('[data-setting="minPp"]').value,
+    applied:[...document.querySelectorAll('.feature')].find(el=>el.innerText.includes('目前已套用'))?.innerText,
+    preset:[...document.querySelectorAll('tbody tr')].find(el=>el.innerText.includes('B03 保存驗收'))?.innerText
+  })`);
+  assert.equal(config.draft,'0.77');
+  assert(config.applied?.includes('0.77 pp') && config.preset?.includes('0.77 pp'),JSON.stringify(config));
+  await screenshot('stored-settings');
+  await nav('data');
+  const info=await evaluate("document.querySelector('#importStatus').textContent");
+  assert(info.includes(sampleDay) && info.includes('B03-合成快照.csv') && info.includes('本機快照 1 期'), info);
+  const version=phase==='upgrade-source'?'0.6.0-b03.1':'0.6.0-b03.2';
+  assert(info.includes(version),info);
+  if(phase==='recovered') assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
+  await screenshot('stored-snapshot');
+  await nav('stock');
+  await change('#daySelect',sampleDay);
+  const row=await evaluate(`document.querySelector('#daySelect').closest('.card').querySelectorAll('tbody tr')[1].innerText`);
+  assert(row.includes('54,000') && row.includes('136,000'),row);
+  await screenshot('stored-stock');
+  report.snapshots.persistence={config,info,sampleDay,row};
+}
+async function verifyWriteFailure() {
+  const store=path.join(process.env.LOCALAPPDATA,'ChipScreener','store-v1');
+  const stage=path.join(store,'snapshot.current.json.tmp');
+  await fs.mkdir(stage);
+  try {
+    await nav('data'); await importWeek('2026-09-25','B03-中斷寫入');
+    await waitFor(()=>evaluate("document.querySelector('#importStatus')?.textContent.includes('本機寫入失敗')"),8000,'visible write failure');
+    report.snapshots.rejectedWrite = await evaluate("document.querySelector('#importStatus').textContent");
+    await nav('stock');
+    assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-25\"]')"),false);
+  } finally { await fs.rmdir(stage); }
+  const stageConfig=path.join(store,'settings.current.json.tmp');
+  await fs.mkdir(stageConfig);
+  try {
+    await nav('settings');
+    await change('[data-setting="minPp"]','1.11');
+    assert.equal(await evaluate("document.querySelector('[data-setting=minPp]').value"),'0.77');
+  } finally { await fs.rmdir(stageConfig); }
+}
+
+const revisionDays = ['2026-09-04','2026-09-11','2026-09-18','2026-09-25'];
+const revisionThresholds = ['0.41','0.62','0.83','0.94'];
+async function saveRevision(index) {
+  const day=revisionDays[index];
+  await nav('settings');
+  await change('[data-setting="minPp"]',revisionThresholds[index]);
+  await nav('data');
+  await importWeek(day,'B03-復原-'+day,index+1);
+  await waitFor(()=>evaluate(`document.querySelector('#importStatus').textContent.includes(${JSON.stringify(day+'：1 檔通過')})`),6000,'import '+day);
+}
+async function seedMissedMirrors() {
+  await saveRevision(0);
+  const dir=path.join(process.env.LOCALAPPDATA,'ChipScreener','store-v1');
+  const blocks=['settings','snapshot'].map(kind=>path.join(dir,kind+'.mirror.json.tmp'));
+  for (const stage of blocks) await fs.mkdir(stage);
+  try { await saveRevision(1); await saveRevision(2); }
+  finally { for (const stage of blocks) await fs.rmdir(stage); }
+  for (const kind of ['settings','snapshot']) {
+    const revisions={};
+    for (const slot of ['current','mirror','previous']) {
+      const file=path.join(dir,kind+'.'+slot+'.json');
+      revisions[slot]=JSON.parse(await fs.readFile(file,'utf8')).body.revision;
+    }
+    assert.deepEqual(revisions,{current:3,mirror:1,previous:2});
+    report.snapshots[kind]=revisions;
+  }
+}
+async function verifyRevision(index) {
+  const day=revisionDays[index];
+  await nav('settings');
+  const threshold=await evaluate("document.querySelector('[data-setting=minPp]').value");
+  assert.equal(threshold,revisionThresholds[index]);
+  await screenshot('revision-'+(index+1)+'-settings');
+  await nav('data');
+  const info=await evaluate("document.querySelector('#importStatus').textContent");
+  assert(info.includes('0.6.0-b03.2') && info.includes(day),info);
+  if(index===1) assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
+  await nav('stock');
+  assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-18\"]')"),false);
+  await change('#daySelect',day);
+  const row=await evaluate("document.querySelector('#daySelect').closest('.card').querySelectorAll('tbody tr')[1].innerText");
+  assert(row.includes(index===1?'108,000':'216,000'),row);
+  await screenshot('revision-'+(index+1)+'-stock');
+  report.snapshots[day]={threshold,info,row};
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if (phase.startsWith('revision-')) {
+    if (phase === 'revision-seed') await check('two real mirror failures',seedMissedMirrors);
+    if (phase === 'revision-recover') {
+      await check('visible newest valid settings and snapshot',()=>verifyRevision(1));
+      await check('save after recovery',()=>saveRevision(3));
+    }
+    if (phase === 'revision-reopen') await check('visible new values after restart',()=>verifyRevision(3));
+    assert.deepEqual(report.rendererErrors,[]);
+    console.log(phase,JSON.stringify(report.snapshots));
+    return;
+  }
+  if (phase !== 'first' && phase !== 'moved') {
+    if (phase === 'upgrade-source' || phase === 'seed') await check('save through UI',seedStorage);
+    await check('read settings, scheme and stock data from screen',verifyStored);
+    if(phase === 'write-failure') await check('failed writes preserve snapshot and settings',verifyWriteFailure);
+    assert.deepEqual(report.rendererErrors,[]);
+    console.log(phase,JSON.stringify(report.snapshots));
+    return;
+  }
   for (const route of routes) {
     await check(route, async () => {
       await nav(route);
