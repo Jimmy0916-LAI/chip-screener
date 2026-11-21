@@ -1,0 +1,185 @@
+name: B04 weekly screen and comparison
+on:
+  pull_request:
+    branches: [b03/local-storage]
+    paths:
+      - 'packaging/windows/**'
+      - '.github/workflows/b04-windows.yml'
+      - 'baseline/v0.5/**'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.delta.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - id: delta
+        env:
+          PREVIOUS: ${{ github.event.before }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          build=true
+          if [[ "$ACTION" == synchronize ]] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null && git diff --quiet "$PREVIOUS" HEAD -- packaging/windows baseline/v0.5 chip-screener-phase1.zip .github/workflows/b04-windows.yml; then build=false; fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+  package:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 18
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      id: ${{ steps.upload.outputs.artifact-id }}
+      digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify frozen Python research and the B01 frontend on Windows
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          python -X utf8 baseline/v0.5/verify.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $project = Join-Path $env:RUNNER_TEMP 'frozen'
+          Expand-Archive -LiteralPath chip-screener-phase1.zip -DestinationPath $project
+          Push-Location $project
+          try { python -X utf8 -m unittest discover -s tests -v; if ($LASTEXITCODE) { exit $LASTEXITCODE } } finally { Pop-Location }
+      - name: Build one portable EXE with its own x64 Chromium
+        working-directory: packaging/windows
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          python -X utf8 build_dashboard.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node weekly.test.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node --test storage.test.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run dist
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/ChipScreener.exe -PathType Leaf)) { throw 'Expected portable EXE' }
+      - id: meta
+        shell: pwsh
+        run: |
+          $version = (Get-Content packaging/windows/package.json -Raw | ConvertFrom-Json).version
+          if ($version -cnotmatch '^\d+\.\d+\.\d+-b04\.\d+$') { throw 'Invalid B04 package version' }
+          "version=v$version" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ChipScreener-${{ steps.meta.outputs.version }}-Windows-x64
+          path: packaging/windows/dist/ChipScreener.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+  accept:
+    needs: package
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      ZIP_NAME: ChipScreener-${{ needs.package.outputs.version }}-Windows-x64.zip
+      B04_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: packaging/windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download the user-facing Actions ZIP intact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ needs.package.outputs.id }}
+        run: |
+          curl.exe --fail --silent --show-error --location --retry 4 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/$env:ARTIFACT_ID/zip" --output "$env:RUNNER_TEMP/$env:ZIP_NAME"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Retrieve previously accepted B03.2 ZIP
+        id: predecessor
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = "$env:RUNNER_TEMP/b03.2.zip"
+          curl.exe --fail --silent --show-error --location --retry 3 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/14716790907/zip" --output $zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ((Get-FileHash $zip).Hash -ne 'fbe0501a3346ed49d71f83c76408187af7fb24499a9579f8ee7f0cad6b000449') { throw 'Predecessor ZIP digest mismatch' }
+          Expand-Archive -LiteralPath $zip -DestinationPath qa-predecessor
+      - name: Check out B03.2 source if its expiring artifact is unavailable
+        if: steps.predecessor.outcome == 'failure'
+        uses: actions/checkout@v4
+        with:
+          ref: 00afe6b4468581be39ca81002b615ce4494ede9c
+          path: old-source
+          persist-credentials: false
+      - name: Rebuild the pinned B03.2 predecessor
+        if: steps.predecessor.outcome == 'failure'
+        working-directory: old-source/packaging/windows
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          python -X utf8 build_dashboard.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run dist
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory "$env:GITHUB_WORKSPACE/qa-predecessor" -Force | Out-Null
+          Copy-Item dist/ChipScreener.exe "$env:GITHUB_WORKSPACE/qa-predecessor/ChipScreener.exe" -Force
+      - name: Verify actual ZIP offline, saved data, relocation, replacement and recovery
+        shell: pwsh
+        env:
+          EXPECTED: ${{ needs.package.outputs.digest }}
+        run: |
+          ./packaging/windows/accept.ps1 -Zip "$env:RUNNER_TEMP/$env:ZIP_NAME" -ExpectedHash $env:EXPECTED
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: B04-${{ needs.package.outputs.version }}-Windows-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  tag:
+    needs: [package, accept]
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'b04/weekly-screen'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Record and verify the tested commit tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+          TESTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          ref="repos/$GITHUB_REPOSITORY/git/ref/tags/$VERSION"
+          if ! gh api "$ref" --silent 2>/dev/null; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$VERSION" -f sha="$TESTED_SHA" --silent
+          fi
+          actual=$(gh api "$ref" --jq .object.sha)
+          test "$actual" = "$TESTED_SHA"
+          echo "Verified refs/tags/$VERSION at $actual"
