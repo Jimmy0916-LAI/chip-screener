@@ -1,7 +1,12 @@
 // Statistical weeks and knowledge times are independent inputs. All consumers use this engine.
 const tradingWeeks = new Map();
-for (const day of D.sessions) tradingWeeks.set(monday(day),day);
-const weekEnds = [...tradingWeeks.values()];
+let weekEnds;
+function rebuildWeeks() {
+  tradingWeeks.clear();
+  for (const day of D.sessions) tradingWeeks.set(monday(day),day);
+  weekEnds=[...tradingWeeks.values()];
+}
+rebuildWeeks();
 function nextOpen(known) {
   const stamp = Date.parse(known);
   const day = D.sessions.find(d => Date.parse(d+'T09:00:00+08:00') > stamp);
@@ -17,7 +22,7 @@ function evaluation(cfg,end=state.win,asOf=state.asOf||evidenceTime(end)) {
   if (!end) context.issue=state.selection?.skipped[0]?.reason || '尚無已保存的統計週';
   else if (!Number.isFinite(Date.parse(asOf))) context.issue='缺少可驗證的評估時點';
   else if (!D.observed[end] && D.series[end]) context.issue=end+' 公布時點待證';
-  else if (index<0 || end >= D.sessions.at(-1)) context.issue=end+' 週末交易日曆待核';
+  else if (index<0 || (end===D.sessions.at(-1) && new Date(end).getUTCDay()!==5)) context.issue=end+' 週末交易日曆待核';
   else if (dates.length!==cfg.weeks+1) context.issue='可驗證交易週不足';
   else {
     for (const d of dates) {

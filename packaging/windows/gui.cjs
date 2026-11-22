@@ -111,7 +111,7 @@ async function verifyStored() {
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
   assert(info.includes(sampleDay) && info.includes('B03-合成快照.csv') && info.includes('本機快照 1 期'), info);
-  const version=phase==='upgrade-source'?'0.6.0-b04.1':'0.6.0-b04.2';
+  const version=phase==='upgrade-source'?'0.6.0-b04.2':'0.6.0-b05.1';
   assert(info.includes(version),info);
   if(phase==='recovered') assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await screenshot('stored-snapshot');
@@ -177,7 +177,7 @@ async function verifyRevision(index) {
   await screenshot('revision-'+(index+1)+'-settings');
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
-  assert(info.includes('0.6.0-b04.2') && info.includes(day),info);
+  assert(info.includes('0.6.0-b05.1') && info.includes(day),info);
   if(index===1) assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await nav('stock');
   assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-18\"]')"),false);
@@ -248,11 +248,6 @@ async function pendingWeekTest() {
   }
   const initial=await readWindow();
   report.snapshots.initial=initial;
-  if(phase==='pending-old-reopen') {
-    assert.equal(initial.week,pendingDay);
-    assert.equal(initial.insufficient,'1,985');
-    return;
-  }
   assert.equal(initial.week,'2026-11-13');
   assert.equal(initial.pass,'268');
   assert(initial.notice.includes(pendingDay) && initial.notice.includes('公布時點待證'));
@@ -278,9 +273,57 @@ async function pendingWeekTest() {
   report.snapshots.raw={date:pendingDay,stored,row:raw.slice(-500)};
 }
 
+async function liveOfficialTest() {
+  async function homeState() {
+    return evaluate(`(()=>{
+      const metrics=Object.fromEntries([...document.querySelectorAll('.metric')].map(el=>[el.querySelector('.label').textContent,el.querySelector('.value').textContent]));
+      return {day:document.querySelector('#feedDay').innerText,notice:document.querySelector('#weekSelection').innerText,
+        week:state.win,pass:metrics['所選窗口通過數'],unknown:metrics['資料／條件待證'],status:document.querySelector('#feedStatus').innerText};
+    })()`);
+  }
+  const before=await homeState();report.snapshots.before=before;
+  if(phase==='live-auto' || phase==='live-pin') {
+    assert.equal(before.week,'2026-11-13');assert.equal(before.pass,'268');await screenshot('before');
+  }
+  if(phase==='live-pin') {
+    await nav('screen');await change('#windowSelect','2026-10-30');
+  }
+  await waitFor(()=>evaluate("!!checkedAt && !feedBusy"),135000,'official check completion');
+  if(phase==='live-pin') assert.equal(await evaluate("document.querySelector('#windowSelect').value"),'2026-10-30');
+  await nav('home');
+  const after=await homeState();report.snapshots.after=after;
+  await record();
+  assert(after.day>'2026-11-13',JSON.stringify(after));
+  const official=await evaluate(`(()=>{const d=Object.keys(officialWeeks).sort().at(-1);const w=officialWeeks[d];const c=evaluation(applied,d,evidenceTime(d));const t=tally(scan(applied,c));return {day:d,source:w.quality,calendar:D.sessions.at(-1),months:Object.values(officialMonths).map(m=>({month:m.month,source:m.source,sha256:m.sha256})),dates:c.dates,issue:c.issue||'',...t,appliedWeek:state.win,baseline: frozenLast};})()`);
+  report.snapshots.official=official;await record();
+  assert.equal(official.source.raw_source,'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5');
+  assert.equal(official.source.publication,null);
+  assert.equal(official.source.valid+official.source.invalid,1985);
+  if(phase==='live-auto'){
+    assert(after.status.includes('有新資料'),after.status);
+    if(official.day==='2026-11-20') {assert.equal(official.issue,'');assert.equal(after.week,official.day);assert(official.unknown<1985);}
+    else if(!official.issue) assert.equal(after.week,official.day);
+    await fs.writeFile(path.join(out,'first-official.json'),JSON.stringify(official,null,2));
+  }
+  if(['live-repeat','live-offline'].includes(phase)){
+    const first=JSON.parse(await fs.readFile(path.join(out,'first-official.json'),'utf8'));
+    assert.deepEqual(official,first);
+    assert.equal(before.day,official.day);
+    assert(after.status.includes(phase==='live-repeat'?'已是最新':'離線'),after.status);
+  }
+  await screenshot('home');
+  await nav('data');assert((await evaluate("document.querySelector('#feedPanel').innerText")).includes(official.source.sha256));
+  await screenshot('provenance');await nav('screen');
+  const displayed=await evaluate("({date:document.querySelector('#windowSelect').value,values:[...document.querySelectorAll('.metric .value')].map(x=>x.textContent)})");
+  if(after.week===official.day) {assert.equal(displayed.date,official.day);assert.equal(displayed.values[0].replaceAll(',',''),String(official.pass));}
+  report.snapshots.screen=displayed;
+  await screenshot('screen');console.log(phase,JSON.stringify(report.snapshots));
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if(phase.startsWith('live-')) {await check(phase,liveOfficialTest);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('pending-')) { await check(phase,pendingWeekTest); assert.deepEqual(report.rendererErrors,[]); console.log(phase,JSON.stringify(report.snapshots)); return; }
   if(phase==='weekly') { await check('weekly screen, stock and downloaded comparison CSV',verifyWeekly);console.log(phase,JSON.stringify(report.snapshots));assert.deepEqual(report.rendererErrors,[]);return; }
   if (phase.startsWith('revision-')) {

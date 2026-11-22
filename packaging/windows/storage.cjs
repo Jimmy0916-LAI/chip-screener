@@ -36,7 +36,8 @@ function validateWeeks(weeks) {
   }
 }
 
-const validators = {settings: validateConfig, snapshot: validateWeeks};
+const {validateOfficial, validateCalendar} = require('./tdcc.cjs');
+const validators = {settings: validateConfig, snapshot: validateWeeks, official:validateOfficial, calendar:validateCalendar};
 function validate(kind, value) {
   requireValue(Object.hasOwn(validators, kind), '未知儲存類型');
   validators[kind](value);

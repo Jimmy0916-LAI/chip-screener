@@ -2,7 +2,7 @@ param([Parameter(Mandatory)][string]$Zip, [Parameter(Mandatory)][string]$Expecte
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = Join-Path $env:RUNNER_TEMP ('b03-' + [guid]::NewGuid().ToString('N'))
-$extract = Join-Path $root 'v0.6.0-b04.2'
+$extract = Join-Path $root 'v0.6.0-b05.1'
 $move = Join-Path $root '台股 移動 測試'
 $out = (New-Item -Type Directory -Path 'evidence' -Force).FullName
 $zipPath = (Resolve-Path $Zip).Path
@@ -20,12 +20,12 @@ $relocated = Join-Path $dest 'ChipScreener.exe'
 $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'fresh-local')).FullName
 $env:TEMP = (New-Item -Type Directory -Path (Join-Path $root 'runtime-temp')).FullName
 $env:TMP = $env:TEMP
-$runtime = Join-Path $env:TEMP 'ChipScreener-B04-v2\ChipScreener.exe'
+$runtime = Join-Path $env:TEMP 'ChipScreener-B05-v1\ChipScreener.exe'
 $group = 'B03-' + [guid]::NewGuid().ToString('N')
 $upgradeDir = (New-Item -Type Directory -Path (Join-Path $root '同位置 換版')).FullName
 $upgrade = Join-Path $upgradeDir 'ChipScreener.exe'
-$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B04-v1\ChipScreener.exe'
-$olderDir = (New-Item -Type Directory -Path (Join-Path $root 'v0.6.0-b04.1')).FullName
+$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B04-v2\ChipScreener.exe'
+$olderDir = (New-Item -Type Directory -Path (Join-Path $root 'v0.6.0-b04.2')).FullName
 $older = Join-Path $olderDir 'ChipScreener.exe'
 function Test-Stored([string]$file,[string]$phase) {
     node "$PSScriptRoot/gui.cjs" $file $out $phase
@@ -125,7 +125,16 @@ try {
     $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'new-pending')).FullName
     Test-Stored $exe 'pending-new-seed'
     Test-Stored $exe 'pending-new-reopen'
-    $report = [ordered]@{commit=$env:B04_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
+    # Use the normal startup path on the exact deliverable. Keep the unproven manual week on disk.
+    Get-NetFirewallRule -Group $group | Disable-NetFirewallRule
+    Test-Stored $exe 'live-auto'
+    Test-Stored $exe 'live-repeat'
+    Get-NetFirewallRule -Group $group | Enable-NetFirewallRule
+    Test-Stored $exe 'live-offline'
+    Get-NetFirewallRule -Group $group | Disable-NetFirewallRule
+    $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'live-pinned')).FullName
+    Test-Stored $exe 'live-pin'
+    $report = [ordered]@{commit=$env:B05_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
         os=(Get-CimInstance Win32_OperatingSystem).Caption; priorVersionExeSha256=$oldHash; runtimePE='x64'; zeroArgumentWindows=@($first,$second);
         offline='Windows Firewall blocked non-loopback outbound connections for both launchers and the verified GUI executable';
         movedTo=$relocated; windows11Physical='not tested'}

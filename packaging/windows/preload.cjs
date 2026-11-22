@@ -1,6 +1,10 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 if(location.href === 'radar://desktop/index.html') {
+  contextBridge.exposeInMainWorld('officialFeed',{
+    read:()=>ipcRenderer.sendSync('official:read'),
+    update:()=>ipcRenderer.invoke('official:update')
+  });
   contextBridge.exposeInMainWorld('desktopStore',{
     read: kind => ipcRenderer.sendSync('storage:read',kind),
     save: (kind,value) => ipcRenderer.sendSync('storage:save',kind,value)
