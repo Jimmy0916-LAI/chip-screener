@@ -1,0 +1,23 @@
+name: B05 TDCC update
+on:
+  pull_request:
+    branches: [b04/weekly-screen]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: windows-2022
+    steps:
+      - shell: pwsh
+        name: Inspect official bulk file and monthly trading dates
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $sources = @('https://opendata.tdcc.com.tw/getOD.ashx?id=1-5','https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?date=20261101&response=json','https://openapi.tdcc.com.tw/tdcc-opendata-api-docs')
+          foreach ($url in $sources) {
+            try {
+              Invoke-WebRequest $url -OutFile source.tmp -TimeoutSec 45
+              $body = Get-Content source.tmp -Raw -Encoding utf8
+              if ($url -like '*api-docs') { ($body | ConvertFrom-Json).paths.PSObject.Properties.Name | Where-Object { $_ -match '1-5|dispersion|distribution|stockHolder' } }
+              else { Write-Host $url $body.Substring(0,[Math]::Min($body.Length,320)); if ($url -like '*FMTQIK*') { Write-Host ($body | ConvertFrom-Json).data[-1][0] } }
+            } catch { Write-Host $url $_.Exception.Message }
+          }
