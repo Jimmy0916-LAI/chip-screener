@@ -1,5 +1,7 @@
 """Build the desktop dashboard from the frozen browser sources and small desktop hooks."""
 from pathlib import Path
+import json
+from weekly_evidence import enrich
 import subprocess
 import tempfile
 
@@ -17,5 +19,9 @@ adapter = (root / 'desktop-state.js').read_text(encoding='utf-8')
 assert js.count('/* DESKTOP_STORAGE */') == 1
 js = js.replace('/* DESKTOP_STORAGE */', adapter)
 html = (source / 'app.template.html').read_text(encoding='utf-8')
-html = html.replace('__APP_JS__',js).replace('__DATA_JSON__',(source / 'web_data.json').read_text(encoding='utf-8'))
+for marker, filename in [('/* WEEKLY_ENGINE */','weekly.js'),('/* WEEKLY_VIEWS */','weekly-views.js')]:
+    assert js.count(marker) == 1
+    js = js.replace(marker,(root / filename).read_text(encoding='utf-8'))
+data = enrich(json.loads((source / 'web_data.json').read_bytes()), root.parents[1] / 'chip-screener-phase1.zip')
+html = html.replace('__APP_JS__',js).replace('__DATA_JSON__',json.dumps(data,ensure_ascii=False,separators=(',',':')))
 (root / 'dashboard.html').write_bytes(html.encode('utf-8'))

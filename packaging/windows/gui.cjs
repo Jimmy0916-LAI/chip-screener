@@ -79,7 +79,7 @@ async function importWeek(day, name, scale=1) {
   const lines = ['資料日期,證券代號,持股分級,人數,股數'];
   for (let level=1;level<=17;level++) {
     const holders = level===17 ? 120 : level===16 ? 0 : level;
-    lines.push([day.replaceAll('-',''),'2404',level,holders,(level===17?136000:1000*level)*scale].join(','));
+    lines.push([day.replaceAll('-',''),'2404',level,holders,(level===17?136000:level===16?0:level===1?17000:1000*level)*scale].join(','));
   }
   await fs.writeFile(file,lines.join('\r\n'),'utf8');
   const {root} = await renderer.call('DOM.getDocument');
@@ -111,7 +111,7 @@ async function verifyStored() {
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
   assert(info.includes(sampleDay) && info.includes('B03-合成快照.csv') && info.includes('本機快照 1 期'), info);
-  const version=phase==='upgrade-source'?'0.6.0-b03.1':'0.6.0-b03.2';
+  const version=phase==='upgrade-source'?'0.6.0-b04.1':'0.6.0-b04.2';
   assert(info.includes(version),info);
   if(phase==='recovered') assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await screenshot('stored-snapshot');
@@ -177,7 +177,7 @@ async function verifyRevision(index) {
   await screenshot('revision-'+(index+1)+'-settings');
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
-  assert(info.includes('0.6.0-b03.2') && info.includes(day),info);
+  assert(info.includes('0.6.0-b04.2') && info.includes(day),info);
   if(index===1) assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await nav('stock');
   assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-18\"]')"),false);
@@ -188,9 +188,101 @@ async function verifyRevision(index) {
   report.snapshots[day]={threshold,info,row};
 }
 
+async function readExport(selector, filename) {
+  const dir=path.join(out,'weekly-csv');
+  await fs.mkdir(dir,{recursive:true});
+  await browser.call('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:dir});
+  await click(selector);
+  const file=path.join(dir,filename);
+  const csv=await waitFor(()=>fs.readFile(file,'utf8'),20000,'CSV download '+filename);
+  const items=await evaluate(`(()=>{const [keys,...rows]=parseCSV(${JSON.stringify(csv.replace(/^\uFEFF/,''))});return {count:rows.length,unique:new Set(rows.map(r=>r[0])).size,selected:Object.fromEntries(keys.map((k,i)=>[k,rows.find(r=>r[0]==='2330')[i]])),states:rows.reduce((counts,r)=>{const k=r[keys.indexOf('B_state')];counts[k]=(counts[k]||0)+1;return counts},{})}})()`);
+  assert.equal(items.count,1985);assert.equal(items.unique,1985);
+  return items;
+}
+async function verifyWeekly() {
+  await nav('screen');
+  const screen=await readExport('#exportScreener','chip_screener_2026-11-13_400.csv');
+  await evaluate("const q=document.querySelector('#searchCode');q.value='2330';q.dispatchEvent(new Event('input',{bubbles:true}));true");
+  const stockRow=await evaluate("document.querySelector('tr[data-stock=\"2330\"]').innerText");
+  assert(stockRow.includes(screen.selected.state) && stockRow.includes(screen.selected.reason));
+  assert.equal(screen.selected.state,'比例未連升');
+  await click('tr[data-stock="2330"]');
+  const signal=await evaluate("document.querySelector('[data-signal-band=\"400\"]').innerText");
+  assert(signal.includes(screen.selected.state) && signal.includes('-37,973,336'));
+  assert(await evaluate("document.querySelector('#page').innerText.includes('5,899')"));
+  await screenshot('2330');
+  await nav('settings');await change('[data-setting="weeks"]','4');
+  await nav('backtest');await change('#windowSelect','2026-10-30');await change('#compareCode','2330');
+  const visible=await evaluate("document.querySelector('#compareResult').innerText");
+  const csv=await readExport('#exportCompare','chip_AB_signal_compare.csv');
+  const row=csv.selected;
+  assert.equal(row.window,'2026-10-30');
+  assert.equal(row.as_of,'2026-10-31T15:41:17+08:00');
+  assert.equal(csv.states['資料不足'],1985);
+  assert.equal(row.B_gain_pp,'');
+  assert(visible.includes('A '+row.A_state+' · '+row.A_reason) && visible.includes('B '+row.B_state+' · '+row.B_reason));
+  assert(row.B_reason.includes('缺週') && !row.B_dates.includes('11-13'));
+  await screenshot('same-cutoff');
+  await change('#asOf','2026-10-30T13:30');
+  const early=await evaluate("document.querySelector('#compareResult').innerText");
+  assert(early.includes('A 資料不足') && early.includes('尚無公開證據'));
+  await nav('stock');
+  assert(!(await evaluate("document.querySelector('[data-signal-band=\"400\"]').innerText")).includes('-37,973,336'));
+  report.snapshots.weekly={screen,stockRow,signal,comparison:csv,visible,early};
+}
+
+async function pendingWeekTest() {
+  const pendingDay = '2026-11-20';
+  if (phase.endsWith('-seed')) {
+    await nav('data');
+    await importWeek(pendingDay,'B04-待證快照');
+    await waitFor(()=>evaluate("document.querySelector('#importStatus').textContent.includes('2026-11-20：1 檔通過')"));
+    return;
+  }
+  await nav('screen');
+  async function readWindow() {
+    return evaluate(`(()=>{
+      const metrics=Object.fromEntries([...document.querySelectorAll('.metric')].map(el=>[el.querySelector('.label').textContent,el.querySelector('.value').textContent]));
+      return {week:document.querySelector('#windowSelect').value,pass:metrics['符合現行條件'],insufficient:metrics['資料／複合條件待證'],notice:document.querySelector('#weekSelection')?.textContent};
+    })()`);
+  }
+  const initial=await readWindow();
+  report.snapshots.initial=initial;
+  if(phase==='pending-old-reopen') {
+    assert.equal(initial.week,pendingDay);
+    assert.equal(initial.insufficient,'1,985');
+    return;
+  }
+  assert.equal(initial.week,'2026-11-13');
+  assert.equal(initial.pass,'268');
+  assert(initial.notice.includes(pendingDay) && initial.notice.includes('公布時點待證'));
+  await screenshot('strict-default');
+  await nav('data');
+  const stored=await evaluate("document.querySelector('#importStatus').textContent");
+  assert(stored.includes(pendingDay) && stored.includes('B04-待證快照.csv'),stored);
+  await nav('stock');await change('#daySelect',pendingDay);
+  const raw=await evaluate("document.querySelector('#daySelect').closest('.card').innerText");
+  assert(raw.includes('54,000') && raw.includes('未知'),raw);
+  assert.equal(await evaluate("document.querySelector('#windowSelect').value"),'2026-11-13');
+  await screenshot('pending-raw');
+  await nav('screen');await change('#windowSelect',pendingDay);
+  await nav('backtest');await nav('screen');
+  const explicit=await readWindow();
+  assert.equal(explicit.week,pendingDay);assert.equal(explicit.pass,'0');
+  assert.equal(explicit.insufficient,'1,985');
+  assert(explicit.notice.includes('公布時點待證'),explicit.notice);
+  await screenshot('explicit-week');
+  await click('#useDefaultWeek');
+  assert.deepEqual(await readWindow(),initial);
+  report.snapshots.explicit=explicit;
+  report.snapshots.raw={date:pendingDay,stored,row:raw.slice(-500)};
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if(phase.startsWith('pending-')) { await check(phase,pendingWeekTest); assert.deepEqual(report.rendererErrors,[]); console.log(phase,JSON.stringify(report.snapshots)); return; }
+  if(phase==='weekly') { await check('weekly screen, stock and downloaded comparison CSV',verifyWeekly);console.log(phase,JSON.stringify(report.snapshots));assert.deepEqual(report.rendererErrors,[]);return; }
   if (phase.startsWith('revision-')) {
     if (phase === 'revision-seed') await check('two real mirror failures',seedMissedMirrors);
     if (phase === 'revision-recover') {
@@ -221,7 +313,7 @@ async function main() {
         assert(text.includes('漢唐') && text.includes('796,897') && text.includes('579,084'));
         const charts = await evaluate("Array.from(document.querySelectorAll('#page svg[role=img]'), s=>s.getAttribute('aria-label'))");
         assert(charts.some(x=>x?.includes('集保')) && charts.some(x=>x?.includes('成交量')));
-        const delta = await evaluate("calculate('2404','400',windows(2).at(-1),DEFAULT).deltaShares");
+        const delta = await evaluate("weeklySignal('2404',evaluation(DEFAULT)).deltaShares");
         assert.deepEqual(delta,[796897,579084]);
         report.snapshots[route] = {title,charts,delta};
       }

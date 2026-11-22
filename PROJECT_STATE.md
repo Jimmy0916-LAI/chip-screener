@@ -1,6 +1,6 @@
 # 台股籌碼雷達專案狀態
 
-**B03 測試版 v0.6.0-b03.2 已通過 Windows Server 2022 成品驗收，Windows 11 實機待驗。PR #4 待審。**
+**B03.2 已獲接受。B04 修補版 v0.6.0-b04.2 通過 Windows Server 2022 成品驗收，Windows 11 實機雙擊待驗。PR #5 待審。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)
 
@@ -108,6 +108,40 @@ Windows Server 2022 Datacenter x64 實測通過。在獨立 Runner 下載同一�
 | 畫面復原與再次保存 | 新版顯示第 2 版策略草稿 0.62 pp，合成測試期 2026-09-11 的漢唐 400 張線為 108,000 股。再存新內容並重開後，草稿為 0.94 pp，2026-09-25 為 216,000 股，損毀的 09-18 期未出現。 |
 | 原驗收 | 全新資料離線啟動、單獨移至中文空格資料夾、七頁、兩週增股 796,897／579,084 股、方案、寫入失敗、主檔損毀、舊版換新版皆通過。舊版 EXE 的 SHA-256 與上次交付相同，另已驗證兩個版本資料夾中的 EXE 保持原雜湊。 |
 
+## B04｜大戶週篩選與同窗 A/B 校正
+
+[版本測試 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44931057553/artifacts/14717776811) · [Windows 成品驗收](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44931057553/job/136928452318) · [截圖、原始匯出 CSV 與 JSON](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44931057553/artifacts/14718166245) · [B04 PR #5](https://github.com/Jimmy0916-LAI/chip-screener/pull/5)
+
+以 PR #4 的最新文件提交 `c23299c` 和已驗收的 B03.2 程式 `00afe6b` 為基準。[程式提交 `faf3047fbe1ba0debca15318c1ede63e789482f5`](https://github.com/Jimmy0916-LAI/chip-screener/commit/faf3047fbe1ba0debca15318c1ede63e789482f5) 已由 CI 建置、驗收及[標記 v0.6.0-b04.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b04.1)。ZIP 根目錄僅含 `ChipScreener.exe`，SHA-256 為 `c4f080823b295d77e99d11cbc50244d257c91b4e14ba1132ab4542bbf44f0e78`（ZIP）與 `5e5ebf9f1f68594acdb1ccad6f0ae245d205b0c8bbdf79025c2a3f76ccf97214`（EXE）。測試 ZIP 下載期限為台北時間 2026-12-22 01:40:35。解壓至獨立的 `v0.6.0-b04.1` 資料夾，同帳號沿用原 store-v1。
+
+| 項目 | 已核對結果 |
+|---|---|
+| 範圍與資料驗證 | 1985 檔為 11/13 備份的固定比較名單，歷史逐日上市櫃母體待證。建置使用凍結包 6 期 CSV，逐檔核對日期、級距、股數與戶數，以及原檔 SHA-256；最新一期與官方原檔逐位元相同。算術對帳採 1–15 級股數合計減第 16 級差異股數，等於第 17 級；戶數由 1–15 級直接合計。實際大戶級距的分子只包含相應的 1–15 級持股。異常或缺列仍有原因。 |
+| 最新預設 400 張／兩週 | 11/13 統計，按 11/14 16:15:45 台北公開備份證據評估。1985 檔中 268 通過、1692 算術條件未達、25 資料不足（22 檔分母異動、3 檔基礎數值待核）。原漏列 29 檔均有結果。2330 第 16 級 5899 股、3 戶，400 張線兩週為 −37,973,336、−10,706,718 股；2404 為 +796,897、+579,084 股。 |
+| 交易日與公開時點 | 封存 TWSE FMTQIK 月檔和日曆備援逐日相符，共 697 個交易日。窗口依實際交易週，首個可觀察開盤依台北時間求得。10/22 期的 10/23 公開備份後，下一個核實開盤為 10/27 09:00。資料未可證、未知、缺週或日曆覆蓋不足均有對應提示。公開備份時間是已能證明取得的時點，官方首發秒數仍待證。 |
+| 10/30 反例 | A 兩週使用 10/16、10/22、10/30；B 四週缺 10/02 等資料，1985 檔皆標不足，匯出增幅空白。兩側評估時點同為 10/31 15:41:17。切至 10/30 13:30，A 也顯示尚無公開證據。兩份 CSV 各含 1985 個不重複代號，對照畫面與 2330 逐股欄位。 |
+| 成品回歸 | 獨立 Windows Server 2022 Datacenter x64 Runner 下載原始 ZIP，比對雜湊，驗證離線單檔開啟、七頁、中文空格路徑搬移、B03 設定與快照跨版保存、寫入失敗、備份損毀與再次保存。第 2 版復原畫面 0.62 pp／108,000 股，重開後新值 0.94 pp／216,000 股。Windows 11 實機待驗。 |
+
+來源與程式：[政府持股分級表](https://schema.nat.gov.tw/gsp/frontstage/resource.download/9f7d9184-20a0-49eb-b7dd-96e23686c4ef) · [凍結資料核對與日曆](packaging/windows/weekly_evidence.py) · [共用週訊號](packaging/windows/weekly.js) · [回歸測試](packaging/windows/weekly.test.cjs)。
+
+本地重現：在 `packaging/windows` 執行 `python -X utf8 build_dashboard.py`、`node weekly.test.cjs` 及 `node --test storage.test.cjs`；凍結基線沿用 `python -X utf8 baseline/v0.5/verify.py`（儲存庫根目錄）。[Windows 工作流程](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/44931057553) 另從成品實際點擊並讀回 CSV。
+
+## B04.2 預設嚴格篩選週與重開驗收
+
+版本 v0.6.0-b04.2，程式與驗收提交 [`b7415d5e1d587c5adab6b63e8295564073cecbc6`](https://github.com/Jimmy0916-LAI/chip-screener/commit/b7415d5e1d587c5adab6b63e8295564073cecbc6)。[Windows Server 2022 成品驗收](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45007997573/job/137164656088) · [下載單檔測試 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45007997573/artifacts/14748448174) · [畫面、CSV 與 JSON](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45007997573/artifacts/14748364432)。
+
+ZIP 為 `ChipScreener-v0.6.0-b04.2-Windows-x64.zip`，根目錄只有 `ChipScreener.exe`。ZIP SHA-256 為 `8ca6e76b79d0670037bed8d62508ec49c876463f090ef62d6f1f9e1563fcd3eb`。下載期限為台北時間 2026-12-22 17:35:17。
+
+| 使用情境 | 驗收結果 |
+|---|---|
+| 舊版保存後換版 | B04.1 匯入 11/20 待證快照並重開後，預設跳至 11/20，1,985 檔資料不足。使用同一帳號資料開啟 B04.2，預設為 11/13，268 檔通過。 |
+| 新版保存後重開 | B04.2 從乾淨環境匯入同一份測試快照。關閉並重新啟動成品後，預設仍為 11/13，268 檔通過。畫面指出 11/20 公布時點待證。資料頁顯示匯入來源，個股原始表可查漢唐該測試期的股數。 |
+| 手動選週 | 指定 11/20 後切頁往返仍為 11/20，0 檔通過、1,985 檔資料不足。按「回到預設篩選週」才返回 11/13。 |
+| 可評估條件 | 自動模式依目前套用策略逐週檢查。至少一檔能作出判定即可採用，零檔通過仍可評估。全部窗口不足時列出原因。使用原有公開時點、交易日曆與缺週檢核。 |
+| B04 與 B03 回歸 | 同一 ZIP 重新驗證 10/30 同窗 A/B、兩份各 1,985 檔 CSV、七頁、漢唐兩週增股 796,897 與 579,084 股、離線啟動、中文空格路徑搬移，以及設定與快照備份復原後再次保存、重開。 |
+
+本機從 `packaging/windows` 執行 `python -X utf8 build_dashboard.py`、`node weekly.test.cjs` 與 `node --test storage.test.cjs`。成品程序見 [accept.ps1](packaging/windows/accept.ps1) 與 [gui.cjs](packaging/windows/gui.cjs)。Windows 11 實機雙擊待驗。
+
 ## 下次恢復位置
 
-從 [PR #4](https://github.com/Jimmy0916-LAI/chip-screener/pull/4)、上述修正提交、版本標籤和成品驗收紀錄恢復。Windows 11 實機雙擊待驗。本批停在 B03 待審；正式發布、合併與 B04 各待產品所有者授權。
+從 [PR #5](https://github.com/Jimmy0916-LAI/chip-screener/pull/5)、[v0.6.0-b04.2 程式標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b04.2) 與上方成品驗收紀錄恢復。B04 維持待審，Windows 11 實機待驗。正式合併、發布與 B05 各待後續授權。
