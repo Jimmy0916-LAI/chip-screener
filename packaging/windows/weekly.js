@@ -8,13 +8,14 @@ function nextOpen(known) {
   return day && stamp >= Date.parse(D.sessions[0]+'T00:00:00+08:00') ? day+' 09:00' : null;
 }
 function evidenceTime(end) {
-  return D.observed[end] || end+'T13:30:00+08:00';
+  return end ? D.observed[end] || end+'T13:30:00+08:00' : '';
 }
 function evaluation(cfg,end=state.win,asOf=state.asOf||evidenceTime(end)) {
   const index = weekEnds.indexOf(end);
   const dates = index < 0 ? [] : weekEnds.slice(Math.max(0,index-cfg.weeks),index+1);
   const context = {cfg,end,asOf,dates};
-  if (!Number.isFinite(Date.parse(asOf))) context.issue='缺少可驗證的評估時點';
+  if (!end) context.issue=state.selection?.skipped[0]?.reason || '尚無已保存的統計週';
+  else if (!Number.isFinite(Date.parse(asOf))) context.issue='缺少可驗證的評估時點';
   else if (!D.observed[end] && D.series[end]) context.issue=end+' 公布時點待證';
   else if (index<0 || end >= D.sessions.at(-1)) context.issue=end+' 週末交易日曆待核';
   else if (dates.length!==cfg.weeks+1) context.issue='可驗證交易週不足';
@@ -67,4 +68,32 @@ function tally(rows) {
 function comparison() {
   const a=evaluation(applied), b=evaluation(draft,a.end,a.asOf);
   return {a,b,rows:D.universe.map(code=>({code,name:D.stocks[code][0],a:weeklySignal(code,a),b:weeklySignal(code,b)}))};
+}
+
+// A complete negative verdict counts as evaluable, just as a passing verdict does.
+function defaultStrictWeek(cfg) {
+  const skipped = [];
+  for (const end of dates().reverse()) {
+    const ctx = evaluation(cfg,end,evidenceTime(end));
+    if (ctx.issue) {
+      skipped.push({end,reason:ctx.issue});
+      continue;
+    }
+    const reasons = new Set();
+    for (const code of D.universe) {
+      const result = weeklySignal(code,ctx);
+      if (!result.insufficient) return {end,skipped};
+      reasons.add(result.reason);
+    }
+    skipped.push({end,reason:[...reasons].join('；') || '股票母體為空'});
+  }
+  return {end:'',skipped};
+}
+function useDefaultWeek() {
+  state.manualWeek = false;
+  state.asOf = null;
+  state.selection = defaultStrictWeek(applied);
+  state.win = state.selection.end;
+  state.selectedDay = state.win;
+  state.pageNum = 0;
 }

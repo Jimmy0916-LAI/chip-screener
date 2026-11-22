@@ -25,6 +25,12 @@ for(const asOf of ['2026-11-13T13:30:00+08:00','2026-11-14T16:15:44+08:00']) {
  assert(r.every(x=>x.insufficient && !x.pass && !('gain' in x) && !('deltaShares' in x)));
 }
 assert.equal(run("weeklySignal('2404',evaluation(DEFAULT,'2026-11-13','2026-11-14T16:15:45+08:00')).pass"),true);
+// Zero passing stocks is a valid assessment; a window with no decisions is not.
+assert.equal(run("defaultStrictWeek({...DEFAULT,minPp:20}).end"),'2026-11-13');
+assert.equal(run("const oldRows=D.series['2026-11-13'];D.series['2026-11-13']={};defaultStrictWeek(DEFAULT).end"),'2026-11-06');
+run("D.series['2026-11-13']=oldRows;true");
+assert(run("const originalEvidence={...D.observed};for(const end of dates())D.observed[end]=null;useDefaultWeek();!state.win && weekSelectionNotice().includes('沒有可評估窗口') && evaluation(applied).issue.includes('公布時點待證')"));
+run("Object.assign(D.observed,originalEvidence);useDefaultWeek();true");
 const ab=run("state.win='2026-10-30';draft.weeks=4;comparison()");
 assert.equal(ab.a.end,ab.b.end);assert.equal(ab.a.asOf,ab.b.asOf);assert.equal(ab.rows.length,1985);
 assert.equal(ab.a.issue,undefined);assert.match(ab.b.issue,/缺週/);

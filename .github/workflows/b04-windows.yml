@@ -114,26 +114,26 @@ jobs:
         run: |
           curl.exe --fail --silent --show-error --location --retry 4 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/$env:ARTIFACT_ID/zip" --output "$env:RUNNER_TEMP/$env:ZIP_NAME"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Retrieve previously accepted B03.2 ZIP
+      - name: Retrieve previously accepted B04.1 ZIP
         id: predecessor
         continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $zip = "$env:RUNNER_TEMP/b03.2.zip"
-          curl.exe --fail --silent --show-error --location --retry 3 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/14716790907/zip" --output $zip
+          $zip = "$env:RUNNER_TEMP/b04.1.zip"
+          curl.exe --fail --silent --show-error --location --retry 3 --header "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/14717776811/zip" --output $zip
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          if ((Get-FileHash $zip).Hash -ne 'fbe0501a3346ed49d71f83c76408187af7fb24499a9579f8ee7f0cad6b000449') { throw 'Predecessor ZIP digest mismatch' }
+          if ((Get-FileHash $zip).Hash -ne 'c4f080823b295d77e99d11cbc50244d257c91b4e14ba1132ab4542bbf44f0e78') { throw 'Predecessor ZIP digest mismatch' }
           Expand-Archive -LiteralPath $zip -DestinationPath qa-predecessor
-      - name: Check out B03.2 source if its expiring artifact is unavailable
+      - name: Check out B04.1 source if its expiring artifact is unavailable
         if: steps.predecessor.outcome == 'failure'
         uses: actions/checkout@v4
         with:
-          ref: 00afe6b4468581be39ca81002b615ce4494ede9c
+          ref: faf3047fbe1ba0debca15318c1ede63e789482f5
           path: old-source
           persist-credentials: false
-      - name: Rebuild the pinned B03.2 predecessor
+      - name: Rebuild the pinned B04.1 predecessor
         if: steps.predecessor.outcome == 'failure'
         working-directory: old-source/packaging/windows
         shell: pwsh

@@ -2,7 +2,7 @@ function wndSelect() {
   const asOf=state.asOf||evidenceTime(state.win);
   const saved=dates();
   const ends=[...new Set([...saved,...weekEnds.filter(d=>d>=saved[0] && d<=saved.at(-1))])].sort();
-  return '<label>統計截止週 <select id="windowSelect">'+ends.map(d=>'<option '+(d===state.win?'selected':'')+'>'+d+'</option>').join('')+
+  return '<label>統計截止週 <select id="windowSelect">'+(state.win?'':'<option value="" selected disabled>無可評估窗口</option>')+ends.map(d=>'<option '+(d===state.win?'selected':'')+'>'+d+'</option>').join('')+
     '</select></label> <label>評估時點（台北） <input id="asOf" type="datetime-local" step="1" value="'+esc(asOf.slice(0,19))+'"></label>';
 }
 function signalTable(code) {
@@ -52,4 +52,20 @@ function auditNote(code,ctx) {
     const adjusted=D.adjustments[d][code] || [0,0];
     return esc(d+' 第16級 '+fmt(adjusted[0])+' 股，'+fmt(adjusted[1])+' 戶');
   }).join(' · ');
+}
+
+function weekSelectionNotice() {
+  let message;
+  if (state.manualWeek) {
+    const ctx=evaluation(applied);
+    message='手動指定篩選週 '+(state.win||'—')+(ctx.issue?'｜'+ctx.issue:'');
+  } else {
+    const {end,skipped}=state.selection;
+    message=end?'預設嚴格篩選週 '+end:'目前策略沒有可評估窗口';
+    if (skipped.length) {
+      message+='｜'+skipped.map(item=>item.reason.includes(item.end)?item.reason:item.end+' '+item.reason).join('；');
+    } else if (!end) message+='｜尚無已保存的統計週';
+  }
+  const reset=state.manualWeek?' <button class="btn ghost sm" id="useDefaultWeek">回到預設篩選週</button>':'';
+  return '<div class="notice" id="weekSelection">'+esc(message)+reset+'</div>';
 }

@@ -111,7 +111,7 @@ async function verifyStored() {
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
   assert(info.includes(sampleDay) && info.includes('B03-合成快照.csv') && info.includes('本機快照 1 期'), info);
-  const version=phase==='upgrade-source'?'0.6.0-b03.2':'0.6.0-b04.1';
+  const version=phase==='upgrade-source'?'0.6.0-b04.1':'0.6.0-b04.2';
   assert(info.includes(version),info);
   if(phase==='recovered') assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await screenshot('stored-snapshot');
@@ -177,7 +177,7 @@ async function verifyRevision(index) {
   await screenshot('revision-'+(index+1)+'-settings');
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
-  assert(info.includes('0.6.0-b04.1') && info.includes(day),info);
+  assert(info.includes('0.6.0-b04.2') && info.includes(day),info);
   if(index===1) assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await nav('stock');
   assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-18\"]')"),false);
@@ -231,9 +231,57 @@ async function verifyWeekly() {
   report.snapshots.weekly={screen,stockRow,signal,comparison:csv,visible,early};
 }
 
+async function pendingWeekTest() {
+  const pendingDay = '2026-11-20';
+  if (phase.endsWith('-seed')) {
+    await nav('data');
+    await importWeek(pendingDay,'B04-待證快照');
+    await waitFor(()=>evaluate("document.querySelector('#importStatus').textContent.includes('2026-11-20：1 檔通過')"));
+    return;
+  }
+  await nav('screen');
+  async function readWindow() {
+    return evaluate(`(()=>{
+      const metrics=Object.fromEntries([...document.querySelectorAll('.metric')].map(el=>[el.querySelector('.label').textContent,el.querySelector('.value').textContent]));
+      return {week:document.querySelector('#windowSelect').value,pass:metrics['符合現行條件'],insufficient:metrics['資料／複合條件待證'],notice:document.querySelector('#weekSelection')?.textContent};
+    })()`);
+  }
+  const initial=await readWindow();
+  report.snapshots.initial=initial;
+  if(phase==='pending-old-reopen') {
+    assert.equal(initial.week,pendingDay);
+    assert.equal(initial.insufficient,'1,985');
+    return;
+  }
+  assert.equal(initial.week,'2026-11-13');
+  assert.equal(initial.pass,'268');
+  assert(initial.notice.includes(pendingDay) && initial.notice.includes('公布時點待證'));
+  await screenshot('strict-default');
+  await nav('data');
+  const stored=await evaluate("document.querySelector('#importStatus').textContent");
+  assert(stored.includes(pendingDay) && stored.includes('B04-待證快照.csv'),stored);
+  await nav('stock');await change('#daySelect',pendingDay);
+  const raw=await evaluate("document.querySelector('#daySelect').closest('.card').innerText");
+  assert(raw.includes('54,000') && raw.includes('未知'),raw);
+  assert.equal(await evaluate("document.querySelector('#windowSelect').value"),'2026-11-13');
+  await screenshot('pending-raw');
+  await nav('screen');await change('#windowSelect',pendingDay);
+  await nav('backtest');await nav('screen');
+  const explicit=await readWindow();
+  assert.equal(explicit.week,pendingDay);assert.equal(explicit.pass,'0');
+  assert.equal(explicit.insufficient,'1,985');
+  assert(explicit.notice.includes('公布時點待證'),explicit.notice);
+  await screenshot('explicit-week');
+  await click('#useDefaultWeek');
+  assert.deepEqual(await readWindow(),initial);
+  report.snapshots.explicit=explicit;
+  report.snapshots.raw={date:pendingDay,stored,row:raw.slice(-500)};
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if(phase.startsWith('pending-')) { await check(phase,pendingWeekTest); assert.deepEqual(report.rendererErrors,[]); console.log(phase,JSON.stringify(report.snapshots)); return; }
   if(phase==='weekly') { await check('weekly screen, stock and downloaded comparison CSV',verifyWeekly);console.log(phase,JSON.stringify(report.snapshots));assert.deepEqual(report.rendererErrors,[]);return; }
   if (phase.startsWith('revision-')) {
     if (phase === 'revision-seed') await check('two real mirror failures',seedMissedMirrors);
