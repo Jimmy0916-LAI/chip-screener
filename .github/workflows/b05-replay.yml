@@ -1,0 +1,73 @@
+name: Replay tested B05 ZIP
+on:
+  pull_request:
+    branches: [b04/weekly-screen]
+    paths: ['.github/workflows/b05-replay.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: packaging/windows
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download the exact Windows ZIP and replay faults with its packaged modules
+        working-directory: packaging/windows
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = 'v0.6.0-b05.1'
+          $repoApi = "repos/$env:GITHUB_REPOSITORY"
+          $sha = git log -1 --format=%H -- . ../../.github/workflows/b05-windows.yml
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $deadline = [datetime]::UtcNow.AddMinutes(8)
+          do {
+            $runs = gh api "$repoApi/actions/runs?head_sha=$sha" | ConvertFrom-Json
+            $run = $runs.workflow_runs | Where-Object { $_.name -eq 'B05 TDCC update' } | Select-Object -First 1
+            if ($run) {
+              $items = gh api "$repoApi/actions/runs/$($run.id)/artifacts" | ConvertFrom-Json
+              $artifact = $items.artifacts | Where-Object { $_.name -eq "ChipScreener-$version-Windows-x64" -and !$_.expired }
+            }
+            if (!$artifact) { Start-Sleep -Seconds 12 }
+          } until ($artifact -or [datetime]::UtcNow -gt $deadline)
+          if (!$artifact) { throw "Missing delivery ZIP for $sha" }
+          $zip = "$env:RUNNER_TEMP/accepted.zip"
+          curl.exe -fsSL --retry 3 -H "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/$repoApi/actions/artifacts/$($artifact.id)/zip" -o $zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $digest = (Get-FileHash $zip).Hash.ToLowerInvariant()
+          if ("sha256:$digest" -ne $artifact.digest) { throw 'ZIP digest mismatch' }
+          Write-Host "Replay source $sha ZIP $digest artifact $($artifact.id)"
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $testRoot = New-Item -ItemType Directory "$env:RUNNER_TEMP/replay"
+          Expand-Archive -LiteralPath $zip -DestinationPath $testRoot
+          $env:LOCALAPPDATA = (New-Item -ItemType Directory "$testRoot/user").FullName
+          $env:TEMP = (New-Item -ItemType Directory "$testRoot/temp").FullName
+          $env:TMP = $env:TEMP
+          $proc = Start-Process "$testRoot/ChipScreener.exe" -PassThru
+          try {
+            $asar = "$env:TEMP/ChipScreener-B05-v1/resources/app.asar"
+            $ready = [datetime]::UtcNow.AddSeconds(90)
+            do { Start-Sleep -Milliseconds 500 } until ((Test-Path $asar) -or $proc.HasExited -or [datetime]::UtcNow -gt $ready)
+            $payload = "$testRoot/packaged"
+            node node_modules/@electron/asar/bin/asar.js extract $asar $payload
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { if (!$proc.HasExited) { $proc.Kill($true) } }
+          Copy-Item feed.test.cjs,weekly.test.cjs,storage.test.cjs $payload
+          Push-Location $payload
+          try {
+            node --test feed.test.cjs storage.test.cjs
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            node weekly.test.cjs
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { Pop-Location }

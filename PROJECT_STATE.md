@@ -1,6 +1,6 @@
 # 台股籌碼雷達專案狀態
 
-**B03.2 已獲接受。B04 修補版 v0.6.0-b04.2 通過 Windows Server 2022 成品驗收，Windows 11 實機雙擊待驗。PR #5 待審。**
+**B04.2 已獲接受。B05 v0.6.0-b05.1 通過 Windows Server 2022 實際 ZIP 驗收。Windows 11 實機待驗，PR #6 待審。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)
 
@@ -142,6 +142,24 @@ ZIP 為 `ChipScreener-v0.6.0-b04.2-Windows-x64.zip`，根目錄只有 `ChipScree
 
 本機從 `packaging/windows` 執行 `python -X utf8 build_dashboard.py`、`node weekly.test.cjs` 與 `node --test storage.test.cjs`。成品程序見 [accept.ps1](packaging/windows/accept.ps1) 與 [gui.cjs](packaging/windows/gui.cjs)。Windows 11 實機雙擊待驗。
 
+## B05 集保週資料自動更新
+
+版本 `v0.6.0-b05.1`。[程式提交 `2d6249a`](https://github.com/Jimmy0916-LAI/chip-screener/commit/2d6249aecd54a88a4ff5329f4751587db2f0417c) · [版本標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b05.1) · [PR #6](https://github.com/Jimmy0916-LAI/chip-screener/pull/6)。基於 B04.2 程式 `b7415d5` 及 PR #5 文件提交 `77d5af7`。
+
+[下載 ChipScreener-v0.6.0-b05.1-Windows-x64.zip](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45024902778/artifacts/14755233290)，ZIP 根目錄僅含 `ChipScreener.exe`。ZIP SHA-256 `d5f1fb5166cff4f9d7097b3cbdb1c321832a390575594947635ab49dbc0ad314`。下載至台北時間 2026-12-22 21:00:16。
+
+| Windows Server 2022 成品情境 | 結果 |
+|---|---|
+| 啟動先顯示已保存資料 | 保留 11/20 手動待證快照；連線檢查前統計週 2026-11-13，通過 268，不足 25。 |
+| 同一顆 EXE 自動從 TDCC 取得新一期 | 無按鈕操作。統計日 2026-11-20，取得 2026-11-22T21:07:44.082+08:00。來源 https://opendata.tdcc.com.tw/getOD.ashx?id=1-5，原始檔 SHA-256 `af8528288555b0e0d3791d13893992f667ee28f4c4e8b12d2202668d41e8214d`。在固定 1,985 檔母體中，通過輸入驗證 1985 檔，隔離 0 檔。首次公布時間待證。 |
+| 新窗口重算 | 證交所實際交易日已覆蓋至 2026-11-20；2026-11-06 → 2026-11-13 → 2026-11-20。畫面嚴格週 2026-11-20，通過 301，不足 22；窗口足以評估。 |
+| 重開、重抓、離線、手動指定 | 同一期雜湊與首次取得證據維持一致，離線重開保留選股結果；開啟時手動固定 10/30 並收到官方新一期後仍為 2026-10-30。 |
+| 故障與相容性 | 從相同 ZIP 的 EXE 擷取實際程式，以控制回應重播舊期、同日不同內容、缺列、缺週、日曆失敗與恢復續抓。另以 EXE 重跑 B04.2 待證週、兩份 CSV、七頁、單檔搬移與 B03 備份復原。 |
+
+啟動後背景檢查，執行期間每 6 小時及按「立即更新」可再查。自動來源採集保 1-5 整批檔，依檔內統計日追加；未取得的官方整週列出缺期，保留原始手動紀錄及獨立的官方來源。單檔完整 1–17 級對帳，沿用固定 1,985 檔母體，整批至少 95% 有效才接受，逐檔待核原因保留。TWSE FMTQIK 按月續查實際交易日，尚無證據的下個開盤待核。既有 store-v1 另行保留，官方每期與日曆使用同帳號 tdcc-v1 的校驗副本。
+
+[Windows 成品與網路驗收](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45024902778/job/137216554765) · [畫面與逐階段資料](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45024902778/artifacts/14755309598) · [交付 EXE 內模組故障重播](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45025327510/job/137216992430)。在 packaging/windows 下重現邏輯測試：`python -X utf8 build_dashboard.py`、`node weekly.test.cjs`、`node --test storage.test.cjs feed.test.cjs`。
+
 ## 下次恢復位置
 
-從 [PR #5](https://github.com/Jimmy0916-LAI/chip-screener/pull/5)、[v0.6.0-b04.2 程式標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b04.2) 與上方成品驗收紀錄恢復。B04 維持待審，Windows 11 實機待驗。正式合併、發布與 B05 各待後續授權。
+從 [PR #6](https://github.com/Jimmy0916-LAI/chip-screener/pull/6) 與上述版本標籤和驗收紀錄恢復。B05 待審，Windows 11 實機雙擊待驗。B06、正式合併與發布各待另行授權。

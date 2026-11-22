@@ -18,10 +18,20 @@ app.commandLine.appendSwitch('disable-background-networking');
 async function openWindow() {
   const { LocalStore } = require('./storage.cjs');
   const store = new LocalStore(path.join(app.getPath('userData'), 'store-v1'));
+  const {OfficialFeed}=require('./official-feed.cjs');
+  const feed=new OfficialFeed(path.join(app.getPath('userData'),'tdcc-v1'),require('./feed-base.json'));
+  let update;
+  const trusted=event=>event.senderFrame===event.sender.mainFrame && event.senderFrame.url===dashboard;
+  ipcMain.on('official:read',event=>{event.returnValue=trusted(event)?feed.initial():null;});
+  ipcMain.handle('official:update',event=>{
+    if (!trusted(event)) throw Error('來源無效');
+    update ||= feed.update().finally(()=>{update=null;});
+    return update;
+  });
   for (const action of ['read', 'save']) {
     ipcMain.on('storage:' + action, (event, kind, value) => {
       try {
-        if (event.senderFrame !== event.sender.mainFrame || event.senderFrame.url !== dashboard) throw Error('來源無效');
+        if (!trusted(event) || !['settings','snapshot'].includes(kind)) throw Error('來源無效');
         if (action === 'save') {
           event.returnValue = {ok:true, ...store.save(kind, value)};
         } else {

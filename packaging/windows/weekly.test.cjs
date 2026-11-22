@@ -40,3 +40,15 @@ assert(run("D.observed['2026-10-30']=null;scan().every(x=>x.insufficient && x.re
 for(const page of ['home','screen','stock','backtest','peak','settings','data'])run(`go('${page}'); !!document.querySelector('#page').innerHTML`);
 console.log('Weekly evidence, temporal gates, 1985 rows, 29 adjusted, 2330, holiday, HanTang, A/B cutoff and seven views passed.');
 console.log(JSON.stringify({latest:rows.reduce((counts,r)=>(counts[r.status]=(counts[r.status]||0)+1,counts),{}),stock2330:rows.find(r=>r.code==='2330'),oldMissing:previouslyMissing}));
+// New official and manual records coexist. Actual Friday trading can conclude a week;
+// later acquisition never grants availability at Friday's close.
+run("Object.assign(D.observed,originalEvidence);state.manualWeek=false;useDefaultWeek();true");
+const newWeek="2026-11-20";
+run(`receiveOfficial({weeks:{'${newWeek}':{rows:D.series['2026-11-13'],issues:{},adjustments:{},quality:{},observed:'2026-11-22T10:00:00+08:00'}},months:{}});useDefaultWeek();true`);
+assert.equal(run('state.win'),'2026-11-13');
+assert.match(run("evaluation(applied,'2026-11-20').issue"),/日曆/);
+run("receiveOfficial({weeks:{},months:{'2026-11':{days:['2026-11-20']}}});useDefaultWeek();true");
+assert.equal(run('state.win'),newWeek);
+assert.match(run("evaluation(applied,'2026-11-20','2026-11-20T13:30:00+08:00').issue"),/尚無公開證據/);
+run("receiveOfficial({weeks:{'2026-12-04':{rows:D.series['2026-11-13'],issues:{},adjustments:{},quality:{},observed:'2026-12-06T10:00:00+08:00'}},months:{'2026-12':{days:['2026-11-27','2026-12-04']}}});useDefaultWeek();true");
+assert.equal(run('state.win'),newWeek);assert.match(run("evaluation(applied,'2026-12-04').issue"),/11-27 缺週/);
