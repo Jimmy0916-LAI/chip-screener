@@ -1,0 +1,68 @@
+name: Verify shipped candlesticks after offline restart
+on:
+  pull_request:
+    branches: [b05/tdcc-weekly-update]
+    paths: ['packaging/qa/chart_reopen.py','.github/workflows/b06-reopen.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  bars:
+    runs-on: windows-2022
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download the B06 program ZIP by the source commit and verify its digest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $sha=git log -1 --format=%H -- packaging/windows .github/workflows/b06-windows.yml
+          $api="repos/$env:GITHUB_REPOSITORY"
+          $end=[datetime]::UtcNow.AddMinutes(10)
+          do {
+            $runs=gh api "$api/actions/runs?head_sha=$sha" | ConvertFrom-Json
+            $run=$runs.workflow_runs | Where-Object name -eq 'B06 market and overlay' | Select-Object -First 1
+            if ($run) {
+              $items=gh api "$api/actions/runs/$($run.id)/artifacts" | ConvertFrom-Json
+              $artifact=$items.artifacts | Where-Object name -eq 'ChipScreener-v0.6.0-b06.1-Windows-x64'
+            }
+            if (!$artifact){Start-Sleep -Seconds 10}
+          } until ($artifact -or [datetime]::UtcNow -gt $end)
+          if (!$artifact){throw "Missing B06 artifact for $sha"}
+          curl.exe -fsSL --retry 3 -H "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/$api/actions/artifacts/$($artifact.id)/zip" -o package.zip
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          $hash=(Get-FileHash package.zip).Hash.ToLowerInvariant()
+          if ("sha256:$hash" -ne $artifact.digest){throw 'ZIP digest mismatch'}
+          Write-Host "Shipped ZIP $hash source $sha"
+          Expand-Archive package.zip -DestinationPath shipped
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check actual wick and body positions, close and reopen with external traffic blocked
+        shell: pwsh
+        run: |
+          python -m pip install playwright==1.55.0
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          $env:LOCALAPPDATA=(New-Item -ItemType Directory "$env:RUNNER_TEMP/test-account").FullName
+          $exe=(Resolve-Path shipped/ChipScreener.exe).Path
+          python -X utf8 packaging/qa/chart_reopen.py $exe online
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          $group="B06-"+[guid]::NewGuid()
+          try {
+            foreach ($p in @($exe,"$env:TEMP/ChipScreener-B06-v1/ChipScreener.exe")){
+              New-NetFirewallRule -Group $group -DisplayName "$group $p" -Direction Outbound -Action Block -Program $p -Profile Any -RemoteAddress '0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null
+            }
+            python -X utf8 packaging/qa/chart_reopen.py $exe offline
+            if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          } finally {Get-NetFirewallRule -Group $group -ErrorAction SilentlyContinue | Remove-NetFirewallRule}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: B06-candlestick-geometry-and-reopen
+          path: evidence/
+          retention-days: 30
