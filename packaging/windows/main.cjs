@@ -31,7 +31,7 @@ async function openWindow() {
   for (const action of ['read', 'save']) {
     ipcMain.on('storage:' + action, (event, kind, value) => {
       try {
-        if (!trusted(event) || !['settings','snapshot'].includes(kind)) throw Error('來源無效');
+        if (!trusted(event) || !['settings','snapshot','pins'].includes(kind)) throw Error('來源無效');
         if (action === 'save') {
           event.returnValue = {ok:true, ...store.save(kind, value)};
         } else {

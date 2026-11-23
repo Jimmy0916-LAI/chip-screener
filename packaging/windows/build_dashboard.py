@@ -19,11 +19,12 @@ adapter = (root / 'desktop-state.js').read_text(encoding='utf-8')
 assert js.count('/* DESKTOP_STORAGE */') == 1
 js = js.replace('/* DESKTOP_STORAGE */', adapter)
 html = (source / 'app.template.html').read_text(encoding='utf-8')
-for marker, filename in [('/* WEEKLY_ENGINE */','weekly.js'),('/* WEEKLY_VIEWS */','weekly-views.js'),('/* OFFICIAL_FEED */','official-view.js')]:
+for marker, filename in [('/* WEEKLY_ENGINE */','weekly.js'),('/* WEEKLY_VIEWS */','weekly-views.js'),('/* OFFICIAL_FEED */','official-view.js'),('/* WATCHLIST */','watchlist.js')]:
     assert js.count(marker) == 1
     js = js.replace(marker,(root / filename).read_text(encoding='utf-8'))
 data = enrich(json.loads((source / 'web_data.json').read_bytes()), root.parents[1] / 'chip-screener-phase1.zip')
 (root / 'feed-base.json').write_text(json.dumps({'universe':data['universe'],'sessions':data['sessions'],
     'hashes':{day:q['raw_source'] for day,q in data['quality'].items()}}),encoding='utf8')
+html = html.replace('</style>',(root/'desktop.css').read_text(encoding='utf8')+'</style>',1)
 html = html.replace('__APP_JS__',js).replace('__DATA_JSON__',json.dumps(data,ensure_ascii=False,separators=(',',':')))
 (root / 'dashboard.html').write_bytes(html.encode('utf-8'))

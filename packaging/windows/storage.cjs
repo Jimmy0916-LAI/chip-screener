@@ -37,7 +37,10 @@ function validateWeeks(weeks) {
 }
 
 const {validateOfficial, validateCalendar} = require('./tdcc.cjs');
-const validators = {settings: validateConfig, snapshot: validateWeeks, official:validateOfficial, calendar:validateCalendar};
+function validatePins(pins) {
+  requireValue(Array.isArray(pins)&&pins.every(c=>typeof c==='string'&&/^[1-9][0-9]{3}$/.test(c))&&new Set(pins).size===pins.length,'自選股代號無效');
+}
+const validators = {pins:validatePins,settings: validateConfig, snapshot: validateWeeks, official:validateOfficial, calendar:validateCalendar};
 function validate(kind, value) {
   requireValue(Object.hasOwn(validators, kind), '未知儲存類型');
   validators[kind](value);

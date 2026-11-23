@@ -61,7 +61,7 @@
  const ticker=code=>`${esc(code)} <span class="cell-muted">${esc((D.stocks[code]||[''])[0])}</span>`;
  function toast(msg){const el=$('#toast');if(!el)return;el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),4200);}
  const title=(name,desc,actions='')=>`<div class="pagehead"><div><p class="eyebrow">TAIWAN MARKET / RESEARCH</p><h1>${name}</h1><p class="sub">${desc}</p></div>${actions}</div>`;
-@@ -66,45 +25,46 @@
+@@ -66,45 +25,47 @@
  function populateNav(){const n=$('#nav'),m=$('#mobilebar');n.innerHTML=NAV.map(([id,ic,name])=>`<button data-nav="${id}" class="${state.page===id?'active':''}"><span class="ico">${ic}</span>${name}</button>`).join('');m.innerHTML=NAV.filter(x=>['home','screen','stock','backtest','settings'].includes(x[0])).map(([id,ic,name])=>`<button data-nav="${id}" class="${state.page===id?'active':''}"><span>${ic}</span>${name.replace('全市場','').replace('研究','')}</button>`).join('');}
  function go(page){state.page=page;state.pageNum=0;render();scrollTo({top:0,behavior:'instant'});}
  function selectStock(code){state.stock=code;state.page='stock';state.bands=[applied.band];state.selectedDay=state.win;render();scrollTo({top:0,behavior:'instant'});}
@@ -69,12 +69,13 @@
 -function wndSelect(cfg=applied){return `<select id="windowSelect" class="select">${windows(cfg.weeks).map(w=>`<option value="${w.end}" ${w.end===state.win?'selected':''}>截至 ${w.end}</option>`).join('')}</select>`;}
 +function render(){populateNav();$('#crumb').textContent=NAV.find(x=>x[0]===state.page)?.[2]||'研究';const pages={home:home,screen:screen,stock:stock,backtest:backtest,peak:peak,settings:settingsPage,data:dataPage};const notice=['home','screen','stock','backtest'].includes(state.page)?weekSelectionNotice():'';$('#page').innerHTML=notice+(['home','data'].includes(state.page)?feedPanel():'')+pages[state.page]();attachCharts();}
 +/* WEEKLY_VIEWS */
++/* WATCHLIST */
 +/* OFFICIAL_FEED */
  function renderTable(rows,more=false){if(!rows.length)return `<div class="empty"><b>沒有符合篩選條件的資料</b>調低門檻或切換歷史窗口，並注意目前只有六期快照。</div>`;
 -return `<div class="tblwrap"><table><thead><tr><th>代號／名稱</th><th>市場</th><th>級距</th><th>累計增幅</th><th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th></tr></thead><tbody>${rows.map(x=>`<tr class="clickable" data-stock="${esc(x.code)}"><td><b>${ticker(x.code)}</b></td><td>${esc(x.market)}</td><td>${applied.band} 張</td><td class="${sign(x.gain)}">${pp(x.gain,3)} pp</td><td>${pp(x.delta?.at(-2),3)}</td><td>${pp(x.delta?.at(-1),3)}</td><td>${x.deltaShares?x.deltaShares.map(v=>(v>=0?'+':'')+fmt(v)).join(' / '):'—'}</td><td>${badge(x.status,x.pass?'good':x.status.includes('待')?'warn':'')}</td></tr>`).join('')}</tbody></table></div>`;}
 -function home(){const win=chosenWin(),rows=scan(),t=tally(rows),best=rows.filter(x=>x.pass).sort((a,b)=>b.gain-a.gain).slice(0,8);
 -const a2404=calculate('2404','400',windows(2).find(w=>w.end==='2026-11-13'),applied);
-+return `<div class="tblwrap"><table><thead><tr><th>代號／名稱</th><th>市場</th><th>級距</th><th>累計增幅</th><th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th></tr></thead><tbody>${rows.map(x=>`<tr class="clickable" data-stock="${esc(x.code)}"><td><b>${ticker(x.code)}</b></td><td>${esc(x.market)}</td><td>${applied.band} 張</td><td class="${sign(x.gain)}">${pp(x.gain,3)} pp</td><td>${pp(x.delta?.at(-2),3)}</td><td>${pp(x.delta?.at(-1),3)}</td><td>${x.deltaShares?x.deltaShares.map(v=>(v>=0?'+':'')+fmt(v)).join(' / '):'—'}</td><td>${badge(x.status,x.pass?'good':x.insufficient?'warn':'')}<small>${esc(x.reason)}</small></td></tr>`).join('')}</tbody></table></div>`;}
++return `<div class="tblwrap"><table><thead><tr><th>代號／名稱</th><th>市場</th><th>級距</th><th>累計增幅</th><th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th><th>自選股</th></tr></thead><tbody>${rows.map(x=>`<tr class="clickable" data-stock="${esc(x.code)}"><td><b>${ticker(x.code)}</b></td><td>${esc(x.market)}</td><td>${applied.band} 張</td><td class="${sign(x.gain)}">${pp(x.gain,3)} pp</td><td>${pp(x.delta?.at(-2),3)}</td><td>${pp(x.delta?.at(-1),3)}</td><td>${x.deltaShares?x.deltaShares.map(v=>(v>=0?'+':'')+fmt(v)).join(' / '):'—'}</td><td>${badge(x.status,x.pass?'good':x.insufficient?'warn':'')}<small>${esc(x.reason)}</small></td><td>${pinButton(x.code)}</td></tr>`).join('')}</tbody></table></div>`;}
 +function home(){const win=evaluation(applied),rows=scan(),t=tally(rows),best=rows.filter(x=>x.pass).sort((a,b)=>b.gain-a.gain).slice(0,8);
  return title('台股籌碼研究總覽','以集保分級股數計算，先找到異動，再辨別證據是否足以支持交易。',`<button class="btn main" data-nav="screen">查看完整篩選結果 →</button>`)+
  `<div class="notice warn"><b>研究範圍聲明：</b>已載入六期原始集保全表，可依最新三期篩選約兩千檔上市櫃候選；股票母體採 11/13 行情備份，可能有存活偏差。除漢唐外，逐檔公司行動與正式回測未通過驗收。不是即時報價或買賣訊號。</div>`+
@@ -83,7 +84,7 @@
 -`<div class="card hot">${cardhead('漢唐 2404｜固定驗收案例','2026-10-30 → 11-06 → 11-13',badge('原始數值已驗證','good'))}<div class="feature"><span class="muted">400 張大戶持股比例</span><strong>55.496% → 56.218%</strong></div><div class="statbar"><div><span class="mini">兩週累計</span><strong class="green">+0.721971 pp</strong></div><div><span class="mini">持股變化</span><strong>+796,897 / +579,084 股</strong></div></div><div style="margin-top:18px">${weeklyPlot('2404',['400'], 'all')}</div><p class="footnote">證據最晚可得：2026-11-14 16:15:45；最早觀察開盤：11-16 09:00。不是經績效驗證的進場建議。</p><button class="btn main sm" data-stock="2404">打開漢唐完整分析 →</button></div></div>`+
 +`<div class="metricgrid">${metric('目前候選股票池',fmt(D.universe.length),'四碼非零開頭、上市櫃行情備份')}${metric('所選窗口通過數',fmt(t.pass),'級距 '+applied.band+' 張 · 門檻 '+fmt(applied.minPp,2)+' pp','green')}${metric('資料／條件待證',fmt(t.unknown),'不列為正式有效進場')}${metric('日 K 已核對',fmt(D.daily2404.length),'漢唐 2404 · 2024–2026')}</div>`+
 +`<div class="grid2"><div class="card">${cardhead('所選窗口增持候選','同一最後週 '+esc(win?.end||'—')+' · 依累計增幅排序',settingsHint())}${best.length?`<div class="tblwrap"><table><thead><tr><th>個股</th><th>增幅</th><th>股數連增</th><th>訊號</th></tr></thead><tbody>${best.map(x=>`<tr class="clickable" data-stock="${x.code}"><td><b>${ticker(x.code)}</b></td><td class="green">${pp(x.gain)} pp</td><td>${x.deltaShares.map(v=>'＋'+fmt(v)).join(' / ')}</td><td>${badge('週訊號候選','good')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">目前參數無通過候選</div>`}<button class="btn ghost sm" data-nav="screen" style="margin-top:15px">展開所有股票 →</button></div>`+
-+`${historicalView()?'':`<div class="card hot">${cardhead('漢唐 2404｜固定驗收案例','2026-10-30 → 11-06 → 11-13',badge('原始數值已驗證','good'))}<div class="feature"><span class="muted">400 張大戶持股比例</span><strong>55.496% → 56.218%</strong></div><div class="statbar"><div><span class="mini">兩週累計</span><strong class="green">+0.721971 pp</strong></div><div><span class="mini">持股變化</span><strong>+796,897 / +579,084 股</strong></div></div><div style="margin-top:18px">${weeklyPlot('2404',['400'], 'all')}</div><p class="footnote">證據最晚可得：2026-11-14 16:15:45；最早觀察開盤：11-16 09:00。不是經績效驗證的進場建議。</p><button class="btn main sm" data-stock="2404">打開漢唐完整分析 →</button></div>`}</div>`+
++`${watchlist()}</div>`+
  `<div class="section"><h2>工作流程與交付能力</h2></div><div class="grid2 equal"><div class="card"><div class="feature"><strong>01. 篩選與比較</strong>${badge('可使用','good')}</div><div class="feature"><strong>02. 大戶級距切換與日期明細</strong>${badge('可使用','good')}</div><div class="feature"><strong>03. 本機策略方案與 A/B 訊號比較</strong>${badge('可使用','good')}</div><div class="feature"><strong>04. 全市場正式報酬回測</strong>${badge('待資料驗收','warn')}</div></div><div class="card"><div class="feature"><strong>05. 漢唐日線與成交量</strong>${badge('可使用','good')}</div><div class="feature"><strong>06. 成本分布／底峰探索計算</strong>${badge('研究版','warn')}</div><div class="feature"><strong>07. 跨裝置雲端同步</strong>${badge('尚未部署','warn')}</div><div class="feature"><strong>08. 新資料匯入與 CSV 匯出</strong>${badge('可使用','good')}</div></div></div>`;
  }
 -function screen(){const cfg=applied;const win=chosenWin(cfg);const raw=scan(cfg,win);const t=tally(raw);
@@ -91,25 +92,30 @@
  const q=state.query.trim().toLowerCase();let rows=raw.filter(r=>(!q||(r.code+' '+r.name).toLowerCase().includes(q)));
  if(state.filter==='pass')rows=rows.filter(r=>r.pass);
 -if(state.filter==='unknown')rows=rows.filter(r=>['分母異動','缺資料','資料異常','公布時點待證','複合條件待證'].includes(r.status));
+-if(state.filter==='miss')rows=rows.filter(r=>!r.pass);
+-rows.sort(state.sort==='name'?(a,b)=>a.code.localeCompare(b.code):state.sort==='market'?(a,b)=>a.market.localeCompare(b.market):((a,b)=>(b.gain??-9999)-(a.gain??-9999)));
 +if(state.filter==='unknown')rows=rows.filter(r=>r.insufficient);
- if(state.filter==='miss')rows=rows.filter(r=>!r.pass);
- rows.sort(state.sort==='name'?(a,b)=>a.code.localeCompare(b.code):state.sort==='market'?(a,b)=>a.market.localeCompare(b.market):((a,b)=>(b.gain??-9999)-(a.gain??-9999)));
++if(state.filter==='miss')rows=rows.filter(r=>!r.pass&&!r.insufficient);
++rows.sort(screenOrder);
  const limit=40,pages=Math.ceil(rows.length/limit),items=rows.slice(state.pageNum*limit,(state.pageNum+1)*limit);
  state.showList=rows;
  return title('全市場籌碼篩選','從真實集保原始股數計算，而非展示人工假資料。',`<button class="btn" data-nav="settings">⚙ 調整篩選參數</button>`)+
 -`<div class="notice">目前母體：${fmt(Object.keys(D.stocks).length)} 檔候選股票。最後週股數有資料：${fmt(t.all)} 檔。<b>注意：</b>來自 2026-11-13 的股票名單，未重建歷史逐日母體，也尚未逐檔完成公司行動核對；篩選通過僅代表算術條件符合。</div>`+
 +`<div class="notice">目前母體：${fmt(D.universe.length)} 檔候選股票。所選窗口可判定：${fmt(t.all-t.unknown)} 檔，資料不足：${fmt(t.unknown)} 檔。<b>注意：</b>來自 2026-11-13 的股票名單，未重建歷史逐日母體，也尚未逐檔完成公司行動核對；篩選通過僅代表算術條件符合。</div>`+
  `<div class="metricgrid">${metric('符合現行條件',fmt(t.pass),'通過股數 + 比例 + 門檻','green')}${metric('不符條件',fmt(t.all-t.pass-t.unknown),'明列原因')}${metric('資料／複合條件待證',fmt(t.unknown),'須查證，不當作通過')}${metric('目前觀測截止',win?.end||'—','公布證據與交易開盤分開處理')}</div>`+
- `<div class="card">${cardhead('篩選控制台','參數更動只在「策略設定」按套用後影響篩選',settingsHint())}<div class="toolbar"><input id="searchCode" placeholder="搜尋股票代號或名稱" value="${esc(state.query)}" aria-label="股票搜尋"><span class="mini">連續 ${cfg.weeks} 週增持，累計至少 ${fmt(cfg.minPp,2)} 百分點</span>${wndSelect(cfg)}<select id="filterPass"><option value="pass" ${state.filter==='pass'?'selected':''}>只看通過</option><option value="all" ${state.filter==='all'?'selected':''}>全部結果</option><option value="miss" ${state.filter==='miss'?'selected':''}>未通過／待證</option><option value="unknown" ${state.filter==='unknown'?'selected':''}>資料與條件待證</option></select><select id="sortBy"><option value="gain" ${state.sort==='gain'?'selected':''}>增幅最高</option><option value="name" ${state.sort==='name'?'selected':''}>代號順序</option><option value="market" ${state.sort==='market'?'selected':''}>市場排序</option></select><button class="btn sm" id="exportScreener">↓ 匯出結果 CSV</button></div><div class="mini" style="margin-bottom:7px">篩選結果 ${fmt(rows.length)} 筆，每頁 40 筆 · 點擊股票可查看各週原始值</div>${renderTable(items)}<div class="toolbar" style="justify-content:flex-end;margin-top:15px"><button class="btn sm" id="prevPage" ${state.pageNum<=0?'disabled':''}>← 上一頁</button><span class="mini">${pages?state.pageNum+1:0} / ${pages} 頁</span><button class="btn sm" id="nextPage" ${state.pageNum+1>=pages?'disabled':''}>下一頁 →</button></div></div>`;
- }
+-`<div class="card">${cardhead('篩選控制台','參數更動只在「策略設定」按套用後影響篩選',settingsHint())}<div class="toolbar"><input id="searchCode" placeholder="搜尋股票代號或名稱" value="${esc(state.query)}" aria-label="股票搜尋"><span class="mini">連續 ${cfg.weeks} 週增持，累計至少 ${fmt(cfg.minPp,2)} 百分點</span>${wndSelect(cfg)}<select id="filterPass"><option value="pass" ${state.filter==='pass'?'selected':''}>只看通過</option><option value="all" ${state.filter==='all'?'selected':''}>全部結果</option><option value="miss" ${state.filter==='miss'?'selected':''}>未通過／待證</option><option value="unknown" ${state.filter==='unknown'?'selected':''}>資料與條件待證</option></select><select id="sortBy"><option value="gain" ${state.sort==='gain'?'selected':''}>增幅最高</option><option value="name" ${state.sort==='name'?'selected':''}>代號順序</option><option value="market" ${state.sort==='market'?'selected':''}>市場排序</option></select><button class="btn sm" id="exportScreener">↓ 匯出結果 CSV</button></div><div class="mini" style="margin-bottom:7px">篩選結果 ${fmt(rows.length)} 筆，每頁 40 筆 · 點擊股票可查看各週原始值</div>${renderTable(items)}<div class="toolbar" style="justify-content:flex-end;margin-top:15px"><button class="btn sm" id="prevPage" ${state.pageNum<=0?'disabled':''}>← 上一頁</button><span class="mini">${pages?state.pageNum+1:0} / ${pages} 頁</span><button class="btn sm" id="nextPage" ${state.pageNum+1>=pages?'disabled':''}>下一頁 →</button></div></div>`;
+-}
 -function stock(){const code=state.stock;const info=D.stocks[code]||['未驗證股票名稱','待確認'];const ds=dates().filter(day=>D.series[day]?.[code]);const latest=ds.at(-1);const win=windows(2).find(w=>w.end===state.win)||windows(2).at(-1);
 -const sigs=BAND_NAMES.map(b=>({band:b,...calculate(code,b,win,{...applied,band:b})}));const chartBand=state.bands.length?state.bands:[applied.band];const model=code==='2404';
 -const thisPoint=vector(code,state.selectedDay,chartBand[0]);
+-return title(`個股研究｜${esc(code)} ${esc(info[0])}`,`市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`, `<div class="toolbar"><input id="stockCode" placeholder="輸入股票代號" value="${esc(code)}"><button class="btn main" id="goStock">查詢</button></div>`)+
++`<div class="card">${cardhead('篩選控制台','參數更動只在「策略設定」按套用後影響篩選',settingsHint())}<div class="toolbar"><input id="searchCode" placeholder="搜尋股票代號或名稱" value="${esc(state.query)}" aria-label="股票搜尋"><span class="mini">連續 ${cfg.weeks} 週增持，累計至少 ${fmt(cfg.minPp,2)} 百分點</span>${wndSelect(cfg)}${screenControls()}<button class="btn sm" id="exportScreener">↓ 匯出結果 CSV</button></div><div class="mini" style="margin-bottom:7px">篩選結果 ${fmt(rows.length)} 筆，每頁 40 筆 · 點擊股票可查看各週原始值</div>${renderTable(items)}<div class="toolbar" style="justify-content:flex-end;margin-top:15px"><button class="btn sm" id="prevPage" ${state.pageNum<=0?'disabled':''}>← 上一頁</button><span class="mini">${pages?state.pageNum+1:0} / ${pages} 頁</span><button class="btn sm" id="nextPage" ${state.pageNum+1>=pages?'disabled':''}>下一頁 →</button></div></div>`;
++}
 +function stock(){const code=state.stock;const info=D.stocks[code]||['未驗證股票名稱','待確認'];const ds=archiveDays().filter(day=>D.series[day]?.[code]);const latest=ds.at(-1);
 +const chartBand=state.bands.length?state.bands:[applied.band];const model=code==='2404';
 +const rawDays=state.manualWeek?ds:dates().filter(day=>D.series[day]?.[code]);
 +if (!rawDays.includes(state.selectedDay)) state.selectedDay=rawDays.at(-1)||'';
- return title(`個股研究｜${esc(code)} ${esc(info[0])}`,`市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`, `<div class="toolbar"><input id="stockCode" placeholder="輸入股票代號" value="${esc(code)}"><button class="btn main" id="goStock">查詢</button></div>`)+
++return title(`個股研究｜${esc(code)} ${esc(info[0])}`,`市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`, `<div class="toolbar"><input id="stockCode" placeholder="輸入股票代號" value="${esc(code)}"><button class="btn main" id="goStock">查詢</button>${pinButton(code)}</div>`)+
  (!ds.length?`<div class="notice warn">沒有此股的集保原始資料；名稱可能來自舊市場名單。請在資料頁匯入可信集保 CSV。</div>`:'')+
  `<div class="metricgrid">${metric('最後一次集保資料',latest||'—','缺週時不拼接')}${metric('400 張持股比例',vector(code,latest,'400')?fmt(vector(code,latest,'400').pct,3)+'%':'—','以最新快照的總股數為分母')}${metric('總集保股數',fmt(vector(code,latest,'400')?.den),'股數／戶數分開追蹤')}${metric('400 張戶數',fmt(vector(code,latest,'400')?.owner),'非持股人身分辨識')}</div>`+
  `<div class="card">${cardhead('大戶累計持股比例','同一座標對齊；遇缺週折線自動斷開', `<div class="seg"><button data-chart-range="all" class="${state.chartRange==='all'?'on':''}">全部</button><button data-chart-range="recent" class="${state.chartRange==='recent'?'on':''}">近三期</button></div>`)}<div class="legend" style="margin-bottom:8px">${BAND_NAMES.map(b=>`<label><input type="checkbox" data-band="${b}" ${chartBand.includes(b)?'checked':''}><span style="color:${COLORS[b]}">●</span>${b} 張</label>`).join('')}</div>${weeklyPlot(code,chartBand,state.chartRange)}<p class="footnote">選取級距僅改變圖表，並不修改實際選股策略。400 張含千張級距，不能把兩條線相加。</p></div>`+
@@ -126,7 +132,7 @@
   const allValues=ds.flatMap(day=>bands.map(b=>vector(code,day,b)?.pct).filter(x=>Number.isFinite(x)));
   if(!allValues.length)return `<div class="empty">沒有可繪製的集保數據</div>`;
   let mn=Math.min(...allValues),mx=Math.max(...allValues),pad=Math.max(0.4,(mx-mn)*.3);mn-=pad;mx+=pad;
-@@ -129,15 +89,8 @@
+@@ -129,15 +90,8 @@
  const grid=[0,.25,.5,.75,1].map(a=>{const val=lowest-pad+(highest-lowest+2*pad)*a;return `<line class="gridline" x1="${marginLeft}" x2="${width-marginR}" y1="${Y(val)}" y2="${Y(val)}"/><text class="axis" x="${marginLeft-8}" y="${Y(val)+4}" text-anchor="end">${fmt(val,0)}</text>`}).join('');
  return `<svg class="plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="漢唐日線開高低收與成交量"><rect class="plot-bg" x="${marginLeft}" y="${top}" width="${plotW}" height="${priceH+volH+10}" rx="7"/>${grid}${marks}<text class="axis" x="${marginLeft}" y="${height-6}">${bars[0]?.[0]}</text><text class="axis" text-anchor="end" x="${width-marginR}" y="${height-6}">${bars.at(-1)?.[0]}</text></svg><div class="statbar"><div><span class="mini">最新收盤（資料日）</span><strong>${fmt(bars.at(-1)?.[4],2)}</strong></div><div><span class="mini">最後交易日</span><strong style="font-size:14px">${bars.at(-1)?.[0]}</strong></div><div><span class="mini">最後成交量</span><strong>${fmt(bars.at(-1)?.[5])}</strong></div></div>`;
  }
@@ -144,7 +150,7 @@
  `<div class="section"><h2>接近實用回測還缺什麼</h2></div><div class="grid2 equal"><div class="card"><h3>已具備</h3><p class="help">全市場多期原始集保、按公開時間計算的週訊號、同一公式的 A/B 篩選、個股日行情樣本。</p></div><div class="card"><h3>仍欠缺</h3><p class="help">逐日歷史股票母體、各股日 K 和當時版本、公司行動、5/10/20/40 日已成熟的交易事件、交易可成交性驗證。</p></div></div>`;
  }
  function modeledDistribution(base,compare,cfg){
-@@ -221,14 +174,15 @@
+@@ -221,14 +175,15 @@
  function dataPage(){const ds=dates(),count=Object.keys(D.stocks).length;
  const records=Object.values(D.quality).reduce((a,b)=>a+b.valid,0);
  return title('資料來源、匯入與驗收','資料檔與訊號的時點可追溯，未知時間絕不冒充已公布。',badge('固定研究版本 '+D.run))+
@@ -165,7 +171,7 @@
  function parseCSV(text){const lines=[];let row=[],str='',quote=false;for(let i=0;i<text.length;i++){const ch=text[i];if(quote){if(ch==='"'&&text[i+1]==='"'){str+='"';i++}else if(ch==='"')quote=false;else str+=ch;}else if(ch==='"')quote=true;else if(ch===','){row.push(str);str=''}else if(ch==='\r'||ch==='\n'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(str);if(row.some(x=>x.trim()!==''))lines.push(row);row=[];str=''}else str+=ch;}if(row.length||str){row.push(str);lines.push(row)}return lines;}
  async function importTDCC(files){let successes=[],errors=[];
  for(const f of files){try{
-@@ -241,20 +195,21 @@
+@@ -241,20 +196,21 @@
   const codeRow=byCode[code]||(byCode[code]={});if(codeRow[lvl])throw Error('出現同個股同級距重複資料：'+code);codeRow[lvl]=[n,h];
   }
   if(!day)throw Error('沒有符合的資料日期');const ds=`${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6,8)}`;
@@ -191,7 +197,7 @@
  render();
  const msg=[...successes,...errors].join('；');toast(msg||'沒有匯入資料');
  $('#importStatus').textContent=msg;
-@@ -270,7 +225,7 @@
+@@ -270,16 +226,19 @@
   if(out.retention<0||out.retention>100||out.dropPp<0||out.dropPp>30||out.peakMin<0||out.peakMin>60||out.lowPosition<5||out.lowPosition>80||out.rangeDays<20||out.rangeDays>250)throw Error('成本分布參數超出範圍');
   for(const k of ['needShares','needPeak','needPrice'])out[k]=Boolean(out[k]);return out;
  }
@@ -200,7 +206,8 @@
  function attachCharts(){}
  // Event delegation ensures table paging, settings and chart widgets work after rerender.
  document.body.addEventListener('click',e=>{
-@@ -278,8 +233,10 @@
+  const nav=e.target.closest('[data-nav]');if(nav){go(nav.dataset.nav);return}
++ const pin=e.target.closest('[data-pin]');if(pin){togglePin(pin.dataset.pin);return}
   const stockTarget=e.target.closest('[data-stock]');if(stockTarget){selectStock(stockTarget.dataset.stock);return}
   const r=e.target.closest('[data-chart-range]');if(r){state.chartRange=r.dataset.chartRange;render();return}
   const dr=e.target.closest('[data-daily-range]');if(dr){state.dailyRange=Number(dr.dataset.dailyRange);render();return}
@@ -212,7 +219,7 @@
   if(id==='goStock'){
    const code=$('#stockCode').value.trim();if(!/^\d{4}$/.test(code)){toast('請輸入四碼股票代號');return}selectStock(code);return;
   }
-@@ -287,16 +244,16 @@
+@@ -287,16 +246,16 @@
   if(id==='nextPage'){state.pageNum++;render();return}
   if(id==='exportScreener'){exportScreener();return}
   if(id==='goCompare'){go('backtest');return}
@@ -235,7 +242,7 @@
   }
   if(id==='calcPeak'){
    const v=$('#peakBase').value,c=$('#peakCompare').value;
-@@ -311,18 +268,21 @@
+@@ -311,18 +270,21 @@
   if(el.dataset.band){const b=el.dataset.band;state.bands=el.checked?[...new Set([...state.bands,b])]:state.bands.filter(x=>x!==b);render();return}
   if(el.id==='filterPass'){state.filter=el.value;state.pageNum=0;render();return}
   if(el.id==='sortBy'){state.sort=el.value;state.pageNum=0;render();return}

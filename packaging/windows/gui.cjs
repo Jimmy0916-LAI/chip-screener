@@ -320,9 +320,40 @@ async function liveOfficialTest() {
   await screenshot('screen');console.log(phase,JSON.stringify(report.snapshots));
 }
 
+async function pinQA(){
+  if(phase==='pins-seed'){
+    await nav('screen');
+    for(const [mode,count] of [['all',1985],['miss',1692],['unknown',25],['pass',268]]){
+      await change('#filterPass',mode);
+      assert.equal(await evaluate('state.showList.length'),count);
+      assert(await evaluate("state.showList.every(r=>state.filter==='all'||(state.filter==='pass'?r.pass:state.filter==='miss'?!r.pass&&!r.insufficient:r.insufficient))"));
+    }
+    await change('#filterPass','all');
+    for(const sort of ['name','market','gain']){
+      await change('#sortBy',sort);
+      await evaluate("document.querySelector('[aria-describedby=sortByTip]').focus()");
+      assert(await evaluate("getComputedStyle(document.querySelector('#sortByTip')).display!=='none' && document.querySelector('#sortByTip').innerText.includes('缺值')"));
+    }
+    const pos=await evaluate("(()=>{const r=document.querySelector('[aria-describedby=filterPassTip]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
+    await renderer.call('Input.dispatchMouseEvent',{type:'mouseMoved',...pos});
+    assert(await evaluate("getComputedStyle(document.querySelector('#filterPassTip')).display!=='none'"));
+    await screenshot('tooltips');
+    await nav('stock');await click('[data-pin="2404"]');
+    await nav('screen');
+    await evaluate("const input=document.querySelector('#searchCode');input.value='6488';input.dispatchEvent(new Event('input',{bubbles:true}));true");
+    await click('[data-pin="6488"]');await nav('home');
+  }
+  const list=await evaluate("document.querySelector('#watchlist').innerText");
+  assert(list.includes('2404')&&list.includes('6488'),list);
+  await click('#watchlist [data-stock="6488"]');assert((await evaluate("document.querySelector('#page h1').textContent")).includes('6488'));
+  await nav('home');await screenshot('pins');report.snapshots.watchlist=list;
+  if(phase==='pins-remove'){await click('[data-pin="6488"]');assert(!(await evaluate("document.querySelector('#watchlist').innerText")).includes('6488'));}
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if(phase.startsWith('pins-')){await check(phase,pinQA);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('live-')) {await check(phase,liveOfficialTest);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('pending-')) { await check(phase,pendingWeekTest); assert.deepEqual(report.rendererErrors,[]); console.log(phase,JSON.stringify(report.snapshots)); return; }
   if(phase==='weekly') { await check('weekly screen, stock and downloaded comparison CSV',verifyWeekly);console.log(phase,JSON.stringify(report.snapshots));assert.deepEqual(report.rendererErrors,[]);return; }
