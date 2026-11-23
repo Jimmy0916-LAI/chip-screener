@@ -21,18 +21,29 @@ try:
                 time.sleep(.5)
         page=browser.contexts[0].pages[0]
         page.wait_for_selector('#feedDay',timeout=60000)
-        page.wait_for_function("document.querySelector('#feedDay').textContent>'2026-11-13' && checkedAt && !feedBusy",timeout=180000)
+        def until(fn,seconds):
+            deadline=time.monotonic()+seconds
+            while not fn():
+                if time.monotonic()>deadline:raise TimeoutError(page.locator('#page').inner_text()[:1500])
+                time.sleep(.35)
+        until(lambda:page.locator('#feedDay').inner_text()>'2026-11-13' and ('有新資料' in page.locator('#feedStatus').inner_text() or '離線' in page.locator('#feedStatus').inner_text() or '已是最新' in page.locator('#feedStatus').inner_text()),180)
         page.locator('#nav [data-nav=stock]').click()
         page.locator('[data-chart-range=recent]').click()
         records={}
         for code in ['2404','6488']:
             page.locator('#stockCode').fill(code);page.locator('#goStock').click()
             page.locator('#overlay').check()
-            page.wait_for_function("code=>state.stock===code && chartCache.has(chartRequest().key) && !chartCache.get(chartRequest().key).busy && document.querySelectorAll('#combinedPlot [data-bar]').length>5",arg=code,timeout=275000)
-            points=page.locator('#combinedPlot [data-bar]').evaluate_all("""groups=>groups.map(g=>{
-              const l=g.querySelector('line'),r=g.querySelector('rect');
-              return {day:g.dataset.bar,p:g.dataset.ohlc.split(',').map(Number),y:[+l.getAttribute('y1'),+l.getAttribute('y2'),+r.getAttribute('y'),+r.getAttribute('height')],known:g.textContent.split('已證可用 ').pop()};
-            })""")
+            def chart_ready():
+                return (code in page.locator('#page h1').inner_text() and
+                        '讀取官方行情中' not in page.locator('#combinedPlot').inner_text() and
+                        page.locator('#combinedPlot [data-bar]').count()>5)
+            until(chart_ready,275)
+            points=[]
+            for group in page.locator('#combinedPlot [data-bar]').all():
+                wick,body=group.locator('line'),group.locator('rect')
+                points.append(dict(day=group.get_attribute('data-bar'),p=list(map(float,group.get_attribute('data-ohlc').split(','))),
+                                   y=[float(el.get_attribute(attr)) for el,attr in [(wick,'y1'),(wick,'y2'),(body,'y'),(body,'height')]],
+                                   known=group.locator('title').text_content().split('已證可用 ')[-1]))
             prices=[v for b in points for v in b['p'][1:3]]
             lo,hi=min(prices),max(prices);pad=max(.1,(hi-lo)*.1)
             def y(n):return 220-(n-lo+pad)/(hi-lo+2*pad)*195
