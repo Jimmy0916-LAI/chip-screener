@@ -27,6 +27,8 @@ try:
                 if time.monotonic()>deadline:raise TimeoutError(page.locator('#page').inner_text()[:1500])
                 time.sleep(.35)
         until(lambda:page.locator('#feedDay').inner_text()>'2026-11-13' and ('有新資料' in page.locator('#feedStatus').inner_text() or '離線' in page.locator('#feedStatus').inner_text() or '已是最新' in page.locator('#feedStatus').inner_text()),180)
+        if phase=='offline':
+            until(lambda:'離線' in page.locator('#feedStatus').inner_text(),120)
         page.locator('#nav [data-nav=stock]').click()
         page.locator('[data-chart-range=recent]').click()
         records={}

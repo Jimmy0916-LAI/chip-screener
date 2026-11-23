@@ -52,16 +52,19 @@ jobs:
           $exe=(Resolve-Path shipped/ChipScreener.exe).Path
           python -X utf8 packaging/qa/chart_reopen.py $exe online
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          $group="B06-"+[guid]::NewGuid()
+          $hostsFile=Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+          $original=[IO.File]::ReadAllBytes($hostsFile)
+          $sources=@('opendata.tdcc.com.tw','www.twse.com.tw','openapi.twse.com.tw','www.tpex.org.tw')
           try {
-            $runtime=Join-Path $env:TEMP 'ChipScreener-B06-v1\ChipScreener.exe'
-            foreach ($p in @($exe,$runtime)){
-              New-NetFirewallRule -Group $group -DisplayName "$group $p" -Direction Outbound -Action Block -Program $p -Profile Any -RemoteAddress '0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null
+            foreach($source in $sources){[IO.File]::AppendAllText($hostsFile,"`r`n127.0.0.2 $source`r`n")}
+            Clear-DnsClientCache
+            foreach($source in $sources){
+              $ips=@([Net.Dns]::GetHostAddresses($source) | ForEach-Object IPAddressToString)
+              if ($ips.Count -ne 1 -or $ips[0] -ne '127.0.0.2'){throw "Source isolation failed for $source"}
             }
-            if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object Enabled -eq 'True').Count -ne 2){throw 'Missing offline rules'}
             python -X utf8 packaging/qa/chart_reopen.py $exe offline
             if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          } finally {Get-NetFirewallRule -Group $group -ErrorAction SilentlyContinue | Remove-NetFirewallRule}
+          } finally {[IO.File]::WriteAllBytes($hostsFile,$original);Clear-DnsClientCache}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
