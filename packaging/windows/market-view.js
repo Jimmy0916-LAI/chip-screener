@@ -30,6 +30,7 @@ async function refreshMarket(v,k){
   }catch(e){market.status[v+k]=e.message;}
   finally{marketBusy.delete(v+k);paintMarket();}
 }
+window.marketFeed?.subscribe(summary=>{market={...summary,closeDates:{...market.closeDates,...summary.closeDates}};paintMarket();});
 function allMarkets(){for(const v of ['TWSE','TPEx'])for(const k of ['list','day'])refreshMarket(v,k);}
 function plotDays(){
   const all=dates(),cut=state.asOf||evidenceTime(state.win);

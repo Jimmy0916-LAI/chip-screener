@@ -352,7 +352,12 @@ async function pinQA(){
 
 async function overlayQA(){
   const evidence={};report.snapshots.charts=evidence;
-  await waitFor(()=>evaluate("Object.keys(market.lists).length===2 && market.latest.TWSE && market.latest.TPEx"),245000,'two official lists and day quotes');
+  try {
+    await waitFor(()=>evaluate("Object.keys(market.lists).length===2 && market.latest.TWSE && market.latest.TPEx"),540000,'two official lists and day quotes');
+  } catch(e){
+    const status=await evaluate("({lists:Object.keys(market.lists),latest:market.latest,status:market.status,busy:[...marketBusy]})");
+    throw Error(e.message+' '+JSON.stringify(status));
+  }
   report.snapshots.markets=await evaluate("Object.fromEntries(['TWSE','TPEx'].map(v=>[v,{date:market.lists[v].day,count:Object.keys(market.lists[v].rows).length,quote:market.latest[v],url:market.lists[v].url,hash:market.lists[v].hash,status:market.status[v+'day']}]))");
   await nav('data');await screenshot('market-sources');await nav('stock');
   assert.equal(await evaluate("document.querySelector('#overlay').checked"),false);

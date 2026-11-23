@@ -1,14 +1,14 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const {LocalStore}=require('./storage.cjs');
-const {download}=require('./official-feed.cjs');
+const {exchangeBytes}=require('./market-http.cjs');
 const {taipei}=require('./tdcc.cjs');
 const {venues,sources,historyURL,datedURL,parseLatest,parseHistory,parseDated,codeOK,isoDate,sha}=require('./market-data.cjs');
 const monthAfter=m=>new Date(Date.UTC(+m.slice(0,4),+m.slice(5),1)).toISOString().slice(0,7);
 const decode=bytes=>JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
 class MarketBook {
-  constructor(root,sessions,request=url=>download(url,95000),clock=()=>new Date()){
-    this.root=root;this.sessions=sessions;this.request=request;this.clock=clock;this.pending=new Map();
+  constructor(root,sessions,request=exchangeBytes,clock=()=>new Date()){
+    this.onChange=()=>{};this.root=root;this.sessions=sessions;this.request=request;this.clock=clock;this.pending=new Map();
     this.lists={};this.prices={TWSE:{},TPEx:{}};this.closeDates={};this.status={};
     for(const v of venues) {
       for(const k of ['list','day']){
@@ -40,7 +40,7 @@ class MarketBook {
   commitDay(p){
     const old=this.prices[p.venue][p.day];
     if(old){if(old.hash!==p.hash && Object.entries(old.rows).some(([c,row])=>JSON.stringify(p.rows[c])!==JSON.stringify(row)))throw Error(p.day+' 已存行情與回應衝突，保留原版');return;}
-    this.store(p.venue,'day',p.day).save('market',p);this.addDay(p);
+    this.store(p.venue,'day',p.day).save('market',p);this.addDay(p);this.onChange();
   }
   async sync(v,k){
     if(!venues.includes(v)||!['list','day'].includes(k))throw Error('市場或來源錯誤');
@@ -51,7 +51,7 @@ class MarketBook {
         const last=k==='list'?this.lists[v]?.day:Object.keys(this.prices[v]).sort().at(-1);
         if(last&&p.day<last)throw Error('回應日期倒退至 '+p.day);
         if(k==='list'){
-          if(this.lists[v]?.hash!==p.hash){this.store(v,k,p.day).save('market',p);this.lists[v]=p;}
+          if(this.lists[v]?.hash!==p.hash){this.store(v,k,p.day).save('market',p);this.lists[v]=p;this.onChange();}
         }else this.commitDay(p);
       }catch(e){errors.push(e.message);}
       if(k==='day'){

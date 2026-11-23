@@ -24,6 +24,7 @@ async function openWindow() {
   const trusted=event=>event.senderFrame===event.sender.mainFrame && event.senderFrame.url===dashboard;
   const {MarketBook}=require('./market-book.cjs');
   const market=new MarketBook(path.join(app.getPath('userData'),'market-v1'),()=>[...new Set([...feed.base.sessions,...Object.values(feed.months).flatMap(m=>m.days)])].sort());
+  market.onChange=()=>{for(const w of BrowserWindow.getAllWindows())if(!w.isDestroyed())w.webContents.send('market:changed',market.summary());};
   ipcMain.on('market:read',event=>{event.returnValue=trusted(event)?market.summary():null;});
   ipcMain.handle('market:update',(event,v,k)=>{if(!trusted(event))throw Error('來源無效');return market.sync(v,k);});
   ipcMain.handle('market:history',(event,v,c,s,e,refresh)=>{if(!trusted(event))throw Error('來源無效');return market.history(v,c,s,e,refresh==='retry'?'retry':refresh===true);});

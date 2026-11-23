@@ -3,7 +3,7 @@ const {createHash}=require('node:crypto');
 const venues=['TWSE','TPEx'];
 const sources={
   TWSE:{list:'https://openapi.twse.com.tw/v1/opendata/t187ap03_L',day:'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL'},
-  TPEx:{list:'https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O',day:'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'}
+  TPEx:{list:'https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O',day:'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes'}
 };
 function historyURL(v,code,month){
   return v==='TWSE'?'https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date='+month.replace('-','')+'01&stockNo='+code+'&response=json':
@@ -32,7 +32,7 @@ function bar(o,h,l,c,volume,scale=1){
 }
 function finish(rows,min){check(Object.keys(rows).length>=min,'市場覆蓋不足');return rows;}
 function parseLatest(data,venue,kind,now,min=400){
-  check(Array.isArray(data),'市場資料非清單');const rows={},seen=new Set();let day=null;
+  check(Array.isArray(data),'市場資料非清單');const rows={},issues={},seen=new Set();let day=null;
   for(const r of data){
     const isList=kind==='list',tw=venue==='TWSE';
     const code=String(isList?(r['公司代號']??r.SecuritiesCompanyCode??r.CompanyCode):tw?r.Code:r.SecuritiesCompanyCode).trim();
@@ -43,12 +43,16 @@ function parseLatest(data,venue,kind,now,min=400){
       const name=r['公司簡稱']??r.CompanyAbbreviation??r.CompanyName??r['公司名稱'];
       check(typeof name==='string'&&name.trim(),'公司簡稱缺漏');rows[code]=name.trim();
     }else{
-      const price=tw?bar(r.OpeningPrice,r.HighestPrice,r.LowestPrice,r.ClosingPrice,r.TradeVolume):
-        bar(r.Open,r.High,r.Low,r.Close,r.TradingShares);
-      if(price)rows[code]=price;
+      try {
+        const price=tw?bar(r.OpeningPrice,r.HighestPrice,r.LowestPrice,r.ClosingPrice,r.TradeVolume):
+          bar(r.Open,r.High,r.Low,r.Close,r.TradingShares);
+        if(price)rows[code]=price;else issues[code]='無當日有效成交價';
+      } catch(e){issues[code]=e.message;}
+
     }
   }
-  return {day,rows:finish(rows,min)};
+  check(!min||Object.keys(rows).length>=seen.size*.90,'有效股票行情覆蓋低於 90%');
+  return {day,rows:finish(rows,min),issues};
 }
 function fields(table,aliases){
   const names=table.fields.map(f=>String(f).replace(/\s/g,''));
@@ -74,12 +78,13 @@ function parseDated(data,venue,expected,min=400){
   const tables=data.tables||[data];
   const t=tables.find(x=>x.fields?.some(f=>['開盤價','開盤'].includes(f))&&x.fields.some(f=>['證券代號','代號'].includes(f)));
   check(t,'缺少日行情表');
-  const indices=fields(t,[['證券代號','代號'],...priceFields,['成交股數','成交量']]);const rows={},seen=new Set();
+  const indices=fields(t,[['證券代號','代號'],...priceFields,['成交股數','成交量']]);const rows={},issues={},seen=new Set();
   for(const row of t.data){const [code,...values]=indices.map(i=>String(row[i]).trim());if(!codeOK(code))continue;
     check(!seen.has(code),'重複代號 '+code);seen.add(code);
-    const p=bar(...values);if(p)rows[code]=p;
+    try{const p=bar(...values);if(p)rows[code]=p;else issues[code]='無當日有效成交價';}catch(e){issues[code]=e.message;}
   }
-  return {day:expected,rows:finish(rows,min)};
+  check(Object.keys(rows).length>=seen.size*.90,'有效股票行情覆蓋低於 90%');
+  return {day:expected,rows:finish(rows,min),issues};
 }
 function validateMarket(packet){
   check(venues.includes(packet.venue)&&['list','day','history'].includes(packet.kind)&&/^https:\/\//.test(packet.url)&&/^[a-f0-9]{64}$/.test(packet.hash)&&Number.isFinite(Date.parse(packet.fetched)),'市場來源證據無效');
