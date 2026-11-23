@@ -19,7 +19,7 @@ adapter = (root / 'desktop-state.js').read_text(encoding='utf-8')
 assert js.count('/* DESKTOP_STORAGE */') == 1
 js = js.replace('/* DESKTOP_STORAGE */', adapter)
 html = (source / 'app.template.html').read_text(encoding='utf-8')
-for marker, filename in [('/* WEEKLY_ENGINE */','weekly.js'),('/* WEEKLY_VIEWS */','weekly-views.js'),('/* OFFICIAL_FEED */','official-view.js'),('/* WATCHLIST */','watchlist.js')]:
+for marker, filename in [('/* WEEKLY_ENGINE */','weekly.js'),('/* WEEKLY_VIEWS */','weekly-views.js'),('/* OFFICIAL_FEED */','official-view.js'),('/* WATCHLIST */','watchlist.js'),('/* MARKET_VIEW */','market-view.js')]:
     assert js.count(marker) == 1
     js = js.replace(marker,(root / filename).read_text(encoding='utf-8'))
 data = enrich(json.loads((source / 'web_data.json').read_bytes()), root.parents[1] / 'chip-screener-phase1.zip')

@@ -111,7 +111,7 @@ async function verifyStored() {
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
   assert(info.includes(sampleDay) && info.includes('B03-合成快照.csv') && info.includes('本機快照 1 期'), info);
-  const version=phase==='upgrade-source'?'0.6.0-b04.2':'0.6.0-b05.1';
+  const version=phase==='upgrade-source'?'0.6.0-b06.0':'0.6.0-b06.1';
   assert(info.includes(version),info);
   if(phase==='recovered') assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await screenshot('stored-snapshot');
@@ -177,7 +177,7 @@ async function verifyRevision(index) {
   await screenshot('revision-'+(index+1)+'-settings');
   await nav('data');
   const info=await evaluate("document.querySelector('#importStatus').textContent");
-  assert(info.includes('0.6.0-b05.1') && info.includes(day),info);
+  assert(info.includes('0.6.0-b06.1') && info.includes(day),info);
   if(index===1) assert(info.includes('策略設定已從備份復原') && info.includes('資料快照已從備份復原'),info);
   await nav('stock');
   assert.equal(await evaluate("!!document.querySelector('#daySelect option[value=\"2026-09-18\"]')"),false);
@@ -350,9 +350,58 @@ async function pinQA(){
   if(phase==='pins-remove'){await click('[data-pin="6488"]');assert(!(await evaluate("document.querySelector('#watchlist').innerText")).includes('6488'));}
 }
 
+async function overlayQA(){
+  const evidence={};report.snapshots.charts=evidence;
+  await waitFor(()=>evaluate("Object.keys(market.lists).length===2 && market.latest.TWSE && market.latest.TPEx"),245000,'two official lists and day quotes');
+  report.snapshots.markets=await evaluate("Object.fromEntries(['TWSE','TPEx'].map(v=>[v,{date:market.lists[v].day,count:Object.keys(market.lists[v].rows).length,quote:market.latest[v],url:market.lists[v].url,hash:market.lists[v].hash,status:market.status[v+'day']}]))");
+  await nav('data');await screenshot('market-sources');await nav('stock');
+  assert.equal(await evaluate("document.querySelector('#overlay').checked"),false);
+  async function readChart(code,range){
+    const loaded=()=>evaluate(`(()=>{const q=chartRequest(),e=chartCache.get(q.key);return q.code==='${code}'&&state.chartRange==='${range}'&&e&&!e.busy?{errors:e.errors,count:Object.keys(e.bars).length}:null})()`);
+    let loadedState=await waitFor(loaded,480000,'individual official months '+code);
+    if(loadedState.errors.length){await click('#retryBars');loadedState=await waitFor(loaded,480000,'retry '+code);}
+    assert.deepEqual(loadedState.errors,[],code+': '+loadedState.errors.join(';'));
+    const result=await evaluate(`(()=>{
+      const svg=document.querySelector('#combinedPlot svg'),days=plotDays(),bars={};
+      for(const g of svg.querySelectorAll('g[data-bar]')){
+        const d=g.dataset.bar,ohlc=g.dataset.ohlc.split(',').map(Number),x=Number(g.dataset.x);
+        if(bars[d])throw Error('duplicate candle');
+        const expected=57+(Date.parse(d)-Date.parse(days[0]))/(Date.parse(days.at(-1))-Date.parse(days[0]))*694;
+        if(Math.abs(x-expected)>.00001||Math.abs(Number(g.querySelector('line').getAttribute('x1'))-x)>.00001)throw Error('candlestick date axis '+d);
+        bars[d]=ohlc;
+      }
+      for(const dot of svg.querySelectorAll('circle[data-stat]')){
+        const x=57+(Date.parse(dot.dataset.stat)-Date.parse(days[0]))/(Date.parse(days.at(-1))-Date.parse(days[0]))*694;
+        if(Math.abs(Number(dot.getAttribute('cx'))-x)>.00001||!dot.textContent.includes('已證可用'))throw Error('statistic date axis');
+      }
+      return {days,bars,segments:svg.querySelectorAll('polyline[data-band-line="400"]').length};
+    })()`);
+    assert(Object.keys(result.bars).length>5,JSON.stringify(result));
+    assert(!result.bars['2026-10-09']&&!result.bars['2026-10-23']&&!result.bars['2026-11-14']);
+    if(range==='all')assert(result.segments>=2,'missing weeks must break lines');else assert.equal(result.days.length,3);
+    evidence[code+'-'+range]=result;
+    await screenshot(code+'-'+range);await record();
+  }
+  for(const code of ['2404','6488']){
+    await evaluate("document.querySelector('#stockCode').value="+JSON.stringify(code));
+    await click('#goStock');await click('[data-chart-range="recent"]');
+    if(!(await evaluate("document.querySelector('#overlay').checked")))await click('#overlay');
+    await readChart(code,'recent');await click('[data-chart-range="all"]');await readChart(code,'all');
+    await click('[data-band="600"]');
+    assert.equal(await evaluate("document.querySelectorAll('#combinedPlot svg g[data-bar]').length"),Object.keys(evidence[code+'-all'].bars).length);
+    assert(await evaluate("!!document.querySelector('#combinedPlot [data-band-line=\"600\"]')"));
+    await click('[data-band="600"]');
+  }
+  await change('#windowSelect','2026-10-30');
+  assert.equal(await evaluate("document.querySelectorAll('#combinedPlot [data-bar]').length"),0);
+  assert(await evaluate("!!document.querySelector('#combinedPlot [data-stat]') && document.querySelector('#combinedPlot').innerText.includes('截止時點')"));
+  await screenshot('historical');console.log('B06 overlay',JSON.stringify({markets:report.snapshots.markets,ranges:Object.fromEntries(Object.entries(evidence).map(([k,v])=>[k,[v.days[0],v.days.at(-1),Object.keys(v.bars).length,v.segments]]))}));
+}
+
 async function main() {
   assert.equal(process.platform, 'win32');
   await launch(exePath);
+  if(phase==='market-overlay'){await check(phase,overlayQA);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('pins-')){await check(phase,pinQA);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('live-')) {await check(phase,liveOfficialTest);assert.deepEqual(report.rendererErrors,[]);return;}
   if(phase.startsWith('pending-')) { await check(phase,pendingWeekTest); assert.deepEqual(report.rendererErrors,[]); console.log(phase,JSON.stringify(report.snapshots)); return; }

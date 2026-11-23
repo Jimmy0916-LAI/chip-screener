@@ -11,11 +11,11 @@ function watchlist() {
   const cards=pins.map(code=>{
     const day=dates().filter(d=>D.series[d]?.[code]).at(-1);
     const close=lastCloseDate(code);
-    return '<div class="feature"><div><button class="btn sm" data-stock="'+code+'">'+esc(ticker(code))+'</button><small>籌碼 '+esc(day||'無資料')+'　收盤 '+esc(close||'無資料')+'</small></div>'+pinButton(code)+'</div>';
+    return '<div class="feature"><div><button class="btn sm" data-stock="'+code+'">'+esc(code+' '+marketName(code))+'</button><small>籌碼 '+esc(day||'無資料')+'　收盤 '+esc(close||'無資料')+'</small></div>'+pinButton(code)+'</div>';
   }).join('');
   return '<div class="card" id="watchlist"><h3>自選股</h3>'+(cards||'<button class="btn" data-nav="screen">從篩選結果釘選股票</button>')+'</div>';
 }
-function lastCloseDate(code){return code==='2404'?D.daily2404.at(-1)?.[0]:null;}
+
 const sortTips={gain:'按累計持股占比增幅（百分點）從大到小排列。',name:'按四碼股票代號從小到大排列。',market:'按市場英文代碼從小到大排列（TPEx、TWSE）。'};
 function fieldControl(id,label,tip,options,value) {
   return '<div class="filter-field"><div><label for="'+id+'">'+label+'</label> <button type="button" class="help-dot" aria-label="'+label+'說明" aria-describedby="'+id+'Tip">?</button><span role="tooltip" id="'+id+'Tip">'+esc(tip)+'</span></div><select id="'+id+'">'+options.map(([k,v])=>'<option value="'+k+'" '+(k===value?'selected':'')+'>'+v+'</option>').join('')+'</select></div>';

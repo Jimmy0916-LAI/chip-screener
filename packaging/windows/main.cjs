@@ -22,6 +22,11 @@ async function openWindow() {
   const feed=new OfficialFeed(path.join(app.getPath('userData'),'tdcc-v1'),require('./feed-base.json'));
   let update;
   const trusted=event=>event.senderFrame===event.sender.mainFrame && event.senderFrame.url===dashboard;
+  const {MarketBook}=require('./market-book.cjs');
+  const market=new MarketBook(path.join(app.getPath('userData'),'market-v1'),()=>[...new Set([...feed.base.sessions,...Object.values(feed.months).flatMap(m=>m.days)])].sort());
+  ipcMain.on('market:read',event=>{event.returnValue=trusted(event)?market.summary():null;});
+  ipcMain.handle('market:update',(event,v,k)=>{if(!trusted(event))throw Error('來源無效');return market.sync(v,k);});
+  ipcMain.handle('market:history',(event,v,c,s,e,refresh)=>{if(!trusted(event))throw Error('來源無效');return market.history(v,c,s,e,refresh==='retry'?'retry':refresh===true);});
   ipcMain.on('official:read',event=>{event.returnValue=trusted(event)?feed.initial():null;});
   ipcMain.handle('official:update',event=>{
     if (!trusted(event)) throw Error('來源無效');
