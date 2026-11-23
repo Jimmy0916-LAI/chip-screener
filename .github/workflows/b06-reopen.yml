@@ -54,9 +54,11 @@ jobs:
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
           $group="B06-"+[guid]::NewGuid()
           try {
-            foreach ($p in @($exe,"$env:TEMP/ChipScreener-B06-v1/ChipScreener.exe")){
+            $runtime=Join-Path $env:TEMP 'ChipScreener-B06-v1\ChipScreener.exe'
+            foreach ($p in @($exe,$runtime)){
               New-NetFirewallRule -Group $group -DisplayName "$group $p" -Direction Outbound -Action Block -Program $p -Profile Any -RemoteAddress '0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null
             }
+            if (@(Get-NetFirewallRule -Group $group -PolicyStore ActiveStore | Where-Object Enabled -eq 'True').Count -ne 2){throw 'Missing offline rules'}
             python -X utf8 packaging/qa/chart_reopen.py $exe offline
             if ($LASTEXITCODE) {exit $LASTEXITCODE}
           } finally {Get-NetFirewallRule -Group $group -ErrorAction SilentlyContinue | Remove-NetFirewallRule}
