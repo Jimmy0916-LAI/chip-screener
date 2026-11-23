@@ -5,57 +5,36 @@ on:
     paths: ['.github/workflows/b06-checkpoint.yml']
 permissions:
   contents: read
+  actions: read
 jobs:
   checkpoint:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: 8823b021653642288179d693503e941016510150
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - working-directory: packaging/windows
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python -X utf8 build_dashboard.py
+          curl.exe -fsSL --retry 3 -H "Authorization: Bearer $env:GH_TOKEN" "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/artifacts/14799654475/zip" -o checkpoint.zip
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          npm ci --no-audit --no-fund
-          if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          npm run dist
-          if ($LASTEXITCODE) {exit $LASTEXITCODE}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: B06-watchlist-checkpoint
-          path: packaging/windows/dist/ChipScreener.exe
-          compression-level: 0
-          retention-days: 30
-      - working-directory: packaging/windows
-        shell: pwsh
-        run: |
+          if ((Get-FileHash checkpoint.zip).Hash -ne '92bb686b27fe2e8c25cd68c905e93b8fbc310f7580facf78a58e680434aefce6') {throw 'Checkpoint digest mismatch'}
+          Expand-Archive checkpoint.zip -DestinationPath dist
+          $exe=(Resolve-Path dist/ChipScreener.exe).Path
           New-Item -ItemType Directory evidence
           $env:LOCALAPPDATA=(New-Item -ItemType Directory "$env:RUNNER_TEMP/cp-user").FullName
-          node gui.cjs dist/ChipScreener.exe evidence pins-seed
+          node gui.cjs $exe evidence pins-seed
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          node gui.cjs dist/ChipScreener.exe evidence pins-remove
+          node gui.cjs $exe evidence pins-remove
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: checkpoint-evidence
           path: packaging/windows/evidence
-  inspect:
-    runs-on: windows-2022
-    steps:
-      - shell: pwsh
-        run: |
-          $urls=@('https://openapi.twse.com.tw/v1/opendata/t187ap03_L','https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O','https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes','https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL','https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock?code=6488&date=2026%2F11%2F01&id=&response=json','https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=20261101&stockNo=2404&response=json')
-          foreach ($url in $urls) {
-            try {
-              $j=Invoke-RestMethod $url -TimeoutSec 35
-              if ($j.tables) {$o=$j.tables[0]; Write-Host $o.title ($o.fields -join ',') ($o.data[0] -join ',')}
-              elseif ($j.fields) {Write-Host $j.title ($j.fields -join ',') ($j.data[0] -join ',')}
-              else {Write-Host $url ($j[0] | ConvertTo-Json -Compress) $j.Count}
-            } catch {Write-Host $url $_.Exception.Message}
-          }
