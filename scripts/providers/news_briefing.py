@@ -39,21 +39,23 @@ RSS_SOURCES = [
     ('CNBC 財經', 'US', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'),
 ]
 
-# 過濾非財經生活／娛樂雜訊
+# 過濾非財經生活／娛樂／政治／樂透雜訊
 NOISE_KEYWORDS = (
-    '發票', '樂透', '大樂透', '威力彩', '中獎', '幸運門市', '星座', '生肖', '運勢',
-    '氣象', '颱風假', '抽獎', '超商', '咖啡買一送一', '美食', '旅遊', '飯店', '演唱會',
-    '穿搭', '感情', '離婚', '網紅', '藝人', '球賽', '職棒', 'NBA',
+    '發票', '樂透', '大樂透', '威力彩', '今彩539', '雙贏彩', '賓果', '開獎', '頭獎',
+    '中獎', '幸運門市', '星座', '生肖', '運勢', '氣象', '颱風假', '抽獎', '超商',
+    '咖啡買一送一', '美食', '旅遊', '飯店', '演唱會', '穿搭', '感情', '離婚', '網紅',
+    '藝人', '球賽', '職棒', 'NBA', '市民之夜', '選舉', '造勢',
 )
 
-# 台股／財經正向訊號關鍵字（用來剔除 Yahoo 綜合頻道中的非財經稿）
+# 台股／財經正向訊號關鍵字（排除純軟體開發／生活科技廣告，保留真實股市／總經／法人報導）
 FINANCE_KEYWORDS = (
     '股', '台積', '聯發科', '鴻海', 'ETF', '營收', '獲利', 'EPS', '法說', '外資', '投信',
     '央行', '利率', '降息', '升息', 'Fed', '聯準會', '通膨', 'CPI', '美債', '殖利率', '匯率',
-    '美元', '台幣', '黃金', '油價', '半導體', 'AI', '晶片', '輝達', 'NVIDIA', '蘋果', 'Apple',
+    '美元', '台幣', '黃金', '油價', '半導體', '晶片', '輝達', 'NVIDIA', '蘋果', 'Apple',
     '關稅', '出口', 'GDP', '財報', '除息', '配息', '併購', '上市', '上櫃', '大盤', '指數',
     '買超', '賣超', '融資', '庫藏股', '資本支出', '供應鏈', '伺服器', '記憶體', '航運', '金融',
-    'stock', 'market', 'Fed', 'tariff', 'earnings', 'chip', 'AI', 'Nvidia', 'Treasury',
+    '市值', '折價', '溢價', '那斯達克', '道瓊', '標普', '費半', '小摩', '高盛', '商辦', '房貸',
+    'stock', 'market', 'Fed', 'tariff', 'earnings', 'chip', 'Nvidia', 'Treasury',
     'inflation', 'GDP', 'economy', 'IPO', 'dividend', 'Wall Street', 'S&P', 'Nasdaq', 'Dow',
 )
 
@@ -69,7 +71,7 @@ BRIEFING_TOPICS = [
 TOPIC_MAP = {tid: (label, kws) for tid, label, kws in BRIEFING_TOPICS}
 DEFAULT_TOPIC_IDS = [tid for tid, _, _ in BRIEFING_TOPICS]
 
-# 常見新聞股名／關鍵別名對照表（與 1,985 檔台股代號表搭配識別）
+# 常見新聞股名／關鍵別名對照表（與 1,985 檔台股代號表及 S&P 500 搭配識別）
 NEWS_STOCK_ALIASES = {
     '台積電': '2330', 'tsmc': '2330',
     '鴻海': '2317', '聯發科': '2454', '台達電': '2308', '廣達': '2382',
@@ -79,8 +81,11 @@ NEWS_STOCK_ALIASES = {
     '創意': '3443', '光寶科': '2301', '和碩': '4938', '仁寶': '2324',
     '英業達': '2356', '南亞科': '2408', '華邦電': '2344', '旺宏': '2337',
     '群創': '3481', '友達': '2409', '大立光': '3008', '瑞昱': '2379',
-    '聯詠': '3034', '富邦金': '2881', '國泰金': '2882', '中信金': '2891',
-    '兆豐金': '2886', '玉山金': '2884', '凱基金': '2883', '元大金': '2885',
+    '聯詠': '3034', '力積電': '6770', '群聯': '8299', '欣興': '3037',
+    '景碩': '3189', '南電': '8046', '勤誠': '8210', '川湖': '2059',
+    '健策': '3653', '貿聯': '3665', '嘉澤': '3533', '華固': '2548', '瓦城': '2729',
+    '富邦金': '2881', '國泰金': '2882', '中信金': '2891', '兆豐金': '2886',
+    '玉山金': '2884', '凱基金': '2883', '元大金': '2885', '台新金': '2887',
     '長榮': '2603', '陽明': '2609', '萬海': '2615', '華航': '2610',
     '長榮航': '2618', '中鋼': '2002', '中華電': '2412', '台塑': '1301',
     '南亞': '1303', '台化': '1326', '台塑化': '6505', '中興電': '1513',
@@ -94,7 +99,17 @@ NEWS_STOCK_ALIASES = {
     '英特爾': 'INTC', 'intel': 'INTC', '博通': 'AVGO', 'broadcom': 'AVGO',
     '高通': 'QCOM', 'qualcomm': 'QCOM', '美光': 'MU', 'micron': 'MU',
     '艾司摩爾': 'ASML', 'asml': 'ASML', '美超微': 'SMCI', '甲骨文': 'ORCL',
-    'oracle': 'ORCL', 'palantir': 'PLTR', 'netflix': 'NFLX', 'arm': 'ARM',
+    'oracle': 'ORCL', 'palantir': 'PLTR', 'netflix': 'NFLX', '網飛': 'NFLX', 'arm': 'ARM',
+    '小摩': 'JPM', '摩根大通': 'JPM', 'jpmorgan': 'JPM',
+    '大摩': 'MS', '摩根士丹利': 'MS', 'morgan stanley': 'MS',
+    '高盛': 'GS', 'goldman': 'GS', '花旗': 'C', 'citigroup': 'C',
+    '美銀': 'BAC', 'bank of america': 'BAC', '貝萊德': 'BLK', 'blackrock': 'BLK',
+    '波克夏': 'BRK-B', 'berkshire': 'BRK-B', '沃爾瑪': 'WMT', 'walmart': 'WMT',
+    '好市多': 'COST', 'costco': 'COST', '禮來': 'LLY', 'eli lilly': 'LLY',
+    '波音': 'BA', 'boeing': 'BA', '迪士尼': 'DIS', 'disney': 'DIS',
+    '星巴克': 'SBUX', 'starbucks': 'SBUX', '麥當勞': 'MCD', '耐吉': 'NKE', 'nike': 'NKE',
+    '艾克森美孚': 'XOM', 'exxon': 'XOM', '雪佛龍': 'CVX', 'chevron': 'CVX',
+    '應材': 'AMAT', 'applied materials': 'AMAT', '科林研發': 'LRCX', '思科': 'CSCO', 'cisco': 'CSCO',
 }
 
 
@@ -225,7 +240,7 @@ def _match_item_topics(title: str, desc: str) -> list[str]:
     return matched
 
 
-def _fetch_news_items(max_items: int = 10, selected_topics: list[str] | None = None) -> list[dict]:
+def _fetch_news_pool(max_items: int = 10, selected_topics: list[str] | None = None) -> tuple[list[dict], list[dict]]:
     active_topics = [t for t in (selected_topics or DEFAULT_TOPIC_IDS) if t in TOPIC_MAP]
     if not active_topics:
         active_topics = list(DEFAULT_TOPIC_IDS)
@@ -271,10 +286,11 @@ def _fetch_news_items(max_items: int = 10, selected_topics: list[str] | None = N
     buckets['TW'].sort(key=lambda x: x['ts'], reverse=True)
     buckets['US'].sort(key=lambda x: x['ts'], reverse=True)
 
+    all_items = buckets['TW'] + buckets['US']
+    all_items.sort(key=lambda x: (x['topicHits'] if is_custom_topics else 0, x['ts']), reverse=True)
+
     if is_custom_topics:
-        all_items = buckets['TW'] + buckets['US']
         matched = [x for x in all_items if x['topicHits'] > 0]
-        matched.sort(key=lambda x: (x['topicHits'], x['ts']), reverse=True)
         merged = matched[:max_items]
         if len(merged) < 4:
             fallback = [x for x in all_items if x['topicHits'] == 0]
@@ -291,7 +307,13 @@ def _fetch_news_items(max_items: int = 10, selected_topics: list[str] | None = N
             merged.extend(rest[: max_items - len(merged)])
         merged.sort(key=lambda x: x['ts'], reverse=True)
 
-    return [{k: v for k, v in item.items() if k not in ('ts', 'topicHits')} for item in merged[:max_items]]
+    strip = lambda lst: [{k: v for k, v in item.items() if k not in ('ts', 'topicHits')} for item in lst]
+    return strip(merged[:max_items]), strip(all_items)
+
+
+def _fetch_news_items(max_items: int = 10, selected_topics: list[str] | None = None) -> list[dict]:
+    picked, _ = _fetch_news_pool(max_items=max_items, selected_topics=selected_topics)
+    return picked
 
 
 def _summarize_with_gemini(api_key: str, indices: list[dict], news: list[dict], tracked: list[dict]) -> list[str] | None:
@@ -584,66 +606,132 @@ class BriefingService:
         today = now.strftime('%Y-%m-%d')
         return not (self.briefings_dir / f'{today}.json').exists()
 
-    def _fetch_tracked_quotes(self, symbols: list[str]) -> list[dict]:
-        results = []
-        for code in symbols:
-            is_tw = bool(re.fullmatch(r'(?:\d{4}|00\d{2,4}[A-Z]?)', code))
-            quote = None
-            if is_tw:
-                quote = _fetch_yahoo_quote(f'{code}.TW') or _fetch_yahoo_quote(f'{code}.TWO')
-            else:
-                quote = _fetch_yahoo_quote(code)
-            name = ''
+    def _load_us_name_map(self) -> tuple[dict[str, str], list[tuple[str, str]]]:
+        """從 data/sp500_universe.json 載入美股代碼與安全英文公司關鍵字（供名稱對照與新聞萃取）。"""
+        name_map = {
+            'TSM': '台積電 ADR', 'NVDA': 'NVIDIA', 'AAPL': 'Apple', 'MSFT': 'Microsoft',
+            'GOOGL': 'Alphabet', 'AMZN': 'Amazon', 'META': 'Meta', 'TSLA': 'Tesla',
+            'AMD': 'AMD', 'AVGO': 'Broadcom', 'JPM': 'JPMorgan', 'GS': 'Goldman Sachs',
+            'MS': 'Morgan Stanley', 'BAC': 'Bank of America', 'WMT': 'Walmart',
+            'COST': 'Costco', 'LLY': 'Eli Lilly', 'NFLX': 'Netflix', 'BRK-B': 'Berkshire Hathaway',
+            'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100 ETF', 'SOXX': 'iShares 半導體 ETF',
+        }
+        keywords: list[tuple[str, str]] = []
+        sp_file = self.project_root / 'data' / 'sp500_universe.json'
+        if sp_file.exists():
+            try:
+                doc = json.loads(sp_file.read_text(encoding='utf-8'))
+                for item in doc.get('items') or []:
+                    code = str(item.get('code') or '').strip().upper()
+                    disp = str(item.get('name') or code).strip()
+                    en_name = str(item.get('enName') or '').strip()
+                    if not code:
+                        continue
+                    name_map.setdefault(code, disp)
+                    # 使用完整英文公司名稱（>=6 字元）精準比對，避免單字（如 Dollar）誤判一般財經用語
+                    clean_en = re.sub(r',?\s+(?:Inc\.?|Corp\.?|Corporation|Ltd\.?|PLC|Co\.?|Group|Holdings)$', '', en_name, flags=re.I).strip()
+                    if len(clean_en) >= 6:
+                        keywords.append((clean_en, code))
+            except Exception:
+                pass
+        return name_map, keywords
+
+    def _fetch_one_tracked_quote(self, code: str, us_names: dict[str, str]) -> dict:
+        is_tw = bool(re.fullmatch(r'(?:\d{4}|00\d{2,4}[A-Z]?)', code))
+        if is_tw:
+            quote = _fetch_yahoo_quote(f'{code}.TW') or _fetch_yahoo_quote(f'{code}.TWO')
+        else:
+            quote = _fetch_yahoo_quote(code)
+        if is_tw:
+            info = self.stock_names.get(code)
+            name = info[0] if isinstance(info, list) and info else ('ETF' if code.startswith('00') else code)
+            market = info[1] if isinstance(info, list) and len(info) > 1 else 'TWSE'
+        else:
+            name = us_names.get(code, code)
             market = 'US'
-            if is_tw:
-                info = self.stock_names.get(code)
-                name = info[0] if isinstance(info, list) and info else ('ETF' if code.startswith('00') else code)
-                market = info[1] if isinstance(info, list) and len(info) > 1 else 'TWSE'
-            else:
-                name = {'TSM': '台積電 ADR', 'NVDA': 'NVIDIA', 'AAPL': 'Apple', 'MSFT': 'Microsoft', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100 ETF'}.get(code, code)
 
-            results.append({
-                'code': code,
-                'name': name,
-                'market': market,
-                'price': quote['price'] if quote else None,
-                'change': quote['change'] if quote else None,
-                'changePct': quote['changePct'] if quote else None,
-                'tradeTime': quote['tradeTime'] if quote else '',
-                'chipNote': '台股集保可於個股頁核對' if is_tw else '美股即時／收盤報價',
-            })
-        return results
+        return {
+            'code': code,
+            'name': name,
+            'market': market,
+            'price': quote['price'] if quote else None,
+            'change': quote['change'] if quote else None,
+            'changePct': quote['changePct'] if quote else None,
+            'tradeTime': quote['tradeTime'] if quote else '',
+            'chipNote': '台股集保可於個股頁核對' if is_tw else '美股即時／收盤報價',
+        }
 
-    def _extract_news_stocks(self, news: list[dict], exclude_codes: set[str], max_count: int = 8) -> list[dict]:
-        """從本次晨報新聞中萃取重點台美股代號／公司名稱並取得即時報價與漲跌幅。"""
+    def _fetch_tracked_quotes(self, symbols: list[str]) -> list[dict]:
+        if not symbols:
+            return []
+        from concurrent.futures import ThreadPoolExecutor
+        us_names, _ = self._load_us_name_map()
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            return list(pool.map(lambda s: self._fetch_one_tracked_quote(s, us_names), symbols))
+
+    def _extract_news_stocks(
+        self,
+        news: list[dict],
+        exclude_codes: set[str],
+        max_count: int = 8,
+        extra_news: list[dict] | None = None,
+    ) -> list[dict]:
+        """從本次晨報新聞中萃取重點台美股代號／公司名稱並取得即時報價與漲跌幅。
+        優先掃描精選重點新聞；若數量不足 max_count（例如當日重點偏總經或全命中自訂清單），
+        再依時序掃描同梯次抓回的財經新聞池，確保穩定產出有效新聞重點股。
+        """
         ignore_tickers = {
             'AI', 'US', 'TW', 'UK', 'EU', 'CN', 'JP', 'GDP', 'CPI', 'PCE', 'PPI',
-            'FED', 'FOMC', 'ETF', 'EPS', 'IPO', 'ADR', 'YOY', 'QOQ', 'MOM',
+            'FED', 'FOMC', 'ETF', 'EPS', 'IPO', 'ADR', 'YOY', 'QOQ', 'MOM', 'SEC',
             'CEO', 'CFO', 'CTO', 'USD', 'TWD', 'NTD', 'RMB', 'JPY', 'EUR', 'PE', 'PB',
+            'WSJ', 'CNBC', 'CRN', 'IT', 'PC', 'NB', 'TV', 'EV', 'GPU', 'CPU', 'HBM',
         }
-        hits: dict[str, dict] = {}
-        # 預建長名稱索引（>=3字避免誤判常見中文雙字詞）
+        _, sp_keywords = self._load_us_name_map()
         long_tw_names = [
             (str(info[0]).strip(), str(code).upper())
             for code, info in self.stock_names.items()
             if isinstance(info, list) and info and len(str(info[0]).strip()) >= 3
         ]
+        short_tw_names = [
+            (str(info[0]).strip(), str(code).upper())
+            for code, info in self.stock_names.items()
+            if isinstance(info, list) and info and len(str(info[0]).strip()) == 2
+        ]
+
+        hits: dict[str, dict] = {}
+        soft_hits: dict[str, dict] = {}
 
         def register(code: str, article: dict) -> None:
             sym = code.strip().upper()
-            if not sym or sym in exclude_codes or sym in hits:
+            if not sym:
                 return
             src = article.get('source') or '財經新聞'
             title_short = article.get('title') or ''
             if len(title_short) > 26:
                 title_short = title_short[:26] + '…'
-            hits[sym] = {'mentionedIn': f"{src}：{title_short}"}
+            meta = {'mentionedIn': f"{src}：{title_short}"}
+            if sym in exclude_codes:
+                if sym not in soft_hits:
+                    soft_hits[sym] = meta
+                return
+            if sym not in hits:
+                hits[sym] = meta
 
-        for n in news:
+        # 去重後先掃精選新聞，再掃完整財經 RSS 池
+        seen_titles: set[str] = set()
+        ordered_articles: list[dict] = []
+        for lst in (news, extra_news or []):
+            for art in lst:
+                tkey = art.get('title', '')
+                if tkey and tkey not in seen_titles:
+                    seen_titles.add(tkey)
+                    ordered_articles.append(art)
+
+        for n in ordered_articles:
             text = f"{n.get('title', '')} {n.get('snippet', '')}"
             lower = text.lower()
 
-            # 1. 別名關鍵字（台美主要權值與熱門新聞標的）
+            # 1. 別名關鍵字（台美主要權值、金融機構與熱門新聞標的）
             for alias, sym in NEWS_STOCK_ALIASES.items():
                 if alias.isascii():
                     if re.search(rf'(?<![A-Za-z0-9]){re.escape(alias)}(?![A-Za-z0-9])', lower):
@@ -670,8 +758,25 @@ class BriefingService:
                     if len(hits) >= max_count:
                         break
 
-            # 4. 括號或交易所標示之美股代號，例如 (AAPL) 或 Nasdaq: MU
-            for m in re.finditer(r'(?:\(|(?:NASDAQ|NYSE)\s*[:：]\s*)([A-Z]{2,5})(?:\)|\b)', text):
+            # 4. 安全比對 2 字台股公告（如「瓦城：...」、「華固...商辦」僅於明確公告／股價語境匹配）
+            if len(hits) < max_count:
+                for nm, code in short_tw_names:
+                    if nm in text and re.search(
+                        rf'(?:^|[，、\s「『(（【]){re.escape(nm)}(?:：|:|股價|營收|獲利|法說|財報|董事|買回|庫藏|增持|買超|賣超|大漲|重挫|跳空|領漲|除息)',
+                        text,
+                    ):
+                        register(code, n)
+                        if len(hits) >= max_count:
+                            break
+
+            # 5. S&P 500 英文完整公司名與括號／交易所美股代號
+            for kw, sym in sp_keywords:
+                if re.search(rf'(?<![A-Za-z0-9]){re.escape(kw)}(?![A-Za-z0-9])', text):
+                    register(sym, n)
+                    if len(hits) >= max_count:
+                        break
+
+            for m in re.finditer(r'(?:\(|(?:NASDAQ|NYSE)\s*[:：]\s*)([A-Z]{2,5}(?:-[A-Z])?)(?:\)|\b)', text):
                 sym = m.group(1)
                 if sym not in ignore_tickers:
                     register(sym, n)
@@ -679,16 +784,21 @@ class BriefingService:
             if len(hits) >= max_count:
                 break
 
-        if not hits:
+        chosen_hits = hits if hits else soft_hits
+        if not chosen_hits:
             return []
-        ordered_codes = list(hits.keys())[:max_count]
+        ordered_codes = list(chosen_hits.keys())[:max_count]
         quotes = self._fetch_tracked_quotes(ordered_codes)
+        valid_quotes = []
         for q in quotes:
-            meta = hits.get(q['code'], {})
+            if q.get('price') is None:
+                continue
+            meta = chosen_hits.get(q['code'], {})
             q['mentionedIn'] = meta.get('mentionedIn', '')
             if meta.get('mentionedIn'):
                 q['chipNote'] = meta['mentionedIn']
-        return quotes
+            valid_quotes.append(q)
+        return valid_quotes
 
     def generate(self, featured_code: str = '', trigger: str = '手動馬上製作') -> dict:
         with self._lock:
@@ -713,14 +823,19 @@ class BriefingService:
             is_default_topics = set(selected_topics) == set(DEFAULT_TOPIC_IDS)
             topic_labels = ['預設均衡（全部題材）'] if is_default_topics else [TOPIC_MAP[t][0] for t in selected_topics if t in TOPIC_MAP]
 
-            news = _fetch_news_items(max_items=10, selected_topics=selected_topics)
+            news, all_news_pool = _fetch_news_pool(max_items=10, selected_topics=selected_topics)
 
             track_codes = []
             for s in cfg['watchlist']:
                 if s not in track_codes:
                     track_codes.append(s)
             tracked = self._fetch_tracked_quotes(track_codes[:10])
-            news_stocks = self._extract_news_stocks(news, exclude_codes=set(track_codes), max_count=8)
+            news_stocks = self._extract_news_stocks(
+                news,
+                exclude_codes=set(track_codes),
+                max_count=8,
+                extra_news=all_news_pool,
+            )
 
             api_key = self._get_api_key()
             ai_bullets = _summarize_with_gemini(api_key, indices, news, tracked + news_stocks[:3]) if api_key else None
