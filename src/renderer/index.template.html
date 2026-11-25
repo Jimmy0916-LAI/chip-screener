@@ -14,11 +14,14 @@ __STYLES_CSS__
 
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">
+      <div class="brand brand-switch" id="brandMarketToggle" data-toggle-market="1" data-market="TW" role="button" tabindex="0" title="點擊切換 台股 TW ⇄ 美股 US" aria-label="籌碼雷達，點擊切換台股或美股">
         <span class="brand-mark" aria-hidden="true">⌁</span>
-        <div>
-          <b>籌碼雷達</b>
-          <small>CHIP SCREENER</small>
+        <div class="brand-body">
+          <div class="brand-title-row">
+            <b>籌碼雷達</b>
+            <span class="brand-market-badge" id="brandMarketBadge">TW</span>
+          </div>
+          <small id="brandMarketHint">點擊切換 美股 US ⇄</small>
         </div>
       </div>
 
@@ -37,13 +40,14 @@ __STYLES_CSS__
     <main class="main">
       <header class="topbar">
         <div class="crumb">
+          <button type="button" class="mobile-market-btn" data-toggle-market="1" id="mobileMarketToggle" title="點擊切換 台股 TW ⇄ 美股 US">TW</button>
           <span class="muted">籌碼雷達</span>
           <span class="crumb-sep">/</span>
           <b id="crumb">研究總覽</b>
         </div>
         <div class="tools" id="topbarTools">
           <span class="tag" id="topDateTag">集保基準 2026-11-13</span>
-          <span class="tag good">本機離線可用</span>
+          <span class="tag good" id="topStatusTag">本機離線可用</span>
         </div>
       </header>
 
@@ -51,6 +55,7 @@ __STYLES_CSS__
     </main>
   </div>
 
+  <div class="stock-suggest-menu" id="stockSuggestMenu" role="listbox" hidden></div>
   <div class="mobilebar" id="mobilebar"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

@@ -169,10 +169,28 @@ function saveFeaturedCode(code) {
   }
 }
 
+function loadMarketMode() {
+  try {
+    const saved = localStorage.getItem('chipscr_market_mode');
+    return saved === 'US' ? 'US' : 'TW';
+  } catch {
+    return 'TW';
+  }
+}
+
+function saveMarketMode(mode) {
+  try {
+    localStorage.setItem('chipscr_market_mode', mode === 'US' ? 'US' : 'TW');
+  } catch {
+    // 忽略儲存受限環境
+  }
+}
+
 D.dailyByCode = D.dailyByCode || { '2404': D.daily2404 };
 
 let state = {
-  page: 'home',
+  market: loadMarketMode(),
+  page: loadMarketMode() === 'US' ? 'us_home' : 'home',
   stock: '2404',
   stockMode: 'study',
   stockDetailByCode: {},
@@ -180,9 +198,26 @@ let state = {
   stockDetailError: '',
   detailTf: 'D',
   detailRange: 60,
-  detailMas: { 5: true, 10: true, 20: true, 60: true },
+  detailMas: { 5: true, 10: true, 20: true, 60: true, 200: true },
   detailChipTab: 'inst',
   detailHoverIdx: null,
+  usStock: 'NVDA',
+  usDetailByCode: {},
+  usDetailLoading: false,
+  usDetailError: '',
+  usOverview: null,
+  usOverviewLoading: false,
+  usOverviewError: '',
+  usScreener: null,
+  usScreenerLoading: false,
+  usScreenerError: '',
+  usScreenerMode: 'smart',
+  usPageNum: 0,
+  usSector: 'ALL',
+  usFilter: 'all',
+  usQuery: '',
+  usSort: 'scoreDesc',
+  usSubTab: 'macd',
   featuredCode: loadFeaturedCode(),
   editingFeatured: false,
   peakStock: '2404',

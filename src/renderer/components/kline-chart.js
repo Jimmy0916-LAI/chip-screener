@@ -7,7 +7,8 @@ const MA_COLORS = {
   5: '#eab308',
   10: '#a855f7',
   20: '#3b82f6',
-  60: '#f97316'
+  60: '#f97316',
+  200: '#22d3ee'
 };
 
 function aggregateBars(dailyBars, tf) {
@@ -64,15 +65,19 @@ function drawDetailKline() {
   const canvas = document.querySelector('#klineCanvas');
   if (!canvas || typeof canvas.getContext !== 'function') return;
 
-  const detail = state.stockDetailByCode?.[state.stock];
+  const isUsPage = state.page === 'us_stock';
+  const activeCode = isUsPage ? state.usStock : state.stock;
+  const detail = isUsPage ? state.usDetailByCode?.[activeCode] : state.stockDetailByCode?.[activeCode];
   if (!detail?.bars?.length) return;
 
+  const maPeriods = isUsPage ? [5, 10, 20, 60, 200] : [5, 10, 20, 60];
   const allAgg = aggregateBars(detail.bars, state.detailTf || 'D');
   const allMa = {
     5: computeMA(allAgg, 5),
     10: computeMA(allAgg, 10),
     20: computeMA(allAgg, 20),
-    60: computeMA(allAgg, 60)
+    60: computeMA(allAgg, 60),
+    200: computeMA(allAgg, 200)
   };
   const allMv5 = computeVolMA(allAgg, 5);
 
@@ -110,7 +115,7 @@ function drawDetailKline() {
     hi = Math.max(hi, b[2]);
     lo = Math.min(lo, b[3]);
     maxV = Math.max(maxV, b[5]);
-    for (const p of [5, 10, 20, 60]) {
+    for (const p of maPeriods) {
       const mv = allMa[p][startIdx + i];
       if (state.detailMas[p] && mv !== null) {
         hi = Math.max(hi, mv);
@@ -118,7 +123,7 @@ function drawDetailKline() {
       }
     }
   });
-  const holdingCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(state.stock) : null;
+  const holdingCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(activeCode) : null;
   const costPrice = holdingCost?.costPrice || null;
   if (costPrice && costPrice >= lo * 0.75 && costPrice <= hi * 1.25) {
     hi = Math.max(hi, costPrice);
@@ -146,11 +151,11 @@ function drawDetailKline() {
     ctx.moveTo(padL, y);
     ctx.lineTo(cssW - padR, y);
     ctx.stroke();
-    ctx.fillText(fmt(val, val < 150 ? 1 : 0), padL - 6, y + 4);
+    ctx.fillText((isUsPage ? '$' : '') + fmt(val, val < 150 ? 1 : 0), padL - 6, y + 4);
   }
   ctx.setLineDash([]);
 
-  // K 棒與成交量（台股紅漲綠跌）
+  // K 棒與成交量（統一紅漲綠跌）
   view.forEach((b, i) => {
     const x = X(i);
     const up = b[4] >= b[1];
@@ -173,11 +178,11 @@ function drawDetailKline() {
     ctx.globalAlpha = 1;
   });
 
-  // 均線 MA5/10/20/60
-  for (const p of [5, 10, 20, 60]) {
+  // 均線 MA5/10/20/60(/200)
+  for (const p of maPeriods) {
     if (!state.detailMas[p]) continue;
     ctx.strokeStyle = MA_COLORS[p];
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = p === 200 ? 1.8 : 1.6;
     ctx.beginPath();
     let started = false;
     view.forEach((_, i) => {
@@ -197,7 +202,7 @@ function drawDetailKline() {
 
   // 持有成本均價線（若收藏夾有填寫購入價）
   if (costPrice) {
-    const dpCost = costPrice < 150 ? 2 : 1;
+    const dpCost = isUsPage ? 2 : costPrice < 150 ? 2 : 1;
     const inRange = costPrice >= lo && costPrice <= hi;
     const cy = inRange ? Y(costPrice) : costPrice > hi ? topP + 10 : topP + priceH - 10;
     ctx.save();
@@ -210,7 +215,7 @@ function drawDetailKline() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const lbl = `成本 ${fmt(costPrice, dpCost)}${inRange ? '' : costPrice > hi ? ' ↑' : ' ↓'}`;
+    const lbl = `成本 ${isUsPage ? '$' : ''}${fmt(costPrice, dpCost)}${inRange ? '' : costPrice > hi ? ' ↑' : ' ↓'}`;
     ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
     const tw = ctx.measureText(lbl).width + 10;
     const bx = cssW - padR - tw - 4;
@@ -280,21 +285,23 @@ function drawDetailKline() {
   const readout = document.querySelector('#klineReadout');
   if (readout) {
     const dCls = diff > 0 ? 'tw-up' : diff < 0 ? 'tw-down' : '';
-    const dp = b[4] < 150 ? 2 : 1;
-    const maSpans = [5, 10, 20, 60]
+    const dp = isUsPage ? 2 : b[4] < 150 ? 2 : 1;
+    const pfx = isUsPage ? '$' : '';
+    const volStr = isUsPage && typeof fmtUsShares === 'function' ? fmtUsShares(b[5]) : `${fmt(b[5])} 張`;
+    const maSpans = maPeriods
       .filter(p => state.detailMas[p])
       .map(
         p =>
-          `<span style="color:${MA_COLORS[p]};font-weight:600">MA${p} ${fmt(allMa[p][startIdx + activeIdx], dp)}</span>`
+          `<span style="color:${MA_COLORS[p]};font-weight:600">MA${p} ${pfx}${fmt(allMa[p][startIdx + activeIdx], dp)}</span>`
       )
       .join(' ');
     readout.innerHTML =
       `<b>${b[0]}</b>` +
-      `<span>開 <b>${fmt(b[1], dp)}</b></span>` +
-      `<span>高 <b class="tw-up">${fmt(b[2], dp)}</b></span>` +
-      `<span>低 <b class="tw-down">${fmt(b[3], dp)}</b></span>` +
-      `<span>收 <b class="${dCls}">${fmt(b[4], dp)} (${diffPct >= 0 ? '+' : ''}${fmt(diffPct, 2)}%)</b></span>` +
-      `<span>量 <b>${fmt(b[5])} 張</b></span>` +
+      `<span>開 <b>${pfx}${fmt(b[1], dp)}</b></span>` +
+      `<span>高 <b class="tw-up">${pfx}${fmt(b[2], dp)}</b></span>` +
+      `<span>低 <b class="tw-down">${pfx}${fmt(b[3], dp)}</b></span>` +
+      `<span>收 <b class="${dCls}">${pfx}${fmt(b[4], dp)} (${diffPct >= 0 ? '+' : ''}${fmt(diffPct, 2)}%)</b></span>` +
+      `<span>量 <b>${volStr}</b></span>` +
       maSpans;
   }
 

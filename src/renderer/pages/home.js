@@ -21,7 +21,7 @@ function renderFeaturedCase(win) {
 
   const editor = state.editingFeatured
     ? '<div class="featured-editor">' +
-      `<input id="featuredCodeInput" placeholder="輸入代號（如 0050、2330）" value="${esc(code)}" aria-label="更改固定驗收案例代號">` +
+      `<input id="featuredCodeInput" autocomplete="off" data-stock-suggest="TW" data-suggest-submit="saveFeaturedBtn" placeholder="輸入代號或股名（如 0050、2330）" value="${esc(code)}" aria-label="更改固定驗收案例代號">` +
       '<button type="button" class="btn main sm" id="saveFeaturedBtn">更改</button>' +
       '<button type="button" class="btn ghost sm" id="cancelFeaturedBtn">取消</button>' +
       '</div>'

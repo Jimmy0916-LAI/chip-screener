@@ -406,7 +406,7 @@ function stock() {
   const headerControls =
     '<div class="stock-head-tools">' +
     `<button type="button" class="btn sm ${inFav ? 'fav-active' : ''}" data-quick-fav="${esc(code)}">${inFav ? '★ 已收藏' : '☆ 加入收藏'}</button>` +
-    `<div class="toolbar" style="margin:0"><input id="stockCode" placeholder="輸入代號按 Enter" value="${esc(code)}" style="width:148px"><button class="btn main" id="goStock">查詢</button></div>` +
+    `<div class="toolbar" style="margin:0"><input id="stockCode" autocomplete="off" data-stock-suggest="ALL" data-suggest-submit="goStock" placeholder="輸入代號或股名（如 2330、台積）" value="${esc(code)}" style="width:210px"><button class="btn main" id="goStock">查詢</button></div>` +
     `<div id="modeSwitch" class="mode-pill-track" data-mode="${esc(mode)}" role="tablist" aria-label="個股模式切換">` +
     '<div class="mode-pill-thumb"></div>' +
     '<button type="button" class="mode-pill-btn" data-set-mode="study" id="btnStudy">1. 個股研究</button>' +

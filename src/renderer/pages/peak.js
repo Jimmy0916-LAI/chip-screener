@@ -36,7 +36,7 @@ function peak() {
 
   const stockEditor = state.editingPeakStock
     ? '<div class="featured-editor">' +
-      `<input id="peakStockCode" placeholder="輸入代號（如 2404、2330、0050）" value="${esc(code)}" aria-label="更改股票代號">` +
+      `<input id="peakStockCode" autocomplete="off" data-stock-suggest="TW" data-suggest-submit="changePeakStockBtn" placeholder="輸入代號或股名（如 2404、2330）" value="${esc(code)}" aria-label="更改股票代號">` +
       `<button type="button" class="btn main sm" id="changePeakStockBtn"${state.peakLoading ? ' disabled' : ''}>${state.peakLoading ? '載入中...' : '更換'}</button>` +
       '<button type="button" class="btn ghost sm" id="cancelPeakStockBtn">取消</button>' +
       '</div>'

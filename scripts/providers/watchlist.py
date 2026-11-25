@@ -16,24 +16,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from providers.news_briefing import _fetch_yahoo_quote, _http_get
+from providers.us_market import US_UNIVERSE_MAP, UsMarketService
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
 VALID_TW_CODE_RE = re.compile(r'^(?:\d{4}|00\d{2,4}[A-Z]?)$')
 VALID_SYMBOL_RE = re.compile(r'^(?:\d{4}|00\d{2,4}[A-Z]?|[A-Z][A-Z0-9.-]{0,7})$')
-US_NAME_FALLBACK = {
-    'TSM': '台積電 ADR',
-    'NVDA': 'NVIDIA',
-    'AAPL': 'Apple',
-    'MSFT': 'Microsoft',
-    'GOOGL': 'Alphabet',
-    'AMZN': 'Amazon',
-    'META': 'Meta',
-    'TSLA': 'Tesla',
-    'AMD': 'AMD',
-    'AVGO': 'Broadcom',
-    'SPY': 'S&P 500 ETF',
-    'QQQ': 'Nasdaq 100 ETF',
-}
+US_NAME_FALLBACK = {sym: name for sym, (name, _) in US_UNIVERSE_MAP.items()}
 
 
 def taipei_now() -> datetime:
@@ -537,17 +525,54 @@ class WatchlistService:
         detail = None
         err_msg = ''
 
-        if is_tw:
+        if not is_tw:
             try:
-                detail = self.tw_market.get_detail(code, force_refresh=True)
+                us_svc = UsMarketService(self.app_data_dir / 'us-cache-v1')
+                us_detail = us_svc.get_detail(code, force_refresh=True)
+                tech = us_detail['tech']
+                flags: list[str] = []
+                if tech['belowMa5']:
+                    flags.append('belowMa5')
+                if tech['belowMa10']:
+                    flags.append('belowMa10')
+                if tech['overall'].get('divergenceAlert'):
+                    flags.append('divergence')
+                return {
+                    'code': us_detail['code'],
+                    'name': us_detail.get('name') or name,
+                    'market': 'US',
+                    'isTw': False,
+                    'price': tech['price'],
+                    'prevClose': tech['prevClose'],
+                    'change': tech['change'],
+                    'changePct': tech['changePct'],
+                    'tradeDate': tech['tradeDate'],
+                    'shortMa': tech['shortMa'],
+                    'midMa': tech['midMa'],
+                    'rsi': tech['rsi'],
+                    'macd': tech['macd'],
+                    'volume': tech['volume'],
+                    'range52w': tech['range52w'],
+                    'overall': tech['overall'],
+                    'filterFlags': flags,
+                }
             except Exception as exc:
-                err_msg = str(exc)
-        else:
-            us_bars = self._fetch_us_bars(code)
-            if us_bars:
-                detail = {'bars': us_bars, 'inst': [], 'margin': []}
-            else:
-                err_msg = f'無法取得 {code} 美股日行情'
+                return {
+                    'code': code,
+                    'name': name,
+                    'market': 'US',
+                    'isTw': False,
+                    'error': str(exc) or f'無法取得 {code} 美股日行情',
+                    'price': None,
+                    'change': None,
+                    'changePct': None,
+                    'filterFlags': [],
+                }
+
+        try:
+            detail = self.tw_market.get_detail(code, force_refresh=True)
+        except Exception as exc:
+            err_msg = str(exc)
 
         if not detail or not detail.get('bars'):
             return {

@@ -137,3 +137,139 @@ function weekSelectionNotice() {
     : '';
   return `<div class="notice" id="weekSelection"><span>${esc(message)}</span>${reset}</div>`;
 }
+
+const POPULAR_TW_SUGGEST = [
+  ['2330', '台積電', 'TWSE'],
+  ['0050', '元大台灣50', 'TWSE'],
+  ['0056', '元大高股息', 'TWSE'],
+  ['00878', '國泰永續高股息', 'TWSE'],
+  ['00919', '群益台灣精選高息', 'TWSE'],
+  ['2454', '聯發科', 'TWSE'],
+  ['2317', '鴻海', 'TWSE'],
+  ['2303', '聯電', 'TWSE'],
+  ['2308', '台達電', 'TWSE'],
+  ['2382', '廣達', 'TWSE'],
+  ['2404', '漢唐', 'TWSE'],
+  ['2603', '長榮', 'TWSE'],
+  ['2881', '富邦金', 'TWSE']
+];
+
+function buildStockSuggestCatalog(scope = 'ALL') {
+  const byCode = new Map();
+  const put = (code, name, tag, market) => {
+    const sym = String(code || '').trim().toUpperCase();
+    if (!sym) return;
+    if (!byCode.has(sym)) {
+      byCode.set(sym, { code: sym, name: String(name || sym), tag: String(tag || market), market });
+    }
+  };
+
+  if (scope === 'ALL' || scope === 'TW') {
+    for (const [c, nm, mkt] of POPULAR_TW_SUGGEST) {
+      const info = D.stocks?.[c];
+      put(c, info?.[0] || nm, info?.[1] || mkt, 'TW');
+    }
+    if (D.stocks) {
+      for (const [c, info] of Object.entries(D.stocks)) {
+        put(c, info?.[0] || c, info?.[1] || 'TWSE', 'TW');
+      }
+    }
+  }
+
+  if (scope === 'ALL' || scope === 'US') {
+    for (const [c, nm, sec] of US_SUGGEST_LIST || []) {
+      put(c, nm, `US · ${sec}`, 'US');
+    }
+    for (const [c, nm, sec] of D.usUniverse || []) {
+      put(c, nm, `US · ${sec}`, 'US');
+    }
+    for (const r of state.usScreener?.rows || []) {
+      put(r.code, r.name, `US · ${r.sector || '美股'}`, 'US');
+    }
+    for (const [c, q] of Object.entries(state.watchlistQuotes || {})) {
+      if (q?.market === 'US') put(c, q.name || c, 'US · 自選', 'US');
+    }
+    for (const [c, d] of Object.entries(state.usDetailByCode || {})) {
+      put(c, d?.name || c, `US · ${d?.sector || '美股'}`, 'US');
+    }
+  }
+
+  return [...byCode.values()];
+}
+
+function getStockSuggestCandidates(query, scope = 'ALL', limit = 8) {
+  const q = String(query || '').trim().toLowerCase();
+  const catalog = buildStockSuggestCatalog(scope);
+  const favBonus = typeof isStockInAnyFolder === 'function';
+
+  if (!q) {
+    // 空白時優先顯示使用者收藏的標的，再補熱門台／美股
+    const favItems = [];
+    const seen = new Set();
+    for (const f of state.watchlistConfig?.folders || []) {
+      for (const it of f.items || []) {
+        if (seen.has(it.code)) continue;
+        seen.add(it.code);
+        const isTw = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(it.code);
+        if (scope === 'TW' && !isTw) continue;
+        if (scope === 'US' && isTw) continue;
+        favItems.push({
+          code: it.code,
+          name: it.name || D.stocks?.[it.code]?.[0] || it.code,
+          tag: isTw ? 'TW · 已收藏' : 'US · 已收藏',
+          market: isTw ? 'TW' : 'US',
+          inFav: true
+        });
+      }
+    }
+    const defaults = scope === 'US'
+      ? catalog.slice(0, limit)
+      : scope === 'TW'
+        ? catalog.slice(0, limit)
+        : [
+            ...POPULAR_TW_SUGGEST.slice(0, 4).map(([c, n, m]) => ({ code: c, name: D.stocks?.[c]?.[0] || n, tag: m, market: 'TW' })),
+            ...(US_SUGGEST_LIST || []).slice(0, 4).map(([c, n, s]) => ({ code: c, name: n, tag: `US · ${s}`, market: 'US' }))
+          ];
+    const merged = [...favItems];
+    for (const d of defaults) {
+      if (!seen.has(d.code)) {
+        seen.add(d.code);
+        merged.push({ ...d, inFav: favBonus && isStockInAnyFolder(d.code) });
+      }
+    }
+    return merged.slice(0, limit);
+  }
+
+  const scored = [];
+  for (const item of catalog) {
+    const codeL = item.code.toLowerCase();
+    const nameL = item.name.toLowerCase();
+    const tagL = item.tag.toLowerCase();
+    let score = 0;
+    if (codeL === q) score = 120;
+    else if (codeL.startsWith(q)) score = 90;
+    else if (nameL.startsWith(q)) score = 75;
+    else if (codeL.includes(q)) score = 55;
+    else if (nameL.includes(q)) score = 45;
+    else if (tagL.includes(q)) score = 25;
+    if (!score) continue;
+    const inFav = favBonus && isStockInAnyFolder(item.code);
+    if (inFav) score += 8;
+    scored.push({ ...item, inFav, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.code.length - b.code.length || a.code.localeCompare(b.code));
+  return scored.slice(0, limit);
+}
+
+function resolveStockInput(rawText, scope = 'ALL') {
+  const txt = String(rawText || '').trim();
+  if (!txt) return '';
+  const upper = txt.toUpperCase();
+  const isTw = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(upper);
+  const isUs = /^[A-Z][A-Z0-9.-]{0,7}$/.test(upper);
+  if ((scope !== 'US' && isTw) || (scope !== 'TW' && isUs)) {
+    return upper;
+  }
+  const matches = getStockSuggestCandidates(txt, scope, 1);
+  return matches[0]?.code || upper;
+}

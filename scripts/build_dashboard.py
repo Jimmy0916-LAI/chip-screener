@@ -26,6 +26,7 @@ MODULE_ORDER = [
     'pages/home.js',
     'pages/briefing.js',
     'pages/watchlist.js',
+    'pages/us-market.js',
     'pages/screen.js',
     'pages/stock.js',
     'pages/backtest.js',
@@ -50,6 +51,15 @@ def build():
 
     base_data = json.loads((DATA_DIR / 'web_data.json').read_bytes())
     enriched = enrich(base_data, DATA_DIR / 'chip-screener-phase1.zip')
+
+    sp500_file = DATA_DIR / 'sp500_universe.json'
+    if sp500_file.exists():
+        sp_doc = json.loads(sp500_file.read_text(encoding='utf-8'))
+        enriched['usUniverse'] = [
+            [x['code'], x['name'], x['sector']]
+            for x in (sp_doc.get('items') or [])
+            if x.get('code')
+        ]
 
     feed_base = {
         'universe': enriched['universe'],

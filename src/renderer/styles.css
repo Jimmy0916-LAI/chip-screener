@@ -1578,6 +1578,343 @@ tbody tr.clickable {
   }
 }
 
+.brand-switch {
+  cursor: pointer;
+  margin: -6px -6px 0;
+  padding: 10px 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.brand-switch:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--border-strong);
+}
+
+.brand-switch:active {
+  transform: scale(0.985);
+}
+
+.brand-switch[data-market="US"] .brand-mark {
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+}
+
+.brand-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.brand-switch b {
+  font-size: 15px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.brand-market-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  color: #93c5fd;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: none;
+}
+
+.brand-switch[data-market="US"] .brand-market-badge {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #ddd6fe;
+}
+
+.mobile-market-btn {
+  display: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mobile-market-btn[data-market="US"] {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.22);
+  color: #ddd6fe;
+}
+
+/* ---------- 美股 S&P 500 雙模式篩選 ---------- */
+
+.us-scan-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.us-scan-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
+.us-scan-track {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  overflow: hidden;
+}
+
+.us-scan-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+  transition: width 0.35s ease;
+}
+
+.us-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.us-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 13px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.us-mode-card:hover {
+  border-color: rgba(148, 163, 184, 0.45);
+  color: var(--text);
+}
+
+.us-mode-card.active.smart {
+  background: rgba(239, 68, 68, 0.11);
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+}
+
+.us-mode-card.active.dip {
+  background: rgba(16, 185, 129, 0.11);
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #a7f3d0;
+}
+
+.us-mode-card.active.all {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: #dbeafe;
+}
+
+.us-mode-card-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.us-mode-card-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.us-reason-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.us-reason-list .tag {
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+
+.us-score-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 820px) {
+  .us-mode-tabs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 股票搜尋自動完成下拉選單 ---------- */
+
+.stock-suggest-menu {
+  position: fixed;
+  z-index: 120;
+  background: #131823;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.62);
+  padding: 6px;
+  max-height: 316px;
+  overflow-y: auto;
+}
+
+.stock-suggest-menu[hidden] {
+  display: none;
+}
+
+.suggest-head {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 9px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suggest-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggest-item:hover,
+.suggest-item.active {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.suggest-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.suggest-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 13px;
+  color: #93c5fd;
+  flex: none;
+}
+
+.suggest-name {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-market-btn {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ---------- 頂部 台股 ⇄ 美股 全站切換開關 ---------- */
+
+.market-pill-track {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  min-width: 158px;
+}
+
+.market-pill-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  background: #3b82f6;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.22s ease;
+  pointer-events: none;
+}
+
+.market-pill-track[data-market="US"] .market-pill-thumb {
+  transform: translateX(100%);
+  background: #8b5cf6;
+}
+
+.market-pill-btn {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.18s ease;
+}
+
+.market-pill-track[data-market="TW"] #btnMarketTW,
+.market-pill-track[data-market="US"] #btnMarketUS {
+  color: #ffffff;
+}
+
 /* ---------- 股票收藏夾 ＆ 自動分析樣式 ---------- */
 
 .wl-tabs-row {

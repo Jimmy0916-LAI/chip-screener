@@ -74,6 +74,18 @@ function renderQuickFavModal() {
   );
 }
 
+function fmtUsShares(v) {
+  if (typeof v !== 'number' || !isFinite(v)) return '—';
+  if (v >= 1e9) return fmt(v / 1e9, 2) + 'B 股';
+  if (v >= 1e6) return fmt(v / 1e6, 2) + 'M 股';
+  if (v >= 1e3) return fmt(v / 1e3, 1) + 'K 股';
+  return fmt(v, 0) + ' 股';
+}
+
+function isUsSymbol(code, market = '') {
+  return market === 'US' || !/^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(String(code || ''));
+}
+
 function renderCustomValuationCell(item, quote) {
   if (!item.showValuation) {
     return '<span class="mini">未開啟（點 … 設定）</span>';
@@ -87,25 +99,34 @@ function renderCustomValuationCell(item, quote) {
     return `<span class="mini">${fmt(shares)} 股（點擊一鍵更新股價）</span>`;
   }
 
+  const isUs = isUsSymbol(item.code, item.market);
   // 算法 1：現價 × 持有股數
   const marketVal = price * shares;
   let pnlHtml = '';
-  // 算法 2：僅於有輸入購入價格時計算未實現盈虧（紅賺／綠虧／白平）
+  // 算法 2：僅於有輸入購入價格時計算未實現盈虧（統一紅賺／綠虧／白平）
   if (typeof item.costPrice === 'number' && item.costPrice > 0) {
     const costTotal = item.costPrice * shares;
     const pnl = marketVal - costTotal;
     const pnlPct = costTotal > 0 ? (pnl / costTotal) * 100 : 0;
     const pnlCls = pnl > 0 ? 'tw-up' : pnl < 0 ? 'tw-down' : 'wl-pnl-flat';
-    const signStr = pnl > 0 ? '+' : '';
+    const signStr = pnl > 0 ? '+' : pnl < 0 ? '-' : '';
     const pctStr = pnlPct > 0 ? '+' : '';
-    pnlHtml = `<span class="wl-pnl ${pnlCls}">${signStr}${fmt(pnl, 0)} (${pctStr}${fmt(pnlPct, 2)}%)</span>`;
+    const pnlStr = isUs
+      ? `${signStr}$${fmt(Math.abs(pnl), 2)}`
+      : `${pnl > 0 ? '+' : ''}${fmt(pnl, 0)}`;
+    pnlHtml = `<span class="wl-pnl ${pnlCls}">${pnlStr} (${pctStr}${fmt(pnlPct, 2)}%)</span>`;
   }
+
+  const valMainStr = isUs ? `$${fmt(marketVal, 2)} USD` : `${fmt(marketVal, 0)} 元`;
+  const costSubStr = item.costPrice > 0
+    ? (isUs ? ` · 均價 $${fmt(item.costPrice, 2)}` : ` · 均價 ${fmt(item.costPrice, item.costPrice < 150 ? 2 : 1)}`)
+    : '';
 
   return (
     '<div class="wl-val-wrap">' +
-    `<strong class="wl-val-main">${fmt(marketVal, 0)} 元</strong>` +
+    `<strong class="wl-val-main">${valMainStr}</strong>` +
     pnlHtml +
-    `<span class="mini" style="width:100%;display:block;margin-top:2px">${fmt(shares)} 股${item.costPrice > 0 ? ` · 均價 ${fmt(item.costPrice, item.costPrice < 150 ? 2 : 1)}` : ''}</span>` +
+    `<span class="mini" style="width:100%;display:block;margin-top:2px">${fmt(shares)} 股${costSubStr}</span>` +
     '</div>'
   );
 }
@@ -154,7 +175,7 @@ function renderCustomWatchlistTab(folder) {
   const folderTools =
     '<div class="feed-bar" style="margin-bottom:14px">' +
     '<div class="toolbar" style="margin:0">' +
-    `<input id="addWatchlistCodeInput" placeholder="輸入代號加入（如 2330、0050、NVDA）" style="width:280px">` +
+    `<input id="addWatchlistCodeInput" autocomplete="off" data-stock-suggest="ALL" data-suggest-submit="addWatchlistStockBtn" placeholder="輸入代號或名稱（如 2330、台積電、NVDA）" style="width:295px">` +
     `<button type="button" class="btn main sm" id="addWatchlistStockBtn" data-folder-id="${esc(folder.id)}">+ 加入股票</button>` +
     '</div>' +
     '<div class="toolbar" style="margin:0">' +
@@ -176,9 +197,10 @@ function renderCustomWatchlistTab(folder) {
 
   const rowsHtml = items
     .map(item => {
+      const isUs = isUsSymbol(item.code, item.market);
       const q = quotes[item.code];
       const hasVal = typeof q?.price === 'number';
-      const dp = hasVal && q.price < 150 ? 2 : 1;
+      const dp = isUs ? 2 : hasVal && q.price < 150 ? 2 : 1;
       const dirCls = !hasVal ? '' : q.change > 0 ? 'tw-up' : q.change < 0 ? 'tw-down' : 'wl-pnl-flat';
       const arrow = !hasVal ? '' : q.change > 0 ? '▲' : q.change < 0 ? '▼' : '';
       const menuKey = `${folder.id}:${item.code}`;
@@ -186,10 +208,10 @@ function renderCustomWatchlistTab(folder) {
 
       return (
         `<tr class="clickable" data-wl-open-stock="${esc(item.code)}">` +
-        `<td><b>${esc(item.code)}</b> <span class="cell-muted">${esc(item.name)}</span>${item.inAuto ? ' <span class="tag good" style="margin-left:6px">自動分析中</span>' : ''}</td>` +
+        `<td><b>${esc(item.code)}</b> <span class="cell-muted">${esc(item.name)}</span>${isUs ? ' <span class="tag" style="margin-left:4px">US</span>' : ''}${item.inAuto ? ' <span class="tag good" style="margin-left:6px">自動分析中</span>' : ''}</td>` +
         `<td>${
           hasVal
-            ? `<div class="wl-price-cell"><strong class="${dirCls}">${fmt(q.price, dp)}</strong> <span class="wl-chg ${dirCls}">${arrow} ${pp(q.change, 2)} (${pp(q.changePct, 2)}%)</span></div>`
+            ? `<div class="wl-price-cell"><strong class="${dirCls}">${isUs ? '$' : ''}${fmt(q.price, dp)}</strong> <span class="wl-chg ${dirCls}">${arrow} ${pp(q.change, 2)} (${pp(q.changePct, 2)}%)</span></div>`
             : '<span class="mini">尚未更新報價</span>'
         }</td>` +
         `<td>${renderCustomValuationCell(item, q)}</td>` +
@@ -294,7 +316,9 @@ function renderAutoAnalysisTab() {
         );
       }
 
-      const dp = it.price < 150 ? 2 : 1;
+      const isUs = it.isTw === false || isUsSymbol(it.code, it.market);
+      const dp = isUs ? 2 : it.price < 150 ? 2 : 1;
+      const pfx = isUs ? '$' : '';
       const cls = it.change > 0 ? 'tw-up' : it.change < 0 ? 'tw-down' : 'wl-pnl-flat';
       const arrow = it.change > 0 ? '▲' : it.change < 0 ? '▼' : '';
       const ov = it.overall || {};
@@ -306,13 +330,59 @@ function renderAutoAnalysisTab() {
       const inst = it.inst || {};
       const vol = it.volume || {};
       const mg = it.margin || {};
+      const rsi = it.rsi || {};
+      const macd = it.macd || {};
+      const r52 = it.range52w || {};
+
+      const dimsHtml = isUs
+        ? '<div class="wl-dim-grid">' +
+          renderDimToneTag('1. 短均位階 (MA5 / MA10)', sMa.tone) +
+          `<div class="wl-dim-val">${esc(sMa.status)}</div>` +
+          `<div class="wl-dim-sub">MA5 ${sMa.ma5 != null ? `$${fmt(sMa.ma5, 2)} (${pp(sMa.bias5Pct, 2)}%)` : '—'} · MA10 ${sMa.ma10 != null ? `$${fmt(sMa.ma10, 2)} (${pp(sMa.bias10Pct, 2)}%)` : '—'}</div></div>` +
+          renderDimToneTag('2. 中長趨勢 (MA20 / MA60 / MA200)', mMa.tone) +
+          `<div class="wl-dim-val">${esc(mMa.status)}</div>` +
+          `<div class="wl-dim-sub">月線 ${mMa.ma20 != null ? '$' + fmt(mMa.ma20, 2) : '—'} · 季線 ${mMa.ma60 != null ? '$' + fmt(mMa.ma60, 2) : '—'} · 年線 ${mMa.ma200 != null ? '$' + fmt(mMa.ma200, 2) : '—'}</div></div>` +
+          renderDimToneTag('3. RSI(14) 動能指標', rsi.tone) +
+          `<div class="wl-dim-val">${esc(rsi.status || '—')}</div>` +
+          '<div class="wl-dim-sub">70 以上超買警戒 · 30 以下超賣觀察</div></div>' +
+          renderDimToneTag('4. MACD (12, 26, 9)', macd.tone) +
+          `<div class="wl-dim-val">${esc(macd.status || '—')}</div>` +
+          `<div class="wl-dim-sub">DIF ${macd.dif != null ? pp(macd.dif, 2) : '—'} · DEA ${macd.dea != null ? pp(macd.dea, 2) : '—'} · 柱 ${macd.hist != null ? pp(macd.hist, 2) : '—'}</div></div>` +
+          renderDimToneTag('5. 量價配合 (vs MV5)', vol.tone) +
+          `<div class="wl-dim-val">${esc(vol.status)}</div>` +
+          `<div class="wl-dim-sub">${vol.mv5 != null ? `今日 ${fmtUsShares(vol.vol)} / 5日均量 ${fmtUsShares(vol.mv5)}` : '—'}</div></div>` +
+          renderDimToneTag('6. 52 週區間位階', r52.tone) +
+          `<div class="wl-dim-val">${esc(r52.status || '—')}</div>` +
+          `<div class="wl-dim-sub">${r52.high != null ? `區間 $${fmt(r52.low, 2)}–$${fmt(r52.high, 2)} · 距高點 ${pp(r52.fromHighPct, 2)}%` : '—'}</div></div>` +
+          '</div>'
+        : '<div class="wl-dim-grid">' +
+          renderDimToneTag('1. 短均位階 (MA5 / MA10)', sMa.tone) +
+          `<div class="wl-dim-val">${esc(sMa.status)}</div>` +
+          `<div class="wl-dim-sub">MA5 ${sMa.ma5 != null ? `${fmt(sMa.ma5, dp)} (${pp(sMa.bias5Pct, 2)}%)` : '—'} · MA10 ${sMa.ma10 != null ? `${fmt(sMa.ma10, dp)} (${pp(sMa.bias10Pct, 2)}%)` : '—'}</div></div>` +
+          renderDimToneTag('2. 中期趨勢 (MA20 / MA60)', mMa.tone) +
+          `<div class="wl-dim-val">${esc(mMa.status)}</div>` +
+          `<div class="wl-dim-sub">月線 ${mMa.ma20 != null ? fmt(mMa.ma20, dp) : '—'} · 季線 ${mMa.ma60 != null ? fmt(mMa.ma60, dp) : '—'}</div></div>` +
+          renderDimToneTag('3. TDCC 大戶 (400張週變化)', td.tone) +
+          `<div class="wl-dim-val">${esc(td.status)} ${td.deltaPp400 != null ? pp(td.deltaPp400, 3) + ' pp' : ''}</div>` +
+          `<div class="wl-dim-sub">${td.weekDay ? `${esc(td.weekDay)} 占比 ${fmt(td.pct400, 2)}% · 千張 ${pp(td.deltaPp1000, 3)} pp` : '尚無近期集保週比較'}</div></div>` +
+          renderDimToneTag('4. 三大法人買賣超 (近5日)', inst.tone) +
+          `<div class="wl-dim-val">${esc(inst.status)}${inst.inst5Total != null ? ` ${pp(inst.inst5Total, 0)} 張` : ''}</div>` +
+          `<div class="wl-dim-sub">${inst.inst5Total != null ? `外資 ${pp(inst.foreign5, 0)} · 投信 ${pp(inst.trust5, 0)} · 最新日 ${pp(inst.lastTotal, 0)}` : esc(inst.status)}</div></div>` +
+          renderDimToneTag('5. 量價配合 (vs MV5)', vol.tone) +
+          `<div class="wl-dim-val">${esc(vol.status)}</div>` +
+          `<div class="wl-dim-sub">${vol.mv5 != null ? `今日 ${fmt(vol.vol)} 張 / 5日均量 ${fmt(vol.mv5)} 張` : '—'}</div></div>` +
+          renderDimToneTag('6. 融資融券變化 (近5日)', mg.tone) +
+          `<div class="wl-dim-val">${esc(mg.status)}</div>` +
+          `<div class="wl-dim-sub">${mg.marginBal != null ? `融資餘 ${fmt(mg.marginBal)} 張 · 券資比 ${fmt(mg.shortMarginRatio, 2)}%` : esc(mg.status)}</div></div>` +
+          '</div>';
 
       return (
         '<div class="card wl-ana-card" style="margin-bottom:14px">' +
         '<div class="splithead">' +
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
         `<h3 class="clickable" data-wl-open-stock="${esc(it.code)}" style="margin:0;cursor:pointer">${esc(it.code)} ${esc(it.name)}</h3>` +
-        `<span class="${cls}" style="font-weight:700;font-variant-numeric:tabular-nums">${fmt(it.price, dp)} (${arrow} ${pp(it.changePct, 2)}%)</span>` +
+        (isUs ? badge('US', '') : '') +
+        `<span class="${cls}" style="font-weight:700;font-variant-numeric:tabular-nums">${pfx}${fmt(it.price, dp)} (${arrow} ${pp(it.changePct, 2)}%)</span>` +
         `<span class="mini">${esc(it.tradeDate || '')}</span>` +
         badge(ov.label || '檢核完成', ovType) +
         (ov.divergenceAlert ? badge(ov.divergenceAlert, 'warn') : '') +
@@ -322,26 +392,7 @@ function renderAutoAnalysisTab() {
         `<button type="button" class="btn danger sm" data-wl-toggle-auto="${esc(it.code)}">移出自動分析</button>` +
         '</div>' +
         '</div>' +
-        '<div class="wl-dim-grid">' +
-        renderDimToneTag('1. 短均位階 (MA5 / MA10)', sMa.tone) +
-        `<div class="wl-dim-val">${esc(sMa.status)}</div>` +
-        `<div class="wl-dim-sub">MA5 ${sMa.ma5 != null ? `${fmt(sMa.ma5, dp)} (${pp(sMa.bias5Pct, 2)}%)` : '—'} · MA10 ${sMa.ma10 != null ? `${fmt(sMa.ma10, dp)} (${pp(sMa.bias10Pct, 2)}%)` : '—'}</div></div>` +
-        renderDimToneTag('2. 中期趨勢 (MA20 / MA60)', mMa.tone) +
-        `<div class="wl-dim-val">${esc(mMa.status)}</div>` +
-        `<div class="wl-dim-sub">月線 ${mMa.ma20 != null ? fmt(mMa.ma20, dp) : '—'} · 季線 ${mMa.ma60 != null ? fmt(mMa.ma60, dp) : '—'}</div></div>` +
-        renderDimToneTag('3. TDCC 大戶 (400張週變化)', td.tone) +
-        `<div class="wl-dim-val">${esc(td.status)} ${td.deltaPp400 != null ? pp(td.deltaPp400, 3) + ' pp' : ''}</div>` +
-        `<div class="wl-dim-sub">${td.weekDay ? `${esc(td.weekDay)} 占比 ${fmt(td.pct400, 2)}% · 千張 ${pp(td.deltaPp1000, 3)} pp` : '尚無近期集保週比較'}</div></div>` +
-        renderDimToneTag('4. 三大法人買賣超 (近5日)', inst.tone) +
-        `<div class="wl-dim-val">${esc(inst.status)}${inst.inst5Total != null ? ` ${pp(inst.inst5Total, 0)} 張` : ''}</div>` +
-        `<div class="wl-dim-sub">${inst.inst5Total != null ? `外資 ${pp(inst.foreign5, 0)} · 投信 ${pp(inst.trust5, 0)} · 最新日 ${pp(inst.lastTotal, 0)}` : esc(inst.status)}</div></div>` +
-        renderDimToneTag('5. 量價配合 (vs MV5)', vol.tone) +
-        `<div class="wl-dim-val">${esc(vol.status)}</div>` +
-        `<div class="wl-dim-sub">${vol.mv5 != null ? `今日 ${fmt(vol.vol)} 張 / 5日均量 ${fmt(vol.mv5)} 張` : '—'}</div></div>` +
-        renderDimToneTag('6. 融資融券變化 (近5日)', mg.tone) +
-        `<div class="wl-dim-val">${esc(mg.status)}</div>` +
-        `<div class="wl-dim-sub">${mg.marginBal != null ? `融資餘 ${fmt(mg.marginBal)} 張 · 券資比 ${fmt(mg.shortMarginRatio, 2)}%` : esc(mg.status)}</div></div>` +
-        '</div>' +
+        dimsHtml +
         `<div class="verdict-box" style="margin-top:10px"><b>綜合判斷：</b>${esc(ov.summary || '')}</div>` +
         '</div>'
       );

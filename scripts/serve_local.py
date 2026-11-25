@@ -29,6 +29,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
 from providers.watchlist import WatchlistService
+from providers.us_market import UsMarketService
 
 TDCC_URL = 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -489,6 +490,7 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
         stock_names.setdefault(etf_code, [etf_name, 'TWSE'])
 
     briefing_service = BriefingService(local_app_data / 'ChipScreener', ROOT, stock_names)
+    us_market_service = UsMarketService(local_app_data / 'ChipScreener' / 'us-cache-v1')
     watchlist_service = WatchlistService(
         local_app_data / 'ChipScreener',
         ROOT,
@@ -554,6 +556,31 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 return
             if parsed.path == '/api/watchlist':
                 self._send_json(200, watchlist_service.get_state())
+                return
+            if parsed.path == '/api/us/overview':
+                params = urllib.parse.parse_qs(parsed.query)
+                force = (params.get('refresh') or ['0'])[0] == '1'
+                try:
+                    self._send_json(200, us_market_service.get_overview(force_refresh=force))
+                except Exception as exc:
+                    self._send_json(500, {'error': str(exc)})
+                return
+            if parsed.path == '/api/us/screener':
+                params = urllib.parse.parse_qs(parsed.query)
+                force = (params.get('refresh') or ['0'])[0] == '1'
+                try:
+                    self._send_json(200, us_market_service.get_screener(force_refresh=force))
+                except Exception as exc:
+                    self._send_json(500, {'error': str(exc)})
+                return
+            if parsed.path == '/api/us/detail':
+                params = urllib.parse.parse_qs(parsed.query)
+                code = (params.get('code') or [''])[0].strip().upper()
+                force = (params.get('refresh') or ['0'])[0] == '1'
+                try:
+                    self._send_json(200, us_market_service.get_detail(code, force_refresh=force))
+                except Exception as exc:
+                    self._send_json(400, {'error': str(exc)})
                 return
             self.send_error(404)
 
