@@ -4,6 +4,7 @@
 
 const PAGES = {
   home,
+  briefing: briefingPage,
   screen,
   stock,
   backtest,
@@ -37,6 +38,9 @@ function go(page) {
   render();
   if (page === 'stock' && state.stockMode === 'detail') {
     loadStockDetail(state.stock);
+  }
+  if (page === 'briefing') {
+    loadBriefing(state.briefingSelectedDate || '');
   }
   scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -73,6 +77,87 @@ function render() {
   $('#page').innerHTML = strip + PAGES[state.page]();
   if (state.page === 'stock' && state.stockMode === 'detail') {
     drawDetailKline();
+  }
+}
+
+async function loadBriefing(day = '', allowAutoCatchup = false) {
+  if (!hasHttpFeed) {
+    state.briefingError = '純離線 HTML 模式無法連線抓取新聞，請透過 ChipScreener.exe 或本機服務開啟。';
+    if (state.page === 'briefing') render();
+    return;
+  }
+  try {
+    const qs = day ? '?date=' + encodeURIComponent(day) : '';
+    const resp = await fetch('/api/briefing' + qs, { cache: 'no-store' });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '讀取晨報失敗');
+    state.briefingConfig = data.config || state.briefingConfig;
+    state.briefingDates = data.dates || [];
+    if (data.report) {
+      state.briefingReport = data.report;
+      state.briefingSelectedDate = data.report.date;
+    }
+    state.briefingError = '';
+    if (state.page === 'briefing') render();
+
+    if (allowAutoCatchup && data.shouldAutoRun && !state.briefingBusy) {
+      await generateBriefing('每日 10:00 自動補抓', true);
+    }
+  } catch (e) {
+    state.briefingError = e.message;
+    if (state.page === 'briefing') render();
+  }
+}
+
+async function generateBriefing(trigger = '手動馬上製作', isAuto = false) {
+  if (state.briefingBusy) return;
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以製作即時晨報');
+    return;
+  }
+  state.briefingBusy = true;
+  state.briefingError = '';
+  if (state.page === 'briefing') render();
+  try {
+    const resp = await fetch('/api/briefing/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '製作晨報失敗');
+    state.briefingConfig = data.config || state.briefingConfig;
+    state.briefingDates = data.dates || [];
+    state.briefingReport = data.report;
+    state.briefingSelectedDate = data.report?.date || '';
+    toast(isAuto ? '今日 10:00 晨報已就緒' : `已製作 ${data.report?.date || ''} 最新晨報`);
+  } catch (e) {
+    state.briefingError = e.message;
+    if (!isAuto) toast('製作晨報失敗：' + e.message);
+  } finally {
+    state.briefingBusy = false;
+    if (state.page === 'briefing') render();
+  }
+}
+
+async function updateBriefingConfig(payload, successMsg = '') {
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以修改晨報設定');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/briefing/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '更新設定失敗');
+    state.briefingConfig = data.config;
+    if (successMsg) toast(successMsg);
+    if (state.page === 'briefing') render();
+  } catch (e) {
+    toast('更新晨報設定失敗：' + e.message);
   }
 }
 
@@ -280,6 +365,40 @@ document.body.addEventListener('click', e => {
   }
 
   switch (e.target.id) {
+    case 'generateBriefingBtn':
+      generateBriefing('手動馬上製作', false);
+      break;
+    case 'toggleBriefingSettings':
+      state.briefingSettingsOpen = !state.briefingSettingsOpen;
+      render();
+      break;
+    case 'toggleBriefingNews':
+      state.briefingNewsOpen = !state.briefingNewsOpen;
+      render();
+      break;
+    case 'saveBriefingSettingsBtn': {
+      const wl = $('#briefingWatchlistInput')?.value ?? '';
+      const keyVal = $('#briefingGeminiKeyInput')?.value?.trim() || '';
+      const topics = Array.from(document.querySelectorAll('[data-briefing-topic]'))
+        .filter(el => el.checked)
+        .map(el => el.dataset.briefingTopic);
+      const body = { watchlist: wl, topics };
+      if (keyVal) body.geminiApiKey = keyVal;
+      updateBriefingConfig(body, '已儲存晨報設定');
+      break;
+    }
+    case 'clearGeminiKeyBtn':
+      updateBriefingConfig({ clearGeminiKey: true }, '已清除本機 Gemini API Key');
+      break;
+    case 'exportBriefingMd':
+      if (state.briefingReport?.markdown) {
+        download(
+          `chip_briefing_${state.briefingReport.date}.md`,
+          state.briefingReport.markdown,
+          'text/markdown;charset=utf-8'
+        );
+      }
+      break;
     case 'retryDetailBtn':
       loadStockDetail(state.stock, true);
       break;
@@ -470,6 +589,16 @@ document.body.addEventListener('change', async e => {
   }
 
   switch (el.id) {
+    case 'toggleAutoBriefing':
+      updateBriefingConfig(
+        { enabled: el.checked },
+        el.checked ? '已開啟每日 10:00 自動晨報' : '已關閉自動晨報（隨時仍可手動馬上製作）'
+      );
+      break;
+    case 'briefingDateSelect':
+      state.briefingSelectedDate = el.value;
+      loadBriefing(el.value, false);
+      break;
     case 'filterPass':
       state.filter = el.value;
       state.pageNum = 0;
@@ -581,4 +710,9 @@ render();
 if (hasOfficialFeedBackend) {
   setTimeout(refreshTDCC, 1500);
   setInterval(refreshTDCC, 6 * 60 * 60 * 1000);
+}
+
+if (hasHttpFeed) {
+  setTimeout(() => loadBriefing('', true), 2600);
+  setInterval(() => loadBriefing('', true), 15 * 60 * 1000);
 }

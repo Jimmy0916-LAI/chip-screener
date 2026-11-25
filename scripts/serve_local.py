@@ -27,6 +27,7 @@ import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from providers.tw_market import TwMarketService
+from providers.news_briefing import BriefingService
 
 TDCC_URL = 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -469,6 +470,14 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     service = LocalFeedService(local_app_data / 'ChipScreener' / 'tdcc-local-v1', base)
     daily_service = DailyService(local_app_data / 'ChipScreener' / 'daily-cache-v1', service)
     tw_market_service = TwMarketService(local_app_data / 'ChipScreener' / 'tw-detail-v1')
+    stock_names = {}
+    web_data_file = ROOT / 'data' / 'web_data.json'
+    if web_data_file.exists():
+        try:
+            stock_names = json.loads(web_data_file.read_text(encoding='utf-8')).get('stocks', {})
+        except Exception:
+            pass
+    briefing_service = BriefingService(local_app_data / 'ChipScreener', ROOT, stock_names)
 
     class Handler(BaseHTTPRequestHandler):
         def _send_json(self, code: int, payload: dict) -> None:
@@ -514,14 +523,62 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 except Exception as exc:
                     self._send_json(400, {'error': str(exc)})
                 return
+            if parsed.path == '/api/briefing':
+                params = urllib.parse.parse_qs(parsed.query)
+                day = (params.get('date') or [None])[0]
+                self._send_json(200, {
+                    'config': briefing_service.get_config(),
+                    'dates': briefing_service.list_dates(),
+                    'report': briefing_service.read_report(day),
+                    'shouldAutoRun': briefing_service.should_auto_run(),
+                })
+                return
             self.send_error(404)
 
+        def _read_json_body(self) -> dict:
+            length = int(self.headers.get('Content-Length') or '0')
+            if length <= 0 or length > 256 * 1024:
+                return {}
+            try:
+                return json.loads(self.rfile.read(length).decode('utf-8'))
+            except Exception:
+                return {}
+
         def do_POST(self) -> None:
-            if self.path == '/api/official/update':
+            parsed = urllib.parse.urlsplit(self.path)
+            if parsed.path == '/api/official/update':
                 try:
                     self._send_json(200, service.update())
                 except Exception as exc:
                     self._send_json(500, {'status': '失敗', 'message': str(exc), 'weeks': {}, 'months': {}, 'checked': taipei_now()})
+                return
+            if parsed.path == '/api/briefing/generate':
+                body = self._read_json_body()
+                try:
+                    report = briefing_service.generate(
+                        featured_code=str(body.get('featuredCode') or '2404'),
+                        trigger=str(body.get('trigger') or '手動馬上製作'),
+                    )
+                    self._send_json(200, {
+                        'config': briefing_service.get_config(),
+                        'dates': briefing_service.list_dates(),
+                        'report': report,
+                        'shouldAutoRun': False,
+                    })
+                except Exception as exc:
+                    self._send_json(500, {'error': str(exc)})
+                return
+            if parsed.path == '/api/briefing/config':
+                body = self._read_json_body()
+                try:
+                    cfg = briefing_service.update_config(body)
+                    self._send_json(200, {
+                        'config': cfg,
+                        'dates': briefing_service.list_dates(),
+                        'shouldAutoRun': briefing_service.should_auto_run(),
+                    })
+                except Exception as exc:
+                    self._send_json(400, {'error': str(exc)})
                 return
             self.send_error(404)
 

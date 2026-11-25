@@ -118,7 +118,9 @@ async function openWindow() {
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (OFFICIAL_LINKS.has(url)) shell.openExternal(url).catch(console.error);
+    if (OFFICIAL_LINKS.has(url) || /^https:\/\/[^\s]+$/i.test(url)) {
+      shell.openExternal(url).catch(console.error);
+    }
     return { action: 'deny' };
   });
 

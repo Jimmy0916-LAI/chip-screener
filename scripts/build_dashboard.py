@@ -24,6 +24,7 @@ MODULE_ORDER = [
     'components/official-feed-panel.js',
     'components/preset-dialog.js',
     'pages/home.js',
+    'pages/briefing.js',
     'pages/screen.js',
     'pages/stock.js',
     'pages/backtest.js',
