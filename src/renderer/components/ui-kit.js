@@ -50,11 +50,12 @@ function renderTable(rows) {
   return (
     '<div class="tblwrap"><table><thead><tr>' +
     '<th>代號／名稱</th><th>市場</th><th>級距</th><th>累計增幅</th>' +
-    '<th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th>' +
+    '<th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th><th style="width:52px;text-align:center">收藏</th>' +
     '</tr></thead><tbody>' +
     rows
-      .map(
-        x =>
+      .map(x => {
+        const inFav = typeof isStockInAnyFolder === 'function' && isStockInAnyFolder(x.code);
+        return (
           `<tr class="clickable" data-stock="${esc(x.code)}">` +
           `<td><b>${ticker(x.code)}</b></td>` +
           `<td>${esc(x.market)}</td>` +
@@ -64,8 +65,10 @@ function renderTable(rows) {
           `<td>${pp(x.delta?.at(-1), 3)}</td>` +
           `<td>${x.deltaShares ? x.deltaShares.map(v => (v >= 0 ? '+' : '') + fmt(v)).join(' / ') : '—'}</td>` +
           `<td>${badge(x.status, x.pass ? 'good' : x.insufficient ? 'warn' : '')}<small>${esc(x.reason)}</small></td>` +
+          `<td style="text-align:center"><button type="button" class="btn-fav ${inFav ? 'on' : ''}" data-quick-fav="${esc(x.code)}" title="${inFav ? '管理收藏夾' : '加入收藏夾'}">${inFav ? '★' : '☆'}</button></td>` +
           '</tr>'
-      )
+        );
+      })
       .join('') +
     '</tbody></table></div>'
   );

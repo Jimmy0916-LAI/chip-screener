@@ -121,22 +121,49 @@ def _fetch_yahoo_quote(yahoo_symbol: str) -> dict | None:
         payload = json.loads(_http_get(url, timeout=10).decode('utf-8'))
         res = payload['chart']['result'][0]
         meta = res['meta']
-        closes = [c for c in (res.get('indicators', {}).get('quote', [{}])[0].get('close') or []) if c is not None]
-        price = meta.get('regularMarketPrice') or (closes[-1] if closes else None)
-        prev = meta.get('chartPreviousClose') or meta.get('previousClose')
-        if len(closes) >= 2 and (prev is None or prev == price):
-            prev = closes[-2]
+        exch_tz = timezone(timedelta(seconds=int(meta.get('gmtoffset') or 0)))
+
+        raw_ts = res.get('timestamp') or []
+        raw_closes = (res.get('indicators', {}).get('quote') or [{}])[0].get('close') or []
+        daily_by_day: dict[str, float] = {}
+        for t, c in zip(raw_ts, raw_closes):
+            if t is None or c is None:
+                continue
+            day_str = datetime.fromtimestamp(t, exch_tz).strftime('%Y-%m-%d')
+            daily_by_day[day_str] = float(c)
+        daily_bars = sorted(daily_by_day.items(), key=lambda x: x[0])
+
+        price = meta.get('regularMarketPrice')
+        if price is None and daily_bars:
+            price = daily_bars[-1][1]
         if price is None:
             return None
+        price = float(price)
+
+        ts = meta.get('regularMarketTime')
+        market_day = datetime.fromtimestamp(ts, exch_tz).strftime('%Y-%m-%d') if ts else ''
+
+        # 取前一個交易日收盤價（嚴禁直接使用 range=5d 的 chartPreviousClose，該值為 5 日前收盤價）
+        prev = None
+        if daily_bars:
+            if market_day:
+                earlier = [c for d, c in daily_bars if d < market_day]
+                if earlier:
+                    prev = earlier[-1]
+            if prev is None and len(daily_bars) >= 2:
+                prev = daily_bars[-2][1]
+        if prev is None:
+            fallback_prev = meta.get('previousClose') or meta.get('chartPreviousClose')
+            prev = float(fallback_prev) if fallback_prev is not None else None
+
         change = (price - prev) if prev else 0.0
         change_pct = (change / prev * 100.0) if prev else 0.0
-        ts = meta.get('regularMarketTime')
         trade_time = datetime.fromtimestamp(ts, TAIPEI_TZ).strftime('%Y-%m-%d %H:%M') if ts else ''
         return {
-            'price': round(float(price), 2),
-            'prevClose': round(float(prev), 2) if prev else None,
-            'change': round(float(change), 2),
-            'changePct': round(float(change_pct), 2),
+            'price': round(price, 2),
+            'prevClose': round(prev, 2) if prev is not None else None,
+            'change': round(change, 2),
+            'changePct': round(change_pct, 2),
             'tradeTime': trade_time,
             'currency': meta.get('currency', ''),
             'yahooSymbol': yahoo_symbol,
@@ -421,6 +448,13 @@ class BriefingService:
         except Exception:
             return '無法查詢 Windows 排程'
 
+    def sync_shared_windows_task(self) -> str:
+        """若晨報或收藏夾自動分析任一開啟，保留每日 10:00 Windows 排程；兩者皆關才刪除。"""
+        b_cfg = self._read_json(self.config_file, {})
+        w_cfg = self._read_json(self.user_dir / 'watchlists.json', {})
+        need_task = bool(b_cfg.get('enabled', True)) or bool(w_cfg.get('autoEnabled', True))
+        return self._sync_windows_task(need_task)
+
     def _sync_windows_task(self, enabled: bool) -> str:
         if os.name != 'nt':
             return '非 Windows 環境'
@@ -482,7 +516,8 @@ class BriefingService:
         )
         if 'enabled' in updates:
             current['enabled'] = bool(updates['enabled'])
-            self._sync_windows_task(current['enabled'])
+            self._write_json(self.config_file, current)
+            self.sync_shared_windows_task()
         if 'watchlist' in updates:
             items = updates['watchlist']
             if isinstance(items, str):

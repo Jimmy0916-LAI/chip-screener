@@ -1586,6 +1586,381 @@ tbody tr.clickable {
   }
 }
 
+/* ---------- 股票收藏夾 ＆ 自動分析樣式 ---------- */
+
+.wl-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.wl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wl-tab:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.wl-tab.active {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: #e2e8f0;
+}
+
+.wl-tab.wl-tab-auto.active {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #a7f3d0;
+}
+
+.wl-tab-cnt {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-price-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-chg {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wl-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-val-main {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.wl-pnl {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.wl-pnl-flat {
+  color: #f8fafc;
+}
+
+.wl-more-btn {
+  letter-spacing: 1px;
+  font-weight: 700;
+  min-width: 38px;
+}
+
+.wl-drawer-row td {
+  background: rgba(15, 23, 42, 0.65) !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.wl-drawer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wl-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wl-drawer-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wl-drawer-fields {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wl-check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wl-inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.wl-inline-field input {
+  width: 116px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
+
+.wl-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wl-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.topic-chip.active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(96, 165, 250, 0.65);
+  color: #e2e8f0;
+}
+
+.wl-dim-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.wl-dim-box {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.wl-dim-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.wl-dim-val {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.wl-dim-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-fav {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 3px 8px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.btn-fav:hover,
+.btn-fav.on,
+.btn.fav-active {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.wl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 15, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  padding: 16px;
+}
+
+.wl-modal {
+  width: min(480px, 100%);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.wl-pick-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.wl-pick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.wl-pick-row.active {
+  border-color: rgba(52, 211, 153, 0.55);
+  background: rgba(16, 185, 129, 0.13);
+}
+
+.wl-quick-new-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.wl-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.wl-back-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.wl-integrate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.wl-int-panel {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+}
+
+.wl-ma-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wl-ma-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-cost-summary {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(56, 189, 248, 0.07);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.wl-cost-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.wl-cost-cells {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-cost-cells > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (max-width: 980px) {
+  .wl-dim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wl-integrate-grid {
+    grid-template-columns: 1fr;
+  }
+  .wl-cost-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .wl-dim-grid {
+    grid-template-columns: 1fr;
+  }
+  .wl-ma-mini-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
   </style>
 </head>
 <body>
@@ -1655,6 +2030,7 @@ const COLORS = {
 const NAV = [
   ['home', '▦', '研究總覽'],
   ['briefing', '☀', '每日晨報'],
+  ['watchlist', '★', '股票收藏夾'],
   ['screen', '◎', '全市場篩選'],
   ['stock', '⌁', '個股研究'],
   ['backtest', '◷', '回測與比較'],
@@ -1985,6 +2361,26 @@ let state = {
   briefingError: '',
   briefingSettingsOpen: false,
   briefingNewsOpen: true,
+  watchlistConfig: {
+    version: 1,
+    autoEnabled: true,
+    folders: [{ id: 'wl_default', name: '我的自選股', items: [] }],
+    autoStocks: [],
+    autoStockMeta: []
+  },
+  watchlistQuotes: {},
+  watchlistQuotesUpdatedAt: '',
+  watchlistAnalysis: null,
+  watchlistActiveTab: 'wl_default',
+  watchlistFilter: 'all',
+  watchlistMenuKey: null,
+  watchlistCreatingFolder: false,
+  watchlistRenamingFolderId: null,
+  watchlistPriceBusy: false,
+  watchlistAnalysisBusy: false,
+  watchlistError: '',
+  quickFavCode: null,
+  stockReturnPage: '',
   win: '2026-11-13',
   bands: ['400'],
   chartRange: 'all',
@@ -2606,11 +3002,12 @@ function renderTable(rows) {
   return (
     '<div class="tblwrap"><table><thead><tr>' +
     '<th>代號／名稱</th><th>市場</th><th>級距</th><th>累計增幅</th>' +
-    '<th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th>' +
+    '<th>倒數第二週</th><th>最新一週</th><th>股數變化（股）</th><th>判定</th><th style="width:52px;text-align:center">收藏</th>' +
     '</tr></thead><tbody>' +
     rows
-      .map(
-        x =>
+      .map(x => {
+        const inFav = typeof isStockInAnyFolder === 'function' && isStockInAnyFolder(x.code);
+        return (
           `<tr class="clickable" data-stock="${esc(x.code)}">` +
           `<td><b>${ticker(x.code)}</b></td>` +
           `<td>${esc(x.market)}</td>` +
@@ -2620,8 +3017,10 @@ function renderTable(rows) {
           `<td>${pp(x.delta?.at(-1), 3)}</td>` +
           `<td>${x.deltaShares ? x.deltaShares.map(v => (v >= 0 ? '+' : '') + fmt(v)).join(' / ') : '—'}</td>` +
           `<td>${badge(x.status, x.pass ? 'good' : x.insufficient ? 'warn' : '')}<small>${esc(x.reason)}</small></td>` +
+          `<td style="text-align:center"><button type="button" class="btn-fav ${inFav ? 'on' : ''}" data-quick-fav="${esc(x.code)}" title="${inFav ? '管理收藏夾' : '加入收藏夾'}">${inFav ? '★' : '☆'}</button></td>` +
           '</tr>'
-      )
+        );
+      })
       .join('') +
     '</tbody></table></div>'
   );
@@ -3036,6 +3435,12 @@ function drawDetailKline() {
       }
     }
   });
+  const holdingCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(state.stock) : null;
+  const costPrice = holdingCost?.costPrice || null;
+  if (costPrice && costPrice >= lo * 0.75 && costPrice <= hi * 1.25) {
+    hi = Math.max(hi, costPrice);
+    lo = Math.min(lo, costPrice);
+  }
   const marginP = (hi - lo) * 0.08 || 2;
   hi += marginP;
   lo -= marginP;
@@ -3105,6 +3510,36 @@ function drawDetailKline() {
       }
     });
     ctx.stroke();
+  }
+
+  // 持有成本均價線（若收藏夾有填寫購入價）
+  if (costPrice) {
+    const dpCost = costPrice < 150 ? 2 : 1;
+    const inRange = costPrice >= lo && costPrice <= hi;
+    const cy = inRange ? Y(costPrice) : costPrice > hi ? topP + 10 : topP + priceH - 10;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padL, cy);
+    ctx.lineTo(cssW - padR, cy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const lbl = `成本 ${fmt(costPrice, dpCost)}${inRange ? '' : costPrice > hi ? ' ↑' : ' ↓'}`;
+    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    const tw = ctx.measureText(lbl).width + 10;
+    const bx = cssW - padR - tw - 4;
+    const by = Math.max(topP + 2, Math.min(topP + priceH - 20, cy - 18));
+    ctx.fillStyle = 'rgba(13, 17, 24, 0.92)';
+    ctx.fillRect(bx, by, tw, 17);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.strokeRect(bx, by, tw, 17);
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'left';
+    ctx.fillText(lbl, bx + 5, by + 12);
+    ctx.restore();
   }
 
   // MV5 均量線
@@ -3749,6 +4184,433 @@ function briefingPage() {
   );
 }
 
+// === pages/watchlist.js ===
+/**
+ * 頁面：股票收藏夾 ＆ 自動分析 (watchlist)
+ * - 支援多個自訂收藏夾（建立／重新命名／刪除）與獨立「自動分析」分頁
+ * - 列表維持極簡：代號名稱、最新股價與漲跌幅（紅漲綠跌）、價值估算（開關式）、右側「...」選單
+ * - 價值估算公式：
+ *   算法 1：現價 × 持有股數（市值）
+ *   算法 2：購入價格 × 持有股數（僅於填寫購入價格時計算未實現盈虧，紅賺／綠虧／白平）
+ */
+
+function isStockInAnyFolder(code) {
+  const folders = state.watchlistConfig?.folders || [];
+  return folders.some(f => (f.items || []).some(it => it.code === code));
+}
+
+function getBestHoldingCostInfo(code) {
+  const folders = state.watchlistConfig?.folders || [];
+  const activeFolder = folders.find(f => f.id === state.watchlistActiveTab);
+  const ordered = activeFolder ? [activeFolder, ...folders.filter(f => f.id !== activeFolder.id)] : folders;
+  for (const f of ordered) {
+    const it = (f.items || []).find(x => x.code === code && x.costPrice > 0);
+    if (it) {
+      return {
+        folderId: f.id,
+        folderName: f.name,
+        shares: Number(it.shares) || 0,
+        costPrice: Number(it.costPrice),
+        showValuation: Boolean(it.showValuation)
+      };
+    }
+  }
+  return null;
+}
+
+function renderQuickFavModal() {
+  const code = state.quickFavCode;
+  if (!code) return '';
+  const cfg = state.watchlistConfig || {};
+  const folders = cfg.folders || [];
+  const autoStocks = cfg.autoStocks || [];
+  const inAuto = autoStocks.includes(code);
+  const info = D.stocks[code] || [code, /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(code) ? 'TWSE' : 'US'];
+
+  const folderButtons = folders
+    .map(f => {
+      const has = (f.items || []).some(it => it.code === code);
+      return (
+        `<button type="button" class="wl-pick-row ${has ? 'active' : ''}" data-qfav-folder="${esc(f.id)}" data-qfav-code="${esc(code)}">` +
+        `<span><b>${has ? '✓' : '+'}</b> ${esc(f.name)}</span>` +
+        `<span class="mini">${(f.items || []).length} 檔</span>` +
+        '</button>'
+      );
+    })
+    .join('');
+
+  return (
+    '<div class="wl-modal-backdrop" id="quickFavBackdrop">' +
+    '<div class="wl-modal card" role="dialog" aria-label="加入股票收藏夾">' +
+    cardhead(
+      `收藏設定｜${esc(code)} ${esc(info[0])}`,
+      '選擇要加入或移出的自訂收藏夾，也可同步加入自動分析',
+      '<button type="button" class="btn sm" id="closeQuickFavBtn">關閉</button>'
+    ) +
+    `<div class="wl-pick-list">${folderButtons}</div>` +
+    '<div class="wl-quick-new-row">' +
+    `<input id="quickFavNewFolderInput" placeholder="或直接輸入新收藏夾名稱建立並加入" style="flex:1">` +
+    `<button type="button" class="btn sm" id="quickFavCreateBtn" data-qfav-code="${esc(code)}">+ 建立並加入</button>` +
+    '</div>' +
+    '<div class="wl-modal-foot">' +
+    `<button type="button" class="btn ${inAuto ? 'main' : ''} sm" id="quickFavAutoBtn" data-qfav-code="${esc(code)}">${inAuto ? '✦ 已在自動分析（點擊移出）' : '✦ 同時加入自動分析'}</button>` +
+    `<button type="button" class="btn sm" data-nav="watchlist">前往收藏夾頁 →</button>` +
+    '</div>' +
+    '</div>' +
+    '</div>'
+  );
+}
+
+function renderCustomValuationCell(item, quote) {
+  if (!item.showValuation) {
+    return '<span class="mini">未開啟（點 … 設定）</span>';
+  }
+  const shares = Number(item.shares) || 0;
+  if (shares <= 0) {
+    return '<span class="mini">請於 … 輸入持有股數</span>';
+  }
+  const price = typeof quote?.price === 'number' ? quote.price : null;
+  if (price === null) {
+    return `<span class="mini">${fmt(shares)} 股（點擊一鍵更新股價）</span>`;
+  }
+
+  // 算法 1：現價 × 持有股數
+  const marketVal = price * shares;
+  let pnlHtml = '';
+  // 算法 2：僅於有輸入購入價格時計算未實現盈虧（紅賺／綠虧／白平）
+  if (typeof item.costPrice === 'number' && item.costPrice > 0) {
+    const costTotal = item.costPrice * shares;
+    const pnl = marketVal - costTotal;
+    const pnlPct = costTotal > 0 ? (pnl / costTotal) * 100 : 0;
+    const pnlCls = pnl > 0 ? 'tw-up' : pnl < 0 ? 'tw-down' : 'wl-pnl-flat';
+    const signStr = pnl > 0 ? '+' : '';
+    const pctStr = pnlPct > 0 ? '+' : '';
+    pnlHtml = `<span class="wl-pnl ${pnlCls}">${signStr}${fmt(pnl, 0)} (${pctStr}${fmt(pnlPct, 2)}%)</span>`;
+  }
+
+  return (
+    '<div class="wl-val-wrap">' +
+    `<strong class="wl-val-main">${fmt(marketVal, 0)} 元</strong>` +
+    pnlHtml +
+    `<span class="mini" style="width:100%;display:block;margin-top:2px">${fmt(shares)} 股${item.costPrice > 0 ? ` · 均價 ${fmt(item.costPrice, item.costPrice < 150 ? 2 : 1)}` : ''}</span>` +
+    '</div>'
+  );
+}
+
+function renderRowMenuDrawer(folder, item) {
+  const checked = item.showValuation ? 'checked' : '';
+  const inAuto = Boolean(item.inAuto);
+  const sharesVal = item.shares > 0 ? String(item.shares) : '';
+  const costVal = item.costPrice > 0 ? String(item.costPrice) : '';
+
+  return (
+    `<tr class="wl-drawer-row"><td colspan="4">` +
+    '<div class="wl-drawer">' +
+    '<div class="wl-drawer-section">' +
+    '<div class="wl-drawer-title">價值估算（可開關）</div>' +
+    '<div class="wl-drawer-fields">' +
+    `<label class="wl-check-inline"><input type="checkbox" id="wlMenuValuationToggle" ${checked}><span>開啟價值估算</span></label>` +
+    `<label class="wl-inline-field">持有股數 <input id="wlMenuSharesInput" type="number" min="0" step="1" placeholder="如 1000" value="${esc(sharesVal)}"></label>` +
+    `<label class="wl-inline-field">購入價格（非必填） <input id="wlMenuCostInput" type="number" min="0" step="0.01" placeholder="留空僅算市值" value="${esc(costVal)}"></label>` +
+    `<button type="button" class="btn main sm" id="wlMenuSaveBtn" data-wl-save="${esc(folder.id)}:${esc(item.code)}">儲存估值</button>` +
+    '</div>' +
+    '</div>' +
+    '<div class="wl-drawer-actions">' +
+    `<button type="button" class="btn sm ${inAuto ? 'good-outline' : ''}" data-wl-toggle-auto="${esc(item.code)}">${inAuto ? '✦ 移出自動分析' : '✦ 加入自動分析'}</button>` +
+    `<button type="button" class="btn danger sm" data-wl-remove-item="${esc(folder.id)}:${esc(item.code)}">從此收藏夾刪除</button>` +
+    `<button type="button" class="btn sm" id="wlMenuCloseBtn">收起</button>` +
+    '</div>' +
+    '</div>' +
+    '</td></tr>'
+  );
+}
+
+function renderCustomWatchlistTab(folder) {
+  const quotes = state.watchlistQuotes || {};
+  const items = folder?.items || [];
+
+  const renameBox =
+    state.watchlistRenamingFolderId === folder.id
+      ? '<div class="toolbar" style="margin-bottom:12px">' +
+        `<input id="wlRenameInput" value="${esc(folder.name)}" maxlength="30" placeholder="輸入新收藏夾名稱">` +
+        `<button type="button" class="btn main sm" id="wlRenameSaveBtn" data-folder-id="${esc(folder.id)}">確認更名</button>` +
+        '<button type="button" class="btn sm" id="wlRenameCancelBtn">取消</button>' +
+        '</div>'
+      : '';
+
+  const folderTools =
+    '<div class="feed-bar" style="margin-bottom:14px">' +
+    '<div class="toolbar" style="margin:0">' +
+    `<input id="addWatchlistCodeInput" placeholder="輸入代號加入（如 2330、0050、NVDA）" style="width:280px">` +
+    `<button type="button" class="btn main sm" id="addWatchlistStockBtn" data-folder-id="${esc(folder.id)}">+ 加入股票</button>` +
+    '</div>' +
+    '<div class="toolbar" style="margin:0">' +
+    `<span class="mini">${state.watchlistQuotesUpdatedAt ? `報價更新：${esc(state.watchlistQuotesUpdatedAt)}` : '點擊右上方「一鍵更新股價」抓取即時價'}</span>` +
+    `<button type="button" class="btn sm" id="wlStartRenameBtn" data-folder-id="${esc(folder.id)}">✎ 更名收藏夾</button>` +
+    `<button type="button" class="btn danger sm" id="wlDeleteFolderBtn" data-folder-id="${esc(folder.id)}">刪除收藏夾</button>` +
+    '</div>' +
+    '</div>' +
+    renameBox;
+
+  if (!items.length) {
+    return (
+      '<div class="card">' +
+      folderTools +
+      `<div class="empty"><b>「${esc(folder.name)}」目前尚無股票</b>輸入上方台美股代號（或從全市場篩選、個股頁按 ★ 加入），即會顯示於極簡清單。</div>` +
+      '</div>'
+    );
+  }
+
+  const rowsHtml = items
+    .map(item => {
+      const q = quotes[item.code];
+      const hasVal = typeof q?.price === 'number';
+      const dp = hasVal && q.price < 150 ? 2 : 1;
+      const dirCls = !hasVal ? '' : q.change > 0 ? 'tw-up' : q.change < 0 ? 'tw-down' : 'wl-pnl-flat';
+      const arrow = !hasVal ? '' : q.change > 0 ? '▲' : q.change < 0 ? '▼' : '';
+      const menuKey = `${folder.id}:${item.code}`;
+      const isMenuOpen = state.watchlistMenuKey === menuKey;
+
+      return (
+        `<tr class="clickable" data-wl-open-stock="${esc(item.code)}">` +
+        `<td><b>${esc(item.code)}</b> <span class="cell-muted">${esc(item.name)}</span>${item.inAuto ? ' <span class="tag good" style="margin-left:6px">自動分析中</span>' : ''}</td>` +
+        `<td>${
+          hasVal
+            ? `<div class="wl-price-cell"><strong class="${dirCls}">${fmt(q.price, dp)}</strong> <span class="wl-chg ${dirCls}">${arrow} ${pp(q.change, 2)} (${pp(q.changePct, 2)}%)</span></div>`
+            : '<span class="mini">尚未更新報價</span>'
+        }</td>` +
+        `<td>${renderCustomValuationCell(item, q)}</td>` +
+        `<td style="text-align:right"><button type="button" class="btn sm wl-more-btn ${isMenuOpen ? 'main' : ''}" data-wl-menu-toggle="${esc(menuKey)}" title="更多功能（價值估算／自動分析／刪除）">...</button></td>` +
+        '</tr>' +
+        (isMenuOpen ? renderRowMenuDrawer(folder, item) : '')
+      );
+    })
+    .join('');
+
+  return (
+    '<div class="card">' +
+    folderTools +
+    '<div class="tblwrap"><table><thead><tr>' +
+    '<th>股票代號／名稱</th><th>最新股價與漲跌幅</th><th>價值估算</th><th style="width:76px;text-align:right">功能</th>' +
+    '</tr></thead><tbody>' +
+    rowsHtml +
+    '</tbody></table></div>' +
+    '</div>'
+  );
+}
+
+function renderDimToneTag(label, tone) {
+  const cls = tone === 'up' ? 'tw-up-bg' : tone === 'down' ? 'tw-down-bg' : '';
+  return `<div class="wl-dim-box ${cls}"><div class="wl-dim-label">${esc(label)}</div>`;
+}
+
+function renderAutoAnalysisTab() {
+  const cfg = state.watchlistConfig || {};
+  const autoMeta = cfg.autoStockMeta || [];
+  const analysis = state.watchlistAnalysis;
+  const counts = analysis?.counts || {};
+  const analyzedItems = analysis?.items || [];
+  const byCode = new Map(analyzedItems.map(x => [x.code, x]));
+
+  const pills = [
+    ['all', '全部', autoMeta.length],
+    ['belowMa5', '低於 5 日線', counts.belowMa5 || 0],
+    ['belowMa10', '低於 10 日線', counts.belowMa10 || 0],
+    ['tdccBuy', '大戶買超', counts.tdccBuy || 0],
+    ['tdccSell', '大戶賣超', counts.tdccSell || 0],
+    ['instBuy', '法人買超', counts.instBuy || 0],
+    ['instSell', '法人賣超', counts.instSell || 0],
+    ['divergence', '籌碼背離提醒', counts.divergence || 0]
+  ];
+
+  const filterBar =
+    '<div class="wl-filter-bar">' +
+    pills
+      .map(
+        ([key, lbl, cnt]) =>
+          `<button type="button" class="topic-chip ${state.watchlistFilter === key ? 'active' : ''}" data-wl-filter="${key}">${esc(lbl)} <b>${cnt}</b></button>`
+      )
+      .join('') +
+    '</div>';
+
+  const statusHead =
+    '<div class="card" style="padding:14px 18px;margin-bottom:16px">' +
+    '<div class="feed-bar">' +
+    '<div class="feed-meta">' +
+    `<span>獨立自動分析清單：<b>${autoMeta.length}</b> 檔</span>` +
+    (analysis
+      ? `<span>最近分析：<b>${esc(analysis.generatedAt)}</b> · ${esc(analysis.trigger)}</span>`
+      : '<span>尚未產出自動分析報告，點擊右側「立即更新分析」即可生成</span>') +
+    '</div>' +
+    `<button type="button" class="btn main sm" id="runAutoAnalysisBtn"${state.watchlistAnalysisBusy ? ' disabled' : ''}>${state.watchlistAnalysisBusy ? '分析計算中...' : '⚡ 立即更新分析'}</button>` +
+    '</div>' +
+    (autoMeta.length ? filterBar : '') +
+    '</div>';
+
+  if (!autoMeta.length) {
+    return (
+      statusHead +
+      '<div class="card"><div class="empty"><b>自動分析收藏夾目前為空</b>請於任意自訂收藏夾的「...」選單中點選「加入自動分析」（或於篩選／個股頁 ★ 收藏面板加入），系統將於每日 10:00 與手動更新時自動檢核 6 大技術與籌碼維度。</div></div>'
+    );
+  }
+
+  const filter = state.watchlistFilter || 'all';
+  const cards = autoMeta
+    .map(meta => {
+      const it = byCode.get(meta.code);
+      if (!it) {
+        if (filter !== 'all') return '';
+        return (
+          '<div class="card wl-ana-card" style="margin-bottom:14px">' +
+          '<div class="splithead">' +
+          `<div><h3 class="clickable" data-wl-open-stock="${esc(meta.code)}">${esc(meta.code)} ${esc(meta.name)}</h3><div class="mini">已加入自動分析，尚未執行本次掃描</div></div>` +
+          `<div class="toolbar" style="margin:0"><button type="button" class="btn sm" data-wl-open-stock="${esc(meta.code)}">查看個股 →</button><button type="button" class="btn danger sm" data-wl-toggle-auto="${esc(meta.code)}">移出自動分析</button></div>` +
+          '</div></div>'
+        );
+      }
+      if (filter !== 'all' && !(it.filterFlags || []).includes(filter)) {
+        return '';
+      }
+      if (it.error) {
+        return (
+          '<div class="card wl-ana-card" style="margin-bottom:14px">' +
+          '<div class="splithead">' +
+          `<div><h3 class="clickable" data-wl-open-stock="${esc(it.code)}">${esc(it.code)} ${esc(it.name)}</h3><div class="mini">${esc(it.error)}</div></div>` +
+          `<button type="button" class="btn danger sm" data-wl-toggle-auto="${esc(it.code)}">移出自動分析</button>` +
+          '</div></div>'
+        );
+      }
+
+      const dp = it.price < 150 ? 2 : 1;
+      const cls = it.change > 0 ? 'tw-up' : it.change < 0 ? 'tw-down' : 'wl-pnl-flat';
+      const arrow = it.change > 0 ? '▲' : it.change < 0 ? '▼' : '';
+      const ov = it.overall || {};
+      const ovType = ov.tone === 'up' ? 'good' : ov.tone === 'down' ? 'bad' : 'warn';
+
+      const sMa = it.shortMa || {};
+      const mMa = it.midMa || {};
+      const td = it.tdcc || {};
+      const inst = it.inst || {};
+      const vol = it.volume || {};
+      const mg = it.margin || {};
+
+      return (
+        '<div class="card wl-ana-card" style="margin-bottom:14px">' +
+        '<div class="splithead">' +
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+        `<h3 class="clickable" data-wl-open-stock="${esc(it.code)}" style="margin:0;cursor:pointer">${esc(it.code)} ${esc(it.name)}</h3>` +
+        `<span class="${cls}" style="font-weight:700;font-variant-numeric:tabular-nums">${fmt(it.price, dp)} (${arrow} ${pp(it.changePct, 2)}%)</span>` +
+        `<span class="mini">${esc(it.tradeDate || '')}</span>` +
+        badge(ov.label || '檢核完成', ovType) +
+        (ov.divergenceAlert ? badge(ov.divergenceAlert, 'warn') : '') +
+        '</div>' +
+        '<div class="toolbar" style="margin:0">' +
+        `<button type="button" class="btn sm" data-wl-open-stock="${esc(it.code)}">整合個股檢視 →</button>` +
+        `<button type="button" class="btn danger sm" data-wl-toggle-auto="${esc(it.code)}">移出自動分析</button>` +
+        '</div>' +
+        '</div>' +
+        '<div class="wl-dim-grid">' +
+        renderDimToneTag('1. 短均位階 (MA5 / MA10)', sMa.tone) +
+        `<div class="wl-dim-val">${esc(sMa.status)}</div>` +
+        `<div class="wl-dim-sub">MA5 ${sMa.ma5 != null ? `${fmt(sMa.ma5, dp)} (${pp(sMa.bias5Pct, 2)}%)` : '—'} · MA10 ${sMa.ma10 != null ? `${fmt(sMa.ma10, dp)} (${pp(sMa.bias10Pct, 2)}%)` : '—'}</div></div>` +
+        renderDimToneTag('2. 中期趨勢 (MA20 / MA60)', mMa.tone) +
+        `<div class="wl-dim-val">${esc(mMa.status)}</div>` +
+        `<div class="wl-dim-sub">月線 ${mMa.ma20 != null ? fmt(mMa.ma20, dp) : '—'} · 季線 ${mMa.ma60 != null ? fmt(mMa.ma60, dp) : '—'}</div></div>` +
+        renderDimToneTag('3. TDCC 大戶 (400張週變化)', td.tone) +
+        `<div class="wl-dim-val">${esc(td.status)} ${td.deltaPp400 != null ? pp(td.deltaPp400, 3) + ' pp' : ''}</div>` +
+        `<div class="wl-dim-sub">${td.weekDay ? `${esc(td.weekDay)} 占比 ${fmt(td.pct400, 2)}% · 千張 ${pp(td.deltaPp1000, 3)} pp` : '尚無近期集保週比較'}</div></div>` +
+        renderDimToneTag('4. 三大法人買賣超 (近5日)', inst.tone) +
+        `<div class="wl-dim-val">${esc(inst.status)}${inst.inst5Total != null ? ` ${pp(inst.inst5Total, 0)} 張` : ''}</div>` +
+        `<div class="wl-dim-sub">${inst.inst5Total != null ? `外資 ${pp(inst.foreign5, 0)} · 投信 ${pp(inst.trust5, 0)} · 最新日 ${pp(inst.lastTotal, 0)}` : esc(inst.status)}</div></div>` +
+        renderDimToneTag('5. 量價配合 (vs MV5)', vol.tone) +
+        `<div class="wl-dim-val">${esc(vol.status)}</div>` +
+        `<div class="wl-dim-sub">${vol.mv5 != null ? `今日 ${fmt(vol.vol)} 張 / 5日均量 ${fmt(vol.mv5)} 張` : '—'}</div></div>` +
+        renderDimToneTag('6. 融資融券變化 (近5日)', mg.tone) +
+        `<div class="wl-dim-val">${esc(mg.status)}</div>` +
+        `<div class="wl-dim-sub">${mg.marginBal != null ? `融資餘 ${fmt(mg.marginBal)} 張 · 券資比 ${fmt(mg.shortMarginRatio, 2)}%` : esc(mg.status)}</div></div>` +
+        '</div>' +
+        `<div class="verdict-box" style="margin-top:10px"><b>綜合判斷：</b>${esc(ov.summary || '')}</div>` +
+        '</div>'
+      );
+    })
+    .filter(Boolean)
+    .join('');
+
+  return (
+    statusHead +
+    (cards || '<div class="card"><div class="empty">目前快篩條件下無符合股票，請點選「全部」切換。</div></div>')
+  );
+}
+
+function watchlistPage() {
+  const cfg = state.watchlistConfig || {};
+  const folders = cfg.folders || [];
+  const autoCount = (cfg.autoStocks || []).length;
+  const activeTab = state.watchlistActiveTab === 'auto'
+    ? 'auto'
+    : folders.some(f => f.id === state.watchlistActiveTab)
+      ? state.watchlistActiveTab
+      : folders[0]?.id || 'auto';
+
+  const enabled = cfg.autoEnabled !== false;
+  const headerActions =
+    '<div class="brief-controls">' +
+    `<label class="switch-wrap" title="獨立開關每日台灣時間 10:00 自動分析收藏清單">` +
+    `<input type="checkbox" id="toggleAutoWatchlist" ${enabled ? 'checked' : ''}>` +
+    '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+    `<span class="switch-label">${enabled ? '10:00 自動分析：開啟' : '10:00 自動分析：已關閉'}</span>` +
+    '</label>' +
+    `<button type="button" class="btn main" id="refreshWatchlistPricesBtn"${state.watchlistPriceBusy ? ' disabled' : ''}>${state.watchlistPriceBusy ? '更新報價中...' : '↻ 一鍵更新股價'}</button>` +
+    `<button type="button" class="btn" id="createFolderBtn">+ 新增收藏夾</button>` +
+    '</div>';
+
+  const createFolderPanel = state.watchlistCreatingFolder
+    ? '<div class="card" style="padding:14px 16px;margin-bottom:16px">' +
+      '<div class="toolbar" style="margin:0">' +
+      '<input id="newFolderNameInput" placeholder="輸入新收藏夾名稱（如：半導體波段、高股息存股）" maxlength="30" style="width:320px">' +
+      '<button type="button" class="btn main sm" id="saveNewFolderBtn">建立收藏夾</button>' +
+      '<button type="button" class="btn sm" id="cancelNewFolderBtn">取消</button>' +
+      '</div></div>'
+    : '';
+
+  const tabsBar =
+    '<div class="wl-tabs-row">' +
+    folders
+      .map(
+        f =>
+          `<button type="button" class="wl-tab ${activeTab === f.id ? 'active' : ''}" data-wl-tab="${esc(f.id)}">` +
+          `<span>${esc(f.name)}</span><span class="wl-tab-cnt">${(f.items || []).length}</span></button>`
+      )
+      .join('') +
+    `<button type="button" class="wl-tab wl-tab-auto ${activeTab === 'auto' ? 'active' : ''}" data-wl-tab="auto">` +
+    `<span>✦ 自動分析</span><span class="wl-tab-cnt">${autoCount}</span></button>` +
+    '</div>';
+
+  const errNotice = state.watchlistError
+    ? `<div class="notice warn" style="margin-bottom:14px">${esc(state.watchlistError)}</div>`
+    : '';
+
+  const activeFolder = folders.find(f => f.id === activeTab);
+  const contentHtml =
+    activeTab === 'auto'
+      ? renderAutoAnalysisTab()
+      : activeFolder
+        ? renderCustomWatchlistTab(activeFolder)
+        : '<div class="card"><div class="empty">請先建立一個收藏夾</div></div>';
+
+  return (
+    title(
+      '股票收藏夾 ＆ 自動分析',
+      '市值／損益估算；隔離保存於 %LOCALAPPDATA%\\ChipScreener\\user-v1\\watchlists.json。',
+      headerActions
+    ) +
+    createFolderPanel +
+    tabsBar +
+    errNotice +
+    contentHtml
+  );
+}
+
 // === pages/screen.js ===
 /**
  * 頁面 02：全市場篩選 (screen)
@@ -4063,6 +4925,42 @@ function renderStockDetailMode(code, info) {
   const arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '';
 
   const analysis = buildDetailAnalysis(code, detail);
+  const ma5Val = computeMA(bars, 5).at(-1);
+  const ma10Val = computeMA(bars, 10).at(-1);
+  const ma20Val = computeMA(bars, 20).at(-1);
+  const ma60Val = computeMA(bars, 60).at(-1);
+  const maQuickList = [
+    ['MA5（5日）', ma5Val],
+    ['MA10（10日）', ma10Val],
+    ['MA20（月線）', ma20Val],
+    ['MA60（季線）', ma60Val]
+  ];
+
+  const ctx = evaluation(applied);
+  const scrSig = weeklySignal(code, ctx);
+  const scrBadgeType = scrSig.pass ? 'good' : scrSig.insufficient ? 'warn' : '';
+  const holdCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(code) : null;
+  let holdingHtml = '';
+  if (holdCost && holdCost.costPrice > 0) {
+    const shares = holdCost.shares || 0;
+    const costPer = holdCost.costPrice;
+    const diffPer = last[4] - costPer;
+    const pct = (diffPer / costPer) * 100;
+    const marketVal = shares > 0 ? last[4] * shares : null;
+    const costTotal = shares > 0 ? costPer * shares : null;
+    const pnlTotal = marketVal !== null ? marketVal - costTotal : null;
+    const pnlCls = diffPer > 0 ? 'tw-up' : diffPer < 0 ? 'tw-down' : 'wl-pnl-flat';
+    holdingHtml =
+      '<div class="wl-cost-summary">' +
+      `<div class="wl-cost-head"><span>📌 持股成本損益（來源：${esc(holdCost.folderName)}）</span><span class="mini">下方 K 線已標示購入均價線 ${fmt(costPer, dp)}</span></div>` +
+      '<div class="wl-cost-cells">' +
+      `<div><span class="mini">購入均價</span><strong>${fmt(costPer, dp)}</strong></div>` +
+      `<div><span class="mini">持有股數</span><strong>${shares > 0 ? `${fmt(shares)} 股` : '未填股數'}</strong></div>` +
+      `<div><span class="mini">現價市值（算法1）</span><strong>${marketVal !== null ? `${fmt(marketVal, 0)} 元` : '—'}</strong></div>` +
+      `<div><span class="mini">購入總成本（算法2）</span><strong>${costTotal !== null ? `${fmt(costTotal, 0)} 元` : '—'}</strong></div>` +
+      `<div><span class="mini">未實現損益</span><strong class="${pnlCls}">${pnlTotal !== null ? `${pnlTotal > 0 ? '+' : ''}${fmt(pnlTotal, 0)} 元 ` : ''}(${pct > 0 ? '+' : ''}${fmt(pct, 2)}%)</strong></div>` +
+      '</div></div>';
+  }
 
   return (
     // 1. Yahoo 風格報價看板
@@ -4090,7 +4988,36 @@ function renderStockDetailMode(code, info) {
     `<span>52週高 ${fmt(hi52, dp)}（位階 ${fmt(pos52, 0)}%）</span>` +
     '</div>' +
     '</div>' +
-    // 2. 客觀條件燈號 + 一句話結構總評
+    // 2. 綜合研究檢核、均線速查與持股成本損益（整合自收藏夾、篩選條件與個股研究）
+    '<div class="card" style="margin-bottom:18px">' +
+    cardhead(
+      '綜合研究檢核 ＆ 均線速查',
+      '同步整合「全市場篩選」週訊號、均線位階與收藏夾持股成本損益',
+      `<button type="button" class="btn sm" data-set-mode="study">切換「1. 個股研究 (TDCC 原始級距)」</button>`
+    ) +
+    '<div class="wl-integrate-grid">' +
+    '<div class="wl-int-panel">' +
+    '<div class="mini" style="margin-bottom:6px">全市場篩選條件檢核（現行策略參數）</div>' +
+    `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${badge(scrSig.status, scrBadgeType)}<b>${esc(applied.band)} 張（${applied.weeks} 週）</b><span class="mini">${Number.isFinite(scrSig.gain) ? `累計 ${pp(scrSig.gain, 3)} pp` : ''}</span></div>` +
+    `<div class="mini" style="margin-top:6px">${esc(scrSig.reason || '無此標的近期集保篩選資料')}</div>` +
+    '</div>' +
+    '<div class="wl-int-panel">' +
+    '<div class="mini" style="margin-bottom:6px">均線價位速查（收盤價比較）</div>' +
+    '<div class="wl-ma-mini-grid">' +
+    maQuickList
+      .map(([lbl, mv]) => {
+        if (mv === null) return `<div class="wl-ma-cell"><span class="mini">${lbl}</span><b>—</b></div>`;
+        const diffPct = ((last[4] - mv) / mv) * 100;
+        const cCls = diffPct >= 0 ? 'tw-up' : 'tw-down';
+        return `<div class="wl-ma-cell"><span class="mini">${lbl}</span><b>${fmt(mv, dp)}</b><span class="mini ${cCls}">${pp(diffPct, 2)}%</span></div>`;
+      })
+      .join('') +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    holdingHtml +
+    '</div>' +
+    // 3. 客觀條件燈號 + 一句話結構總評
     '<div class="card" style="margin-bottom:18px">' +
     cardhead('結構體檢與客觀條件分析', '依收盤均線、量能、三大法人與集保大戶自動判定') +
     '<div class="signal-grid">' +
@@ -4139,7 +5066,9 @@ function renderStockDetailMode(code, info) {
 
 function stock() {
   const code = state.stock;
-  const info = D.stocks[code] || ['未驗證股票名稱', '待確認'];
+  const qName = state.watchlistQuotes?.[code]?.name;
+  const fallbackMkt = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(code) ? '待確認' : 'US';
+  const info = D.stocks[code] || [qName || '未驗證股票名稱', fallbackMkt];
   const ds = archiveDays().filter(day => D.series[day]?.[code]);
   const latest = ds.at(-1);
   const chartBand = state.bands.length ? state.bands : [applied.band];
@@ -4152,9 +5081,19 @@ function stock() {
   const latest400 = vector(code, latest, '400');
   const mode = state.stockMode || 'study';
   const modeLabel = mode === 'detail' ? '個股詳情' : '個股研究';
+  const inFav = typeof isStockInAnyFolder === 'function' && isStockInAnyFolder(code);
+
+  const backStrip =
+    state.stockReturnPage === 'watchlist'
+      ? '<div class="wl-back-strip">' +
+        '<button type="button" class="btn sm" id="backToWatchlistBtn">← 返回股票收藏夾</button>' +
+        `<span class="mini">已整合顯示「個股詳情 (K線/法人/資券)」、「個股研究 (TDCC)」與「全市場篩選檢核」</span>` +
+        '</div>'
+      : '';
 
   const headerControls =
     '<div class="stock-head-tools">' +
+    `<button type="button" class="btn sm ${inFav ? 'fav-active' : ''}" data-quick-fav="${esc(code)}">${inFav ? '★ 已收藏' : '☆ 加入收藏'}</button>` +
     `<div class="toolbar" style="margin:0"><input id="stockCode" placeholder="輸入代號按 Enter" value="${esc(code)}" style="width:148px"><button class="btn main" id="goStock">查詢</button></div>` +
     `<div id="modeSwitch" class="mode-pill-track" data-mode="${esc(mode)}" role="tablist" aria-label="個股模式切換">` +
     '<div class="mode-pill-thumb"></div>' +
@@ -4163,11 +5102,13 @@ function stock() {
     '</div>' +
     '</div>';
 
-  const pageTitle = title(
-    `${modeLabel}｜${esc(code)} ${esc(info[0])}`,
-    `市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`,
-    headerControls
-  );
+  const pageTitle =
+    backStrip +
+    title(
+      `${modeLabel}｜${esc(code)} ${esc(info[0])}`,
+      `市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`,
+      headerControls
+    );
 
   if (mode === 'detail') {
     return pageTitle + renderStockDetailMode(code, info);
@@ -4570,6 +5511,7 @@ function dataPage() {
 const PAGES = {
   home,
   briefing: briefingPage,
+  watchlist: watchlistPage,
   screen,
   stock,
   backtest,
@@ -4588,16 +5530,19 @@ function populateNav() {
     ).join('');
   }
   if (mobileEl) {
-    mobileEl.innerHTML = NAV.filter(x => ['home', 'screen', 'stock', 'backtest', 'settings'].includes(x[0]))
+    mobileEl.innerHTML = NAV.filter(x => ['home', 'watchlist', 'screen', 'stock', 'settings'].includes(x[0]))
       .map(
         ([id, ic, name]) =>
-          `<button data-nav="${id}" class="${state.page === id ? 'active' : ''}"><span>${ic}</span>${name.replace('全市場', '').replace('研究', '')}</button>`
+          `<button data-nav="${id}" class="${state.page === id ? 'active' : ''}"><span>${ic}</span>${name.replace('全市場', '').replace('研究', '').replace('股票', '')}</button>`
       )
       .join('');
   }
 }
 
 function go(page) {
+  if (page !== 'stock') {
+    state.stockReturnPage = '';
+  }
   state.page = page;
   state.pageNum = 0;
   render();
@@ -4607,12 +5552,21 @@ function go(page) {
   if (page === 'briefing') {
     loadBriefing(state.briefingSelectedDate || '');
   }
+  if (page === 'watchlist') {
+    loadWatchlist(false);
+  }
   scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function selectStock(code) {
+function selectStock(code, opts = {}) {
   state.stock = code;
   state.page = 'stock';
+  state.stockReturnPage = opts.returnPage || '';
+  if (opts.mode) {
+    state.stockMode = opts.mode;
+  } else if (state.stockReturnPage === 'watchlist') {
+    state.stockMode = 'detail';
+  }
   state.bands = [applied.band];
   state.selectedDay = state.win;
   state.detailHoverIdx = null;
@@ -4638,10 +5592,112 @@ function render() {
   const notice = ['home', 'screen', 'stock', 'backtest'].includes(state.page) ? weekSelectionNotice() : '';
   const feed = ['home', 'data'].includes(state.page) ? feedPanel() : '';
   const strip = notice || feed ? `<div class="status-strip">${notice}${feed}</div>` : '';
+  const quickFavHtml = typeof renderQuickFavModal === 'function' ? renderQuickFavModal() : '';
 
-  $('#page').innerHTML = strip + PAGES[state.page]();
+  $('#page').innerHTML = strip + PAGES[state.page]() + quickFavHtml;
   if (state.page === 'stock' && state.stockMode === 'detail') {
     drawDetailKline();
+  }
+}
+
+function applyWatchlistPayload(data) {
+  if (!data) return;
+  if (data.config) {
+    state.watchlistConfig = data.config;
+    const folders = data.config.folders || [];
+    if (
+      state.watchlistActiveTab !== 'auto' &&
+      !folders.some(f => f.id === state.watchlistActiveTab)
+    ) {
+      state.watchlistActiveTab = folders[0]?.id || 'auto';
+    }
+  }
+  if (data.quotes) state.watchlistQuotes = data.quotes;
+  if (data.quotesUpdatedAt !== undefined) state.watchlistQuotesUpdatedAt = data.quotesUpdatedAt;
+  if (data.analysis !== undefined) state.watchlistAnalysis = data.analysis;
+}
+
+async function loadWatchlist(allowAutoCatchup = false) {
+  if (!hasHttpFeed) {
+    state.watchlistError = '純離線 HTML 模式無法連線存取本機收藏夾與報價，請透過 ChipScreener.exe 或本機服務開啟。';
+    if (state.page === 'watchlist') render();
+    return;
+  }
+  try {
+    const resp = await fetch('/api/watchlist', { cache: 'no-store' });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '讀取收藏夾失敗');
+    applyWatchlistPayload(data);
+    state.watchlistError = '';
+    if (state.page === 'watchlist' || state.page === 'screen' || state.page === 'stock') render();
+    if (allowAutoCatchup && data.shouldAutoRun && !state.watchlistAnalysisBusy) {
+      await runWatchlistAutoAnalysis('每日 10:00 自動補抓分析', true);
+    }
+  } catch (e) {
+    state.watchlistError = e.message;
+    if (state.page === 'watchlist') render();
+  }
+}
+
+async function watchlistAction(endpoint, payload = {}, successMsg = '') {
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以操作收藏夾');
+    return null;
+  }
+  try {
+    const resp = await fetch('/api/watchlist/' + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '操作失敗');
+    applyWatchlistPayload(data);
+    if (data.createdFolderId) state.watchlistActiveTab = data.createdFolderId;
+    if (successMsg) toast(successMsg);
+    render();
+    return data;
+  } catch (e) {
+    toast(e.message);
+    return null;
+  }
+}
+
+async function refreshWatchlistPrices() {
+  if (state.watchlistPriceBusy) return;
+  state.watchlistPriceBusy = true;
+  render();
+  try {
+    await watchlistAction('prices/refresh', {}, '已更新收藏夾最新股價與市值損益');
+  } finally {
+    state.watchlistPriceBusy = false;
+    render();
+  }
+}
+
+async function runWatchlistAutoAnalysis(trigger = '手動立即更新分析', isAuto = false) {
+  if (state.watchlistAnalysisBusy) return;
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以執行自動分析');
+    return;
+  }
+  state.watchlistAnalysisBusy = true;
+  if (state.page === 'watchlist') render();
+  try {
+    const resp = await fetch('/api/watchlist/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '自動分析失敗');
+    applyWatchlistPayload(data);
+    toast(isAuto ? '今日 10:00 收藏夾自動分析已就緒' : '已完成自動分析 6 大維度更新');
+  } catch (e) {
+    if (!isAuto) toast('自動分析失敗：' + e.message);
+  } finally {
+    state.watchlistAnalysisBusy = false;
+    if (state.page === 'watchlist') render();
   }
 }
 
@@ -4859,8 +5915,88 @@ async function submitPeakStock() {
 /* ---------- 事件委派 ---------- */
 
 document.body.addEventListener('click', e => {
+  if (e.target.id === 'quickFavBackdrop' || e.target.id === 'closeQuickFavBtn') {
+    state.quickFavCode = null;
+    render();
+    return;
+  }
+
+  const quickFavBtn = e.target.closest?.('[data-quick-fav]');
+  if (quickFavBtn) {
+    e.stopPropagation();
+    state.quickFavCode = quickFavBtn.dataset.quickFav;
+    render();
+    return;
+  }
+
+  const qfavFolderBtn = e.target.closest?.('[data-qfav-folder]');
+  if (qfavFolderBtn) {
+    const folderId = qfavFolderBtn.dataset.qfavFolder;
+    const code = qfavFolderBtn.dataset.qfavCode;
+    const folder = (state.watchlistConfig?.folders || []).find(f => f.id === folderId);
+    const has = (folder?.items || []).some(it => it.code === code);
+    watchlistAction(
+      has ? 'stock/remove' : 'stock/add',
+      { folderId, code },
+      has ? `已從「${folder?.name || ''}」移出 ${code}` : `已將 ${code} 加入「${folder?.name || ''}」`
+    );
+    return;
+  }
+
+  const wlTabBtn = e.target.closest?.('[data-wl-tab]');
+  if (wlTabBtn) {
+    state.watchlistActiveTab = wlTabBtn.dataset.wlTab;
+    state.watchlistMenuKey = null;
+    state.watchlistRenamingFolderId = null;
+    render();
+    return;
+  }
+
+  const wlFilterBtn = e.target.closest?.('[data-wl-filter]');
+  if (wlFilterBtn) {
+    state.watchlistFilter = wlFilterBtn.dataset.wlFilter;
+    render();
+    return;
+  }
+
+  const wlMenuBtn = e.target.closest?.('[data-wl-menu-toggle]');
+  if (wlMenuBtn) {
+    e.stopPropagation();
+    const key = wlMenuBtn.dataset.wlMenuToggle;
+    state.watchlistMenuKey = state.watchlistMenuKey === key ? null : key;
+    render();
+    return;
+  }
+
+  const wlToggleAutoBtn = e.target.closest?.('[data-wl-toggle-auto]');
+  if (wlToggleAutoBtn) {
+    const code = wlToggleAutoBtn.dataset.wlToggleAuto;
+    const inAuto = (state.watchlistConfig?.autoStocks || []).includes(code);
+    watchlistAction(
+      'auto/toggle',
+      { code, enabled: !inAuto },
+      !inAuto ? `已將 ${code} 加入獨立自動分析收藏夾` : `已將 ${code} 移出自動分析`
+    );
+    return;
+  }
+
+  const wlRemoveBtn = e.target.closest?.('[data-wl-remove-item]');
+  if (wlRemoveBtn) {
+    const [folderId, code] = wlRemoveBtn.dataset.wlRemoveItem.split(':');
+    state.watchlistMenuKey = null;
+    watchlistAction('stock/remove', { folderId, code }, `已從此收藏夾刪除 ${code}`);
+    return;
+  }
+
+  const wlOpenStockEl = e.target.closest?.('[data-wl-open-stock]');
+  if (wlOpenStockEl) {
+    selectStock(wlOpenStockEl.dataset.wlOpenStock, { mode: 'detail', returnPage: 'watchlist' });
+    return;
+  }
+
   const nav = e.target.closest?.('[data-nav]');
   if (nav) {
+    if (nav.dataset.nav === 'watchlist') state.quickFavCode = null;
     go(nav.dataset.nav);
     return;
   }
@@ -4930,6 +6066,111 @@ document.body.addEventListener('click', e => {
   }
 
   switch (e.target.id) {
+    case 'backToWatchlistBtn':
+      state.stockReturnPage = '';
+      go('watchlist');
+      break;
+    case 'refreshWatchlistPricesBtn':
+      refreshWatchlistPrices();
+      break;
+    case 'runAutoAnalysisBtn':
+      runWatchlistAutoAnalysis('手動立即更新分析', false);
+      break;
+    case 'createFolderBtn':
+      state.watchlistCreatingFolder = !state.watchlistCreatingFolder;
+      render();
+      if (state.watchlistCreatingFolder) $('#newFolderNameInput')?.focus();
+      break;
+    case 'cancelNewFolderBtn':
+      state.watchlistCreatingFolder = false;
+      render();
+      break;
+    case 'saveNewFolderBtn': {
+      const name = $('#newFolderNameInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入收藏夾名稱');
+        break;
+      }
+      state.watchlistCreatingFolder = false;
+      watchlistAction('folder/create', { name }, `已建立收藏夾「${name}」`);
+      break;
+    }
+    case 'wlStartRenameBtn':
+      state.watchlistRenamingFolderId = e.target.dataset.folderId;
+      render();
+      $('#wlRenameInput')?.focus();
+      break;
+    case 'wlRenameCancelBtn':
+      state.watchlistRenamingFolderId = null;
+      render();
+      break;
+    case 'wlRenameSaveBtn': {
+      const folderId = e.target.dataset.folderId;
+      const name = $('#wlRenameInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入收藏夾名稱');
+        break;
+      }
+      state.watchlistRenamingFolderId = null;
+      watchlistAction('folder/rename', { folderId, name }, `已更名為「${name}」`);
+      break;
+    }
+    case 'wlDeleteFolderBtn':
+      watchlistAction('folder/delete', { folderId: e.target.dataset.folderId }, '已刪除收藏夾');
+      break;
+    case 'addWatchlistStockBtn': {
+      const folderId = e.target.dataset.folderId;
+      const code = ($('#addWatchlistCodeInput')?.value || '').trim().toUpperCase();
+      if (!code) {
+        toast('請輸入股票代號');
+        break;
+      }
+      watchlistAction('stock/add', { folderId, code }, `已加入 ${code}`);
+      break;
+    }
+    case 'wlMenuSaveBtn': {
+      const [folderId, code] = (e.target.dataset.wlSave || '').split(':');
+      const showValuation = Boolean($('#wlMenuValuationToggle')?.checked);
+      const sharesRaw = $('#wlMenuSharesInput')?.value?.trim() ?? '';
+      const costRaw = $('#wlMenuCostInput')?.value?.trim() ?? '';
+      const payload = {
+        folderId,
+        code,
+        showValuation,
+        shares: sharesRaw === '' ? 0 : Number(sharesRaw),
+        costPrice: costRaw === '' ? '' : Number(costRaw)
+      };
+      watchlistAction('stock/update', payload, `已更新 ${code} 價值估算設定`);
+      break;
+    }
+    case 'wlMenuCloseBtn':
+      state.watchlistMenuKey = null;
+      render();
+      break;
+    case 'quickFavCreateBtn': {
+      const code = e.target.dataset.qfavCode;
+      const name = $('#quickFavNewFolderInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入新收藏夾名稱');
+        break;
+      }
+      watchlistAction('folder/create', { name }).then(created => {
+        if (created?.createdFolderId && code) {
+          watchlistAction('stock/add', { folderId: created.createdFolderId, code }, `已建立「${name}」並加入 ${code}`);
+        }
+      });
+      break;
+    }
+    case 'quickFavAutoBtn': {
+      const code = e.target.dataset.qfavCode;
+      const inAuto = (state.watchlistConfig?.autoStocks || []).includes(code);
+      watchlistAction(
+        'auto/toggle',
+        { code, enabled: !inAuto },
+        !inAuto ? `已將 ${code} 加入獨立自動分析收藏夾` : `已將 ${code} 移出自動分析`
+      );
+      break;
+    }
     case 'generateBriefingBtn':
       generateBriefing('手動馬上製作', false);
       break;
@@ -5154,6 +6395,13 @@ document.body.addEventListener('change', async e => {
   }
 
   switch (el.id) {
+    case 'toggleAutoWatchlist':
+      watchlistAction(
+        'auto/config',
+        { enabled: el.checked },
+        el.checked ? '已開啟每日 10:00 自動分析' : '已關閉自動分析（隨時仍可手動更新）'
+      );
+      break;
     case 'toggleAutoBriefing':
       updateBriefingConfig(
         { enabled: el.checked },
@@ -5232,7 +6480,22 @@ document.body.addEventListener('keydown', e => {
     } else if (e.target.id === 'peakStockCode') {
       e.preventDefault();
       submitPeakStock();
+    } else if (e.target.id === 'addWatchlistCodeInput') {
+      e.preventDefault();
+      $('#addWatchlistStockBtn')?.click();
+    } else if (e.target.id === 'newFolderNameInput') {
+      e.preventDefault();
+      $('#saveNewFolderBtn')?.click();
+    } else if (e.target.id === 'wlRenameInput') {
+      e.preventDefault();
+      $('#wlRenameSaveBtn')?.click();
+    } else if (e.target.id === 'quickFavNewFolderInput') {
+      e.preventDefault();
+      $('#quickFavCreateBtn')?.click();
     }
+  } else if (e.key === 'Escape' && state.quickFavCode) {
+    state.quickFavCode = null;
+    render();
   } else if (e.key === 'Escape' && e.target.id === 'featuredCodeInput') {
     state.editingFeatured = false;
     render();
@@ -5279,7 +6542,9 @@ if (hasOfficialFeedBackend) {
 
 if (hasHttpFeed) {
   setTimeout(() => loadBriefing('', true), 2600);
+  setTimeout(() => loadWatchlist(true), 3200);
   setInterval(() => loadBriefing('', true), 15 * 60 * 1000);
+  setInterval(() => loadWatchlist(true), 15 * 60 * 1000);
 }
   </script>
 </body>

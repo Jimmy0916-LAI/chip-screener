@@ -18,6 +18,7 @@ const COLORS = {
 const NAV = [
   ['home', '▦', '研究總覽'],
   ['briefing', '☀', '每日晨報'],
+  ['watchlist', '★', '股票收藏夾'],
   ['screen', '◎', '全市場篩選'],
   ['stock', '⌁', '個股研究'],
   ['backtest', '◷', '回測與比較'],

@@ -25,6 +25,7 @@ MODULE_ORDER = [
     'components/preset-dialog.js',
     'pages/home.js',
     'pages/briefing.js',
+    'pages/watchlist.js',
     'pages/screen.js',
     'pages/stock.js',
     'pages/backtest.js',

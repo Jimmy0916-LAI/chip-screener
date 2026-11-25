@@ -118,6 +118,12 @@ function drawDetailKline() {
       }
     }
   });
+  const holdingCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(state.stock) : null;
+  const costPrice = holdingCost?.costPrice || null;
+  if (costPrice && costPrice >= lo * 0.75 && costPrice <= hi * 1.25) {
+    hi = Math.max(hi, costPrice);
+    lo = Math.min(lo, costPrice);
+  }
   const marginP = (hi - lo) * 0.08 || 2;
   hi += marginP;
   lo -= marginP;
@@ -187,6 +193,36 @@ function drawDetailKline() {
       }
     });
     ctx.stroke();
+  }
+
+  // 持有成本均價線（若收藏夾有填寫購入價）
+  if (costPrice) {
+    const dpCost = costPrice < 150 ? 2 : 1;
+    const inRange = costPrice >= lo && costPrice <= hi;
+    const cy = inRange ? Y(costPrice) : costPrice > hi ? topP + 10 : topP + priceH - 10;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padL, cy);
+    ctx.lineTo(cssW - padR, cy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const lbl = `成本 ${fmt(costPrice, dpCost)}${inRange ? '' : costPrice > hi ? ' ↑' : ' ↓'}`;
+    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    const tw = ctx.measureText(lbl).width + 10;
+    const bx = cssW - padR - tw - 4;
+    const by = Math.max(topP + 2, Math.min(topP + priceH - 20, cy - 18));
+    ctx.fillStyle = 'rgba(13, 17, 24, 0.92)';
+    ctx.fillRect(bx, by, tw, 17);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+    ctx.strokeRect(bx, by, tw, 17);
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'left';
+    ctx.fillText(lbl, bx + 5, by + 12);
+    ctx.restore();
   }
 
   // MV5 均量線

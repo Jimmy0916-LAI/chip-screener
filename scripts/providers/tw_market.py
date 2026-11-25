@@ -16,6 +16,7 @@ from pathlib import Path
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
 VALID_TW_CODE_RE = re.compile(r'^(?:\d{4}|00\d{2,4}[A-Z]?)$')
+VALID_US_CODE_RE = re.compile(r'^[A-Z][A-Z0-9.-]{0,7}$')
 
 
 def _taipei_now() -> str:
@@ -54,10 +55,38 @@ class TwMarketService:
             raise ValueError(payload.get('msg') or f'資料服務回應異常 ({payload.get("status")})')
         return payload.get('data', [])
 
+    def _fetch_us_yahoo_bars(self, code: str) -> list[list]:
+        encoded = urllib.parse.quote(code, safe='')
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range=1y&interval=1d'
+        req = urllib.request.Request(
+            url,
+            headers={'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0 ChipScreener/0.6'},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT_SEC) as resp:
+                payload = json.loads(resp.read().decode('utf-8'))
+            res = payload['chart']['result'][0]
+            ts_list = res.get('timestamp') or []
+            q = (res.get('indicators', {}).get('quote') or [{}])[0]
+            opens, highs, lows, closes, vols = (
+                q.get('open') or [], q.get('high') or [], q.get('low') or [], q.get('close') or [], q.get('volume') or [],
+            )
+            bars = []
+            for ts, o, h, l, c, v in zip(ts_list, opens, highs, lows, closes, vols):
+                if None in (ts, o, h, l, c) or o <= 0 or h < l or l <= 0 or c <= 0:
+                    continue
+                d = datetime.fromtimestamp(ts, TAIPEI_TZ).strftime('%Y-%m-%d')
+                bars.append([d, round(float(o), 2), round(float(h), 2), round(float(l), 2), round(float(c), 2), int(v or 0)])
+            return bars
+        except Exception as exc:
+            raise ValueError(f'無法取得美股 {code} 日線資料：{exc}') from exc
+
     def get_detail(self, code: str, force_refresh: bool = False) -> dict:
         code = code.strip().upper()
-        if not VALID_TW_CODE_RE.fullmatch(code):
-            raise ValueError('請輸入有效台股或 ETF 代號（如 2330、2404、0050）')
+        is_tw = bool(VALID_TW_CODE_RE.fullmatch(code))
+        is_us = not is_tw and bool(VALID_US_CODE_RE.fullmatch(code))
+        if not is_tw and not is_us:
+            raise ValueError('請輸入有效台股或美股代號（如 2330、2404、0050、NVDA）')
 
         cache_file = self.cache_dir / f'{code}.json'
         if not force_refresh and cache_file.exists():
@@ -74,6 +103,24 @@ class TwMarketService:
                         return json.loads(cache_file.read().decode('utf-8') if False else cache_file.read_text(encoding='utf-8'))
                 except Exception:
                     pass
+
+            if not is_tw:
+                bars = self._fetch_us_yahoo_bars(code)
+                if not bars:
+                    raise ValueError(f'查無 {code} 的有效美股日行情資料')
+                result = {
+                    'code': code,
+                    'bars': bars,
+                    'inst': [],
+                    'margin': [],
+                    'source': 'Yahoo Finance (US Daily OHLCV)',
+                    'fetched': _taipei_now(),
+                }
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                stage = cache_file.with_suffix('.json.tmp')
+                stage.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+                os.replace(stage, cache_file)
+                return result
 
             # 1. 日 K 價量（取 2024-01-01 起完整交易日，供日/週/月 K 與 MA60 計算）
             raw_prices = self._fetch_finmind('TaiwanStockPrice', code, '2024-01-01')

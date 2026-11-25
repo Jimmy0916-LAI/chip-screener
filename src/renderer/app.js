@@ -5,6 +5,7 @@
 const PAGES = {
   home,
   briefing: briefingPage,
+  watchlist: watchlistPage,
   screen,
   stock,
   backtest,
@@ -23,16 +24,19 @@ function populateNav() {
     ).join('');
   }
   if (mobileEl) {
-    mobileEl.innerHTML = NAV.filter(x => ['home', 'screen', 'stock', 'backtest', 'settings'].includes(x[0]))
+    mobileEl.innerHTML = NAV.filter(x => ['home', 'watchlist', 'screen', 'stock', 'settings'].includes(x[0]))
       .map(
         ([id, ic, name]) =>
-          `<button data-nav="${id}" class="${state.page === id ? 'active' : ''}"><span>${ic}</span>${name.replace('全市場', '').replace('研究', '')}</button>`
+          `<button data-nav="${id}" class="${state.page === id ? 'active' : ''}"><span>${ic}</span>${name.replace('全市場', '').replace('研究', '').replace('股票', '')}</button>`
       )
       .join('');
   }
 }
 
 function go(page) {
+  if (page !== 'stock') {
+    state.stockReturnPage = '';
+  }
   state.page = page;
   state.pageNum = 0;
   render();
@@ -42,12 +46,21 @@ function go(page) {
   if (page === 'briefing') {
     loadBriefing(state.briefingSelectedDate || '');
   }
+  if (page === 'watchlist') {
+    loadWatchlist(false);
+  }
   scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function selectStock(code) {
+function selectStock(code, opts = {}) {
   state.stock = code;
   state.page = 'stock';
+  state.stockReturnPage = opts.returnPage || '';
+  if (opts.mode) {
+    state.stockMode = opts.mode;
+  } else if (state.stockReturnPage === 'watchlist') {
+    state.stockMode = 'detail';
+  }
   state.bands = [applied.band];
   state.selectedDay = state.win;
   state.detailHoverIdx = null;
@@ -73,10 +86,112 @@ function render() {
   const notice = ['home', 'screen', 'stock', 'backtest'].includes(state.page) ? weekSelectionNotice() : '';
   const feed = ['home', 'data'].includes(state.page) ? feedPanel() : '';
   const strip = notice || feed ? `<div class="status-strip">${notice}${feed}</div>` : '';
+  const quickFavHtml = typeof renderQuickFavModal === 'function' ? renderQuickFavModal() : '';
 
-  $('#page').innerHTML = strip + PAGES[state.page]();
+  $('#page').innerHTML = strip + PAGES[state.page]() + quickFavHtml;
   if (state.page === 'stock' && state.stockMode === 'detail') {
     drawDetailKline();
+  }
+}
+
+function applyWatchlistPayload(data) {
+  if (!data) return;
+  if (data.config) {
+    state.watchlistConfig = data.config;
+    const folders = data.config.folders || [];
+    if (
+      state.watchlistActiveTab !== 'auto' &&
+      !folders.some(f => f.id === state.watchlistActiveTab)
+    ) {
+      state.watchlistActiveTab = folders[0]?.id || 'auto';
+    }
+  }
+  if (data.quotes) state.watchlistQuotes = data.quotes;
+  if (data.quotesUpdatedAt !== undefined) state.watchlistQuotesUpdatedAt = data.quotesUpdatedAt;
+  if (data.analysis !== undefined) state.watchlistAnalysis = data.analysis;
+}
+
+async function loadWatchlist(allowAutoCatchup = false) {
+  if (!hasHttpFeed) {
+    state.watchlistError = '純離線 HTML 模式無法連線存取本機收藏夾與報價，請透過 ChipScreener.exe 或本機服務開啟。';
+    if (state.page === 'watchlist') render();
+    return;
+  }
+  try {
+    const resp = await fetch('/api/watchlist', { cache: 'no-store' });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '讀取收藏夾失敗');
+    applyWatchlistPayload(data);
+    state.watchlistError = '';
+    if (state.page === 'watchlist' || state.page === 'screen' || state.page === 'stock') render();
+    if (allowAutoCatchup && data.shouldAutoRun && !state.watchlistAnalysisBusy) {
+      await runWatchlistAutoAnalysis('每日 10:00 自動補抓分析', true);
+    }
+  } catch (e) {
+    state.watchlistError = e.message;
+    if (state.page === 'watchlist') render();
+  }
+}
+
+async function watchlistAction(endpoint, payload = {}, successMsg = '') {
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以操作收藏夾');
+    return null;
+  }
+  try {
+    const resp = await fetch('/api/watchlist/' + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '操作失敗');
+    applyWatchlistPayload(data);
+    if (data.createdFolderId) state.watchlistActiveTab = data.createdFolderId;
+    if (successMsg) toast(successMsg);
+    render();
+    return data;
+  } catch (e) {
+    toast(e.message);
+    return null;
+  }
+}
+
+async function refreshWatchlistPrices() {
+  if (state.watchlistPriceBusy) return;
+  state.watchlistPriceBusy = true;
+  render();
+  try {
+    await watchlistAction('prices/refresh', {}, '已更新收藏夾最新股價與市值損益');
+  } finally {
+    state.watchlistPriceBusy = false;
+    render();
+  }
+}
+
+async function runWatchlistAutoAnalysis(trigger = '手動立即更新分析', isAuto = false) {
+  if (state.watchlistAnalysisBusy) return;
+  if (!hasHttpFeed) {
+    toast('請透過 ChipScreener.exe 或本機服務開啟以執行自動分析');
+    return;
+  }
+  state.watchlistAnalysisBusy = true;
+  if (state.page === 'watchlist') render();
+  try {
+    const resp = await fetch('/api/watchlist/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw Error(data.error || '自動分析失敗');
+    applyWatchlistPayload(data);
+    toast(isAuto ? '今日 10:00 收藏夾自動分析已就緒' : '已完成自動分析 6 大維度更新');
+  } catch (e) {
+    if (!isAuto) toast('自動分析失敗：' + e.message);
+  } finally {
+    state.watchlistAnalysisBusy = false;
+    if (state.page === 'watchlist') render();
   }
 }
 
@@ -294,8 +409,88 @@ async function submitPeakStock() {
 /* ---------- 事件委派 ---------- */
 
 document.body.addEventListener('click', e => {
+  if (e.target.id === 'quickFavBackdrop' || e.target.id === 'closeQuickFavBtn') {
+    state.quickFavCode = null;
+    render();
+    return;
+  }
+
+  const quickFavBtn = e.target.closest?.('[data-quick-fav]');
+  if (quickFavBtn) {
+    e.stopPropagation();
+    state.quickFavCode = quickFavBtn.dataset.quickFav;
+    render();
+    return;
+  }
+
+  const qfavFolderBtn = e.target.closest?.('[data-qfav-folder]');
+  if (qfavFolderBtn) {
+    const folderId = qfavFolderBtn.dataset.qfavFolder;
+    const code = qfavFolderBtn.dataset.qfavCode;
+    const folder = (state.watchlistConfig?.folders || []).find(f => f.id === folderId);
+    const has = (folder?.items || []).some(it => it.code === code);
+    watchlistAction(
+      has ? 'stock/remove' : 'stock/add',
+      { folderId, code },
+      has ? `已從「${folder?.name || ''}」移出 ${code}` : `已將 ${code} 加入「${folder?.name || ''}」`
+    );
+    return;
+  }
+
+  const wlTabBtn = e.target.closest?.('[data-wl-tab]');
+  if (wlTabBtn) {
+    state.watchlistActiveTab = wlTabBtn.dataset.wlTab;
+    state.watchlistMenuKey = null;
+    state.watchlistRenamingFolderId = null;
+    render();
+    return;
+  }
+
+  const wlFilterBtn = e.target.closest?.('[data-wl-filter]');
+  if (wlFilterBtn) {
+    state.watchlistFilter = wlFilterBtn.dataset.wlFilter;
+    render();
+    return;
+  }
+
+  const wlMenuBtn = e.target.closest?.('[data-wl-menu-toggle]');
+  if (wlMenuBtn) {
+    e.stopPropagation();
+    const key = wlMenuBtn.dataset.wlMenuToggle;
+    state.watchlistMenuKey = state.watchlistMenuKey === key ? null : key;
+    render();
+    return;
+  }
+
+  const wlToggleAutoBtn = e.target.closest?.('[data-wl-toggle-auto]');
+  if (wlToggleAutoBtn) {
+    const code = wlToggleAutoBtn.dataset.wlToggleAuto;
+    const inAuto = (state.watchlistConfig?.autoStocks || []).includes(code);
+    watchlistAction(
+      'auto/toggle',
+      { code, enabled: !inAuto },
+      !inAuto ? `已將 ${code} 加入獨立自動分析收藏夾` : `已將 ${code} 移出自動分析`
+    );
+    return;
+  }
+
+  const wlRemoveBtn = e.target.closest?.('[data-wl-remove-item]');
+  if (wlRemoveBtn) {
+    const [folderId, code] = wlRemoveBtn.dataset.wlRemoveItem.split(':');
+    state.watchlistMenuKey = null;
+    watchlistAction('stock/remove', { folderId, code }, `已從此收藏夾刪除 ${code}`);
+    return;
+  }
+
+  const wlOpenStockEl = e.target.closest?.('[data-wl-open-stock]');
+  if (wlOpenStockEl) {
+    selectStock(wlOpenStockEl.dataset.wlOpenStock, { mode: 'detail', returnPage: 'watchlist' });
+    return;
+  }
+
   const nav = e.target.closest?.('[data-nav]');
   if (nav) {
+    if (nav.dataset.nav === 'watchlist') state.quickFavCode = null;
     go(nav.dataset.nav);
     return;
   }
@@ -365,6 +560,111 @@ document.body.addEventListener('click', e => {
   }
 
   switch (e.target.id) {
+    case 'backToWatchlistBtn':
+      state.stockReturnPage = '';
+      go('watchlist');
+      break;
+    case 'refreshWatchlistPricesBtn':
+      refreshWatchlistPrices();
+      break;
+    case 'runAutoAnalysisBtn':
+      runWatchlistAutoAnalysis('手動立即更新分析', false);
+      break;
+    case 'createFolderBtn':
+      state.watchlistCreatingFolder = !state.watchlistCreatingFolder;
+      render();
+      if (state.watchlistCreatingFolder) $('#newFolderNameInput')?.focus();
+      break;
+    case 'cancelNewFolderBtn':
+      state.watchlistCreatingFolder = false;
+      render();
+      break;
+    case 'saveNewFolderBtn': {
+      const name = $('#newFolderNameInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入收藏夾名稱');
+        break;
+      }
+      state.watchlistCreatingFolder = false;
+      watchlistAction('folder/create', { name }, `已建立收藏夾「${name}」`);
+      break;
+    }
+    case 'wlStartRenameBtn':
+      state.watchlistRenamingFolderId = e.target.dataset.folderId;
+      render();
+      $('#wlRenameInput')?.focus();
+      break;
+    case 'wlRenameCancelBtn':
+      state.watchlistRenamingFolderId = null;
+      render();
+      break;
+    case 'wlRenameSaveBtn': {
+      const folderId = e.target.dataset.folderId;
+      const name = $('#wlRenameInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入收藏夾名稱');
+        break;
+      }
+      state.watchlistRenamingFolderId = null;
+      watchlistAction('folder/rename', { folderId, name }, `已更名為「${name}」`);
+      break;
+    }
+    case 'wlDeleteFolderBtn':
+      watchlistAction('folder/delete', { folderId: e.target.dataset.folderId }, '已刪除收藏夾');
+      break;
+    case 'addWatchlistStockBtn': {
+      const folderId = e.target.dataset.folderId;
+      const code = ($('#addWatchlistCodeInput')?.value || '').trim().toUpperCase();
+      if (!code) {
+        toast('請輸入股票代號');
+        break;
+      }
+      watchlistAction('stock/add', { folderId, code }, `已加入 ${code}`);
+      break;
+    }
+    case 'wlMenuSaveBtn': {
+      const [folderId, code] = (e.target.dataset.wlSave || '').split(':');
+      const showValuation = Boolean($('#wlMenuValuationToggle')?.checked);
+      const sharesRaw = $('#wlMenuSharesInput')?.value?.trim() ?? '';
+      const costRaw = $('#wlMenuCostInput')?.value?.trim() ?? '';
+      const payload = {
+        folderId,
+        code,
+        showValuation,
+        shares: sharesRaw === '' ? 0 : Number(sharesRaw),
+        costPrice: costRaw === '' ? '' : Number(costRaw)
+      };
+      watchlistAction('stock/update', payload, `已更新 ${code} 價值估算設定`);
+      break;
+    }
+    case 'wlMenuCloseBtn':
+      state.watchlistMenuKey = null;
+      render();
+      break;
+    case 'quickFavCreateBtn': {
+      const code = e.target.dataset.qfavCode;
+      const name = $('#quickFavNewFolderInput')?.value?.trim() || '';
+      if (!name) {
+        toast('請輸入新收藏夾名稱');
+        break;
+      }
+      watchlistAction('folder/create', { name }).then(created => {
+        if (created?.createdFolderId && code) {
+          watchlistAction('stock/add', { folderId: created.createdFolderId, code }, `已建立「${name}」並加入 ${code}`);
+        }
+      });
+      break;
+    }
+    case 'quickFavAutoBtn': {
+      const code = e.target.dataset.qfavCode;
+      const inAuto = (state.watchlistConfig?.autoStocks || []).includes(code);
+      watchlistAction(
+        'auto/toggle',
+        { code, enabled: !inAuto },
+        !inAuto ? `已將 ${code} 加入獨立自動分析收藏夾` : `已將 ${code} 移出自動分析`
+      );
+      break;
+    }
     case 'generateBriefingBtn':
       generateBriefing('手動馬上製作', false);
       break;
@@ -589,6 +889,13 @@ document.body.addEventListener('change', async e => {
   }
 
   switch (el.id) {
+    case 'toggleAutoWatchlist':
+      watchlistAction(
+        'auto/config',
+        { enabled: el.checked },
+        el.checked ? '已開啟每日 10:00 自動分析' : '已關閉自動分析（隨時仍可手動更新）'
+      );
+      break;
     case 'toggleAutoBriefing':
       updateBriefingConfig(
         { enabled: el.checked },
@@ -667,7 +974,22 @@ document.body.addEventListener('keydown', e => {
     } else if (e.target.id === 'peakStockCode') {
       e.preventDefault();
       submitPeakStock();
+    } else if (e.target.id === 'addWatchlistCodeInput') {
+      e.preventDefault();
+      $('#addWatchlistStockBtn')?.click();
+    } else if (e.target.id === 'newFolderNameInput') {
+      e.preventDefault();
+      $('#saveNewFolderBtn')?.click();
+    } else if (e.target.id === 'wlRenameInput') {
+      e.preventDefault();
+      $('#wlRenameSaveBtn')?.click();
+    } else if (e.target.id === 'quickFavNewFolderInput') {
+      e.preventDefault();
+      $('#quickFavCreateBtn')?.click();
     }
+  } else if (e.key === 'Escape' && state.quickFavCode) {
+    state.quickFavCode = null;
+    render();
   } else if (e.key === 'Escape' && e.target.id === 'featuredCodeInput') {
     state.editingFeatured = false;
     render();
@@ -714,5 +1036,7 @@ if (hasOfficialFeedBackend) {
 
 if (hasHttpFeed) {
   setTimeout(() => loadBriefing('', true), 2600);
+  setTimeout(() => loadWatchlist(true), 3200);
   setInterval(() => loadBriefing('', true), 15 * 60 * 1000);
+  setInterval(() => loadWatchlist(true), 15 * 60 * 1000);
 }

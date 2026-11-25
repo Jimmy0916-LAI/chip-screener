@@ -28,6 +28,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
+from providers.watchlist import WatchlistService
 
 TDCC_URL = 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -471,13 +472,31 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     daily_service = DailyService(local_app_data / 'ChipScreener' / 'daily-cache-v1', service)
     tw_market_service = TwMarketService(local_app_data / 'ChipScreener' / 'tw-detail-v1')
     stock_names = {}
+    base_series = {}
     web_data_file = ROOT / 'data' / 'web_data.json'
     if web_data_file.exists():
         try:
-            stock_names = json.loads(web_data_file.read_text(encoding='utf-8')).get('stocks', {})
+            wd = json.loads(web_data_file.read_text(encoding='utf-8'))
+            stock_names = wd.get('stocks', {})
+            base_series = wd.get('series', {})
         except Exception:
             pass
+    for etf_code, etf_name in {
+        '0050': '元大台灣50', '0056': '元大高股息', '00878': '國泰永續高股息',
+        '00919': '群益台灣精選高息', '00929': '復華台灣科技優息', '00713': '元大台灣高息低波',
+        '006208': '富邦台50', '00881': '國泰台灣5G+',
+    }.items():
+        stock_names.setdefault(etf_code, [etf_name, 'TWSE'])
+
     briefing_service = BriefingService(local_app_data / 'ChipScreener', ROOT, stock_names)
+    watchlist_service = WatchlistService(
+        local_app_data / 'ChipScreener',
+        ROOT,
+        tw_market_service,
+        stock_names=stock_names,
+        base_series=base_series,
+        feed_service=service,
+    )
 
     class Handler(BaseHTTPRequestHandler):
         def _send_json(self, code: int, payload: dict) -> None:
@@ -533,6 +552,9 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                     'shouldAutoRun': briefing_service.should_auto_run(),
                 })
                 return
+            if parsed.path == '/api/watchlist':
+                self._send_json(200, watchlist_service.get_state())
+                return
             self.send_error(404)
 
         def _read_json_body(self) -> dict:
@@ -579,6 +601,39 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                     })
                 except Exception as exc:
                     self._send_json(400, {'error': str(exc)})
+                return
+            if parsed.path.startswith('/api/watchlist/'):
+                body = self._read_json_body()
+                action = parsed.path[len('/api/watchlist/'):]
+                try:
+                    if action == 'folder/create':
+                        res = watchlist_service.create_folder(str(body.get('name') or ''))
+                    elif action == 'folder/rename':
+                        res = watchlist_service.rename_folder(str(body.get('folderId') or ''), str(body.get('name') or ''))
+                    elif action == 'folder/delete':
+                        res = watchlist_service.delete_folder(str(body.get('folderId') or ''))
+                    elif action == 'stock/add':
+                        res = watchlist_service.add_stock(str(body.get('folderId') or ''), str(body.get('code') or ''))
+                    elif action == 'stock/update':
+                        res = watchlist_service.update_item(str(body.get('folderId') or ''), str(body.get('code') or ''), body)
+                    elif action == 'stock/remove':
+                        res = watchlist_service.remove_item(str(body.get('folderId') or ''), str(body.get('code') or ''))
+                    elif action == 'auto/toggle':
+                        res = watchlist_service.toggle_auto_stock(str(body.get('code') or ''), bool(body.get('enabled', True)))
+                    elif action == 'auto/config':
+                        res = watchlist_service.set_auto_enabled(bool(body.get('enabled', True)))
+                    elif action == 'prices/refresh':
+                        res = watchlist_service.refresh_quotes(body.get('codes') if isinstance(body.get('codes'), list) else None)
+                    elif action == 'analyze':
+                        res = watchlist_service.run_auto_analysis(trigger=str(body.get('trigger') or '手動立即更新分析'))
+                    else:
+                        self.send_error(404)
+                        return
+                    self._send_json(200, res)
+                except ValueError as exc:
+                    self._send_json(400, {'error': str(exc)})
+                except Exception as exc:
+                    self._send_json(500, {'error': str(exc)})
                 return
             self.send_error(404)
 

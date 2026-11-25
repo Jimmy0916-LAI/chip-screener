@@ -237,6 +237,42 @@ function renderStockDetailMode(code, info) {
   const arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '';
 
   const analysis = buildDetailAnalysis(code, detail);
+  const ma5Val = computeMA(bars, 5).at(-1);
+  const ma10Val = computeMA(bars, 10).at(-1);
+  const ma20Val = computeMA(bars, 20).at(-1);
+  const ma60Val = computeMA(bars, 60).at(-1);
+  const maQuickList = [
+    ['MA5（5日）', ma5Val],
+    ['MA10（10日）', ma10Val],
+    ['MA20（月線）', ma20Val],
+    ['MA60（季線）', ma60Val]
+  ];
+
+  const ctx = evaluation(applied);
+  const scrSig = weeklySignal(code, ctx);
+  const scrBadgeType = scrSig.pass ? 'good' : scrSig.insufficient ? 'warn' : '';
+  const holdCost = typeof getBestHoldingCostInfo === 'function' ? getBestHoldingCostInfo(code) : null;
+  let holdingHtml = '';
+  if (holdCost && holdCost.costPrice > 0) {
+    const shares = holdCost.shares || 0;
+    const costPer = holdCost.costPrice;
+    const diffPer = last[4] - costPer;
+    const pct = (diffPer / costPer) * 100;
+    const marketVal = shares > 0 ? last[4] * shares : null;
+    const costTotal = shares > 0 ? costPer * shares : null;
+    const pnlTotal = marketVal !== null ? marketVal - costTotal : null;
+    const pnlCls = diffPer > 0 ? 'tw-up' : diffPer < 0 ? 'tw-down' : 'wl-pnl-flat';
+    holdingHtml =
+      '<div class="wl-cost-summary">' +
+      `<div class="wl-cost-head"><span>📌 持股成本損益（來源：${esc(holdCost.folderName)}）</span><span class="mini">下方 K 線已標示購入均價線 ${fmt(costPer, dp)}</span></div>` +
+      '<div class="wl-cost-cells">' +
+      `<div><span class="mini">購入均價</span><strong>${fmt(costPer, dp)}</strong></div>` +
+      `<div><span class="mini">持有股數</span><strong>${shares > 0 ? `${fmt(shares)} 股` : '未填股數'}</strong></div>` +
+      `<div><span class="mini">現價市值（算法1）</span><strong>${marketVal !== null ? `${fmt(marketVal, 0)} 元` : '—'}</strong></div>` +
+      `<div><span class="mini">購入總成本（算法2）</span><strong>${costTotal !== null ? `${fmt(costTotal, 0)} 元` : '—'}</strong></div>` +
+      `<div><span class="mini">未實現損益</span><strong class="${pnlCls}">${pnlTotal !== null ? `${pnlTotal > 0 ? '+' : ''}${fmt(pnlTotal, 0)} 元 ` : ''}(${pct > 0 ? '+' : ''}${fmt(pct, 2)}%)</strong></div>` +
+      '</div></div>';
+  }
 
   return (
     // 1. Yahoo 風格報價看板
@@ -264,7 +300,36 @@ function renderStockDetailMode(code, info) {
     `<span>52週高 ${fmt(hi52, dp)}（位階 ${fmt(pos52, 0)}%）</span>` +
     '</div>' +
     '</div>' +
-    // 2. 客觀條件燈號 + 一句話結構總評
+    // 2. 綜合研究檢核、均線速查與持股成本損益（整合自收藏夾、篩選條件與個股研究）
+    '<div class="card" style="margin-bottom:18px">' +
+    cardhead(
+      '綜合研究檢核 ＆ 均線速查',
+      '同步整合「全市場篩選」週訊號、均線位階與收藏夾持股成本損益',
+      `<button type="button" class="btn sm" data-set-mode="study">切換「1. 個股研究 (TDCC 原始級距)」</button>`
+    ) +
+    '<div class="wl-integrate-grid">' +
+    '<div class="wl-int-panel">' +
+    '<div class="mini" style="margin-bottom:6px">全市場篩選條件檢核（現行策略參數）</div>' +
+    `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${badge(scrSig.status, scrBadgeType)}<b>${esc(applied.band)} 張（${applied.weeks} 週）</b><span class="mini">${Number.isFinite(scrSig.gain) ? `累計 ${pp(scrSig.gain, 3)} pp` : ''}</span></div>` +
+    `<div class="mini" style="margin-top:6px">${esc(scrSig.reason || '無此標的近期集保篩選資料')}</div>` +
+    '</div>' +
+    '<div class="wl-int-panel">' +
+    '<div class="mini" style="margin-bottom:6px">均線價位速查（收盤價比較）</div>' +
+    '<div class="wl-ma-mini-grid">' +
+    maQuickList
+      .map(([lbl, mv]) => {
+        if (mv === null) return `<div class="wl-ma-cell"><span class="mini">${lbl}</span><b>—</b></div>`;
+        const diffPct = ((last[4] - mv) / mv) * 100;
+        const cCls = diffPct >= 0 ? 'tw-up' : 'tw-down';
+        return `<div class="wl-ma-cell"><span class="mini">${lbl}</span><b>${fmt(mv, dp)}</b><span class="mini ${cCls}">${pp(diffPct, 2)}%</span></div>`;
+      })
+      .join('') +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    holdingHtml +
+    '</div>' +
+    // 3. 客觀條件燈號 + 一句話結構總評
     '<div class="card" style="margin-bottom:18px">' +
     cardhead('結構體檢與客觀條件分析', '依收盤均線、量能、三大法人與集保大戶自動判定') +
     '<div class="signal-grid">' +
@@ -313,7 +378,9 @@ function renderStockDetailMode(code, info) {
 
 function stock() {
   const code = state.stock;
-  const info = D.stocks[code] || ['未驗證股票名稱', '待確認'];
+  const qName = state.watchlistQuotes?.[code]?.name;
+  const fallbackMkt = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(code) ? '待確認' : 'US';
+  const info = D.stocks[code] || [qName || '未驗證股票名稱', fallbackMkt];
   const ds = archiveDays().filter(day => D.series[day]?.[code]);
   const latest = ds.at(-1);
   const chartBand = state.bands.length ? state.bands : [applied.band];
@@ -326,9 +393,19 @@ function stock() {
   const latest400 = vector(code, latest, '400');
   const mode = state.stockMode || 'study';
   const modeLabel = mode === 'detail' ? '個股詳情' : '個股研究';
+  const inFav = typeof isStockInAnyFolder === 'function' && isStockInAnyFolder(code);
+
+  const backStrip =
+    state.stockReturnPage === 'watchlist'
+      ? '<div class="wl-back-strip">' +
+        '<button type="button" class="btn sm" id="backToWatchlistBtn">← 返回股票收藏夾</button>' +
+        `<span class="mini">已整合顯示「個股詳情 (K線/法人/資券)」、「個股研究 (TDCC)」與「全市場篩選檢核」</span>` +
+        '</div>'
+      : '';
 
   const headerControls =
     '<div class="stock-head-tools">' +
+    `<button type="button" class="btn sm ${inFav ? 'fav-active' : ''}" data-quick-fav="${esc(code)}">${inFav ? '★ 已收藏' : '☆ 加入收藏'}</button>` +
     `<div class="toolbar" style="margin:0"><input id="stockCode" placeholder="輸入代號按 Enter" value="${esc(code)}" style="width:148px"><button class="btn main" id="goStock">查詢</button></div>` +
     `<div id="modeSwitch" class="mode-pill-track" data-mode="${esc(mode)}" role="tablist" aria-label="個股模式切換">` +
     '<div class="mode-pill-thumb"></div>' +
@@ -337,11 +414,13 @@ function stock() {
     '</div>' +
     '</div>';
 
-  const pageTitle = title(
-    `${modeLabel}｜${esc(code)} ${esc(info[0])}`,
-    `市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`,
-    headerControls
-  );
+  const pageTitle =
+    backStrip +
+    title(
+      `${modeLabel}｜${esc(code)} ${esc(info[0])}`,
+      `市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`,
+      headerControls
+    );
 
   if (mode === 'detail') {
     return pageTitle + renderStockDetailMode(code, info);
