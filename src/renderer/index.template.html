@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#0b0e14">
+  <title>籌碼雷達｜台股選股研究平台</title>
+  <style>
+__STYLES_CSS__
+  </style>
+</head>
+<body>
+  <script>const INITIAL_DATA=__DATA_JSON__;</script>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">⌁</span>
+        <div>
+          <b>籌碼雷達</b>
+          <small>CHIP SCREENER</small>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav" aria-label="主要導覽"></nav>
+
+      <div class="side-bottom">
+        <div class="status-dot-row">
+          <span class="light"></span>
+          <span>離線基線已載入</span>
+        </div>
+        <div class="muted">證據基線 2026-11-20</div>
+        <div class="muted">研究分析工具 · 非投資建議</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb">
+          <span class="muted">籌碼雷達</span>
+          <span class="crumb-sep">/</span>
+          <b id="crumb">研究總覽</b>
+        </div>
+        <div class="tools" id="topbarTools">
+          <span class="tag" id="topDateTag">集保基準 2026-11-13</span>
+          <span class="tag good">本機離線可用</span>
+        </div>
+      </header>
+
+      <div class="content" id="page"></div>
+    </main>
+  </div>
+
+  <div class="mobilebar" id="mobilebar"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+__APP_JS__
+  </script>
+</body>
+</html>

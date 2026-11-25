@@ -1,0 +1,64 @@
+name: Windows Build & Acceptance
+on:
+  pull_request:
+    branches: [main, b04/weekly-screen]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 18
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      id: ${{ steps.upload.outputs.artifact-id }}
+      digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify frozen Python research tests
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          $project = Join-Path $env:RUNNER_TEMP 'frozen'
+          Expand-Archive -LiteralPath data/chip-screener-phase1.zip -DestinationPath $project
+          Push-Location $project
+          try { python -X utf8 -m unittest discover -s tests -v; if ($LASTEXITCODE) { exit $LASTEXITCODE } } finally { Pop-Location }
+      - name: Build dashboard, run tests, and package portable EXE
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          python -X utf8 scripts/build_dashboard.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/weekly.test.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node --test tests/storage.test.cjs tests/feed.test.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run dist
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/ChipScreener.exe -PathType Leaf)) { throw 'Expected portable EXE' }
+      - id: meta
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          "version=v$version" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: ChipScreener-${{ steps.meta.outputs.version }}-Windows-x64
+          path: dist/ChipScreener.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

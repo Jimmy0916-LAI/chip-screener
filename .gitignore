@@ -1,0 +1,33 @@
+# 敏感設定、金鑰與憑證隔離（嚴禁提交）
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*credentials*
+secrets/
+config.local.json
+
+# 本機使用者資料與快取（實際存放於 %LOCALAPPDATA%\ChipScreener）
+user-data/
+store-v1/
+tdcc-v1/
+tdcc-local-v1/
+daily-cache-v1/
+tw-detail-v1/
+briefings-v1/
+cache-v1/
+evidence/
+
+# 相依套件、打包產物與暫存檔
+node_modules/
+dist/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
