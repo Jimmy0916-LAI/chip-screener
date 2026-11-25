@@ -1,0 +1,38 @@
+{
+  "name": "chip-screener",
+  "version": "0.6.0-b05.1",
+  "private": true,
+  "description": "台股籌碼雷達 B05 集保週更新測試版",
+  "author": "ChipScreener",
+  "main": "src/main/main.cjs",
+  "scripts": {
+    "build": "python -X utf8 scripts/build_dashboard.py",
+    "test:unit": "node --test tests/storage.test.cjs tests/feed.test.cjs",
+    "test:weekly": "node tests/weekly.test.cjs",
+    "test": "npm run test:weekly && npm run test:unit",
+    "dist": "electron-builder --win portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "tw.chipscreener.desktop",
+    "productName": "ChipScreener",
+    "asar": true,
+    "files": [
+      "package.json",
+      "src/main/**/*",
+      "data/feed-base.json",
+      "build/dashboard.html"
+    ],
+    "win": {
+      "target": ["portable"],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "ChipScreener.exe",
+      "unpackDirName": "ChipScreener-B05-v1"
+    }
+  }
+}
