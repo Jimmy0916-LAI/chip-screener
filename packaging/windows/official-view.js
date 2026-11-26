@@ -9,6 +9,8 @@ function receiveOfficial(packet) {
     D.issues[day]=week.issues;
     D.adjustments[day]=week.adjustments;
   }
+  const label=document.querySelector('#verifiedTDCC');
+  if(label) label.textContent='集保統計日 '+[frozenLast,...Object.keys(officialWeeks)].sort().at(-1);
   Object.assign(officialMonths,packet.months);
   if(Object.keys(packet.months||{}).length) {
     D.sessions=[...new Set([...D.sessions,...Object.values(officialMonths).flatMap(m=>m.days)])].sort();

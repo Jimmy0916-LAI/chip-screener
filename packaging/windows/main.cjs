@@ -22,6 +22,12 @@ async function openWindow() {
   const feed=new OfficialFeed(path.join(app.getPath('userData'),'tdcc-v1'),require('./feed-base.json'));
   let update;
   const trusted=event=>event.senderFrame===event.sender.mainFrame && event.senderFrame.url===dashboard;
+  const {MarketBook}=require('./market-book.cjs');
+  const market=new MarketBook(path.join(app.getPath('userData'),'market-v1'),()=>[...new Set([...feed.base.sessions,...Object.values(feed.months).flatMap(m=>m.days)])].sort());
+  market.onChange=()=>{for(const w of BrowserWindow.getAllWindows())if(!w.isDestroyed())w.webContents.send('market:changed',market.summary());};
+  ipcMain.on('market:read',event=>{event.returnValue=trusted(event)?market.summary():null;});
+  ipcMain.handle('market:update',(event,v,k)=>{if(!trusted(event))throw Error('來源無效');return market.sync(v,k);});
+  ipcMain.handle('market:history',(event,v,c,s,e,refresh)=>{if(!trusted(event))throw Error('來源無效');return market.history(v,c,s,e,refresh==='retry'?'retry':refresh===true);});
   ipcMain.on('official:read',event=>{event.returnValue=trusted(event)?feed.initial():null;});
   ipcMain.handle('official:update',event=>{
     if (!trusted(event)) throw Error('來源無效');
@@ -31,7 +37,7 @@ async function openWindow() {
   for (const action of ['read', 'save']) {
     ipcMain.on('storage:' + action, (event, kind, value) => {
       try {
-        if (!trusted(event) || !['settings','snapshot'].includes(kind)) throw Error('來源無效');
+        if (!trusted(event) || !['settings','snapshot','pins'].includes(kind)) throw Error('來源無效');
         if (action === 'save') {
           event.returnValue = {ok:true, ...store.save(kind, value)};
         } else {

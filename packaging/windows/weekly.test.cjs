@@ -52,3 +52,8 @@ assert.equal(run('state.win'),newWeek);
 assert.match(run("evaluation(applied,'2026-11-20','2026-11-20T13:30:00+08:00').issue"),/尚無公開證據/);
 run("receiveOfficial({weeks:{'2026-12-04':{rows:D.series['2026-11-13'],issues:{},adjustments:{},quality:{},observed:'2026-12-06T10:00:00+08:00'}},months:{'2026-12':{days:['2026-11-27','2026-12-04']}}});useDefaultWeek();true");
 assert.equal(run('state.win'),newWeek);assert.match(run("evaluation(applied,'2026-12-04').issue"),/11-27 缺週/);
+// Candle spacing follows civil dates even for nonconsecutive sessions; unproven bars remain absent.
+run("state.page='stock';state.stock='2404';state.chartRange='all';state.overlay=true;state.manualWeek=false;state.asOf=null;true");
+const svg=run(`chartCache.set(chartRequest().key,{busy:false,errors:[],bars:{'2026-11-06':{p:[10,14,8,12,100],known:'2026-11-23T16:00:00+08:00'},'2026-11-10':{p:[12,16,9,13,120],known:'2026-11-23T16:00:00+08:00'}}});alignedPlot('2404',['400'])`);
+assert(svg.includes('data-bar="2026-11-10"')&&!svg.includes('data-bar="2026-11-09"'));
+assert(run("state.manualWeek=true;state.win='2026-11-13';!alignedPlot('2404',['400']).includes('data-bar=')"));

@@ -1,0 +1,20 @@
+name: B06 market source schemas
+on:
+  pull_request:
+    branches: [b05/tdcc-weekly-update]
+    paths: ['packaging/qa/market_sources.py','packaging/qa/inspect_market.cjs','.github/workflows/b06-sources.yml']
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node packaging/qa/inspect_market.cjs
+      - run: python -X utf8 packaging/qa/market_sources.py

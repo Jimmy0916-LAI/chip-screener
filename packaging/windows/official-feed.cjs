@@ -3,9 +3,9 @@ const fs=require('node:fs'),path=require('node:path');
 const {LocalStore}=require('./storage.cjs');
 const {TDCC,calendarURL,parseWeek,parseMonth,taipei}=require('./tdcc.cjs');
 
-async function download(url) {
+async function download(url,timeout=40000) {
   let response;
-  try { response=await fetch(url,{signal:AbortSignal.timeout(40000),redirect:'error',headers:{'Cache-Control':'no-cache','User-Agent':'ChipScreener/0.6 (weekly public data)'}}); }
+  try { response=await fetch(url,{signal:AbortSignal.timeout(timeout),redirect:'error',headers:{'Cache-Control':'no-cache','User-Agent':'ChipScreener/0.6 (weekly public data)'}}); }
   catch(e) { throw Error('連線失敗 '+(e.cause?.code||e.message)); }
   if (!response.ok) throw Error('官方 HTTP '+response.status);
   const parts=[];let length=0;

@@ -1,16 +1,16 @@
 {
   "name": "chip-screener",
-  "version": "0.6.0-b05.1",
+  "version": "0.6.0-b06.1",
   "private": true,
-  "description": "台股籌碼雷達 B05 集保週更新測試版",
+  "description": "台股籌碼雷達 B06 名單與日行情測試版",
   "author": "ChipScreener",
   "main": "main.cjs",
   "scripts": { "dist": "electron-builder --win portable --x64 --publish never" },
   "devDependencies": { "electron": "45.4.1", "electron-builder": "26.18.0" },
   "build": {
     "appId": "tw.chipscreener.desktop", "productName": "ChipScreener", "asar": true,
-    "files": ["main.cjs", "tdcc.cjs", "official-feed.cjs", "feed-base.json", "preload.cjs", "storage.cjs", "preset-dialog.js", "dashboard.html", "package.json"],
+    "files": ["main.cjs", "market-book.cjs", "market-data.cjs", "market-http.cjs", "tdcc.cjs", "official-feed.cjs", "feed-base.json", "preload.cjs", "storage.cjs", "preset-dialog.js", "dashboard.html", "package.json"],
     "win": { "target": ["portable"], "signAndEditExecutable": false },
-    "portable": { "artifactName": "ChipScreener.exe", "unpackDirName": "ChipScreener-B05-v1" }
+    "portable": { "artifactName": "ChipScreener.exe", "unpackDirName": "ChipScreener-B06-v1" }
   }
 }

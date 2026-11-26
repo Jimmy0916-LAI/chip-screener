@@ -2,7 +2,7 @@ param([Parameter(Mandatory)][string]$Zip, [Parameter(Mandatory)][string]$Expecte
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root = Join-Path $env:RUNNER_TEMP ('b03-' + [guid]::NewGuid().ToString('N'))
-$extract = Join-Path $root 'v0.6.0-b05.1'
+$extract = Join-Path $root 'v0.6.0-b06.1'
 $move = Join-Path $root '台股 移動 測試'
 $out = (New-Item -Type Directory -Path 'evidence' -Force).FullName
 $zipPath = (Resolve-Path $Zip).Path
@@ -20,12 +20,12 @@ $relocated = Join-Path $dest 'ChipScreener.exe'
 $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'fresh-local')).FullName
 $env:TEMP = (New-Item -Type Directory -Path (Join-Path $root 'runtime-temp')).FullName
 $env:TMP = $env:TEMP
-$runtime = Join-Path $env:TEMP 'ChipScreener-B05-v1\ChipScreener.exe'
+$runtime = Join-Path $env:TEMP 'ChipScreener-B06-v1\ChipScreener.exe'
 $group = 'B03-' + [guid]::NewGuid().ToString('N')
 $upgradeDir = (New-Item -Type Directory -Path (Join-Path $root '同位置 換版')).FullName
 $upgrade = Join-Path $upgradeDir 'ChipScreener.exe'
-$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B04-v2\ChipScreener.exe'
-$olderDir = (New-Item -Type Directory -Path (Join-Path $root 'v0.6.0-b04.2')).FullName
+$oldRuntime = Join-Path $env:TEMP 'ChipScreener-B06-checkpoint\ChipScreener.exe'
+$olderDir = (New-Item -Type Directory -Path (Join-Path $root 'v0.6.0-b06.0')).FullName
 $older = Join-Path $olderDir 'ChipScreener.exe'
 function Test-Stored([string]$file,[string]$phase) {
     node "$PSScriptRoot/gui.cjs" $file $out $phase
@@ -97,10 +97,13 @@ try {
     Copy-Item -LiteralPath 'qa-predecessor/ChipScreener.exe' -Destination $upgrade
     $oldHash = (Get-FileHash $upgrade).Hash.ToLowerInvariant()
     if ($oldHash -eq $exeHash) { throw 'Expected two distinct application builds' }
+    Test-Stored $upgrade 'pins-seed'
     Test-Stored $upgrade 'upgrade-source'
     Copy-Item -LiteralPath $relocated -Destination $upgrade -Force
     if ((Get-FileHash $upgrade).Hash.ToLowerInvariant() -ne $exeHash) { throw 'Replacement is not the ZIP executable' }
     Test-Stored $upgrade 'upgrade-result'
+    Test-Stored $upgrade 'pins-read'
+    Test-Stored $relocated 'pins-remove'
     if (@(Get-ChildItem $upgradeDir -Force).Count -ne 1) { throw 'Extra file in replacement directory' }
     # Make both distinct versions available side by side without touching the older folder.
     Copy-Item 'qa-predecessor/ChipScreener.exe' $older
@@ -134,7 +137,8 @@ try {
     Get-NetFirewallRule -Group $group | Disable-NetFirewallRule
     $env:LOCALAPPDATA = (New-Item -Type Directory -Path (Join-Path $root 'live-pinned')).FullName
     Test-Stored $exe 'live-pin'
-    $report = [ordered]@{commit=$env:B05_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
+    Test-Stored $exe 'market-overlay'
+    $report = [ordered]@{commit=$env:B06_HEAD; zipSha256=$hash; exeSha256=$exeHash; entries=@('ChipScreener.exe');
         os=(Get-CimInstance Win32_OperatingSystem).Caption; priorVersionExeSha256=$oldHash; runtimePE='x64'; zeroArgumentWindows=@($first,$second);
         offline='Windows Firewall blocked non-loopback outbound connections for both launchers and the verified GUI executable';
         movedTo=$relocated; windows11Physical='not tested'}
