@@ -6,10 +6,18 @@
 *.pem
 *.p12
 *.pfx
+*.jks
+*.keystore
 *secret*
 *credentials*
 secrets/
 config.local.json
+
+# Android 行動版建置產物與相依套件
+mobile/node_modules/
+mobile/www/
+mobile/android/
+mobile/dist/
 
 # 本機使用者資料與快取（實際存放於 %LOCALAPPDATA%\ChipScreener）
 user-data/

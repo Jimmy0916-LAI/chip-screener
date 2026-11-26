@@ -1,0 +1,21 @@
+{
+  "name": "chip-screener-mobile",
+  "version": "0.6.0",
+  "private": true,
+  "description": "台股籌碼雷達 Android 行動版（Capacitor + 純 JS 本地引擎）",
+  "scripts": {
+    "build:web": "python -X utf8 scripts/build_web.py",
+    "test": "node --test tests/*.test.cjs",
+    "sync": "cap sync android",
+    "prepare:android": "node scripts/configure_android.cjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.3",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "8.6.3",
+    "@capacitor/local-notifications": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.3"
+  }
+}
