@@ -94,6 +94,27 @@ console.log('Patched AndroidManifest.xml');
 const appGradlePath = path.join(ANDROID_DIR, 'app', 'build.gradle');
 let gradle = fs.readFileSync(appGradlePath, 'utf8');
 
+// 先替換 buildTypes 內的 release 區塊（必須在插入 signingConfigs 之前，避免誤匹配 signingConfigs.release）
+const releaseBlock = `buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            def ksFile = System.getenv("KEYSTORE_FILE")
+            if (ksFile != null && !ksFile.isEmpty()) {
+                signingConfig signingConfigs.release
+            }
+        }`;
+
+const replacedBuildTypes = gradle.replace(
+  /buildTypes\s*\{\s*release\s*\{[\s\S]*?\n\s*\}/,
+  releaseBlock
+);
+if (replacedBuildTypes === gradle) {
+  throw new Error('無法在 app/build.gradle 找到 buildTypes.release 區塊');
+}
+gradle = replacedBuildTypes;
+
 if (!gradle.includes('CHIP_RELEASE_SIGNING_CONFIG')) {
   const signingBlock = `
     // CHIP_RELEASE_SIGNING_CONFIG
@@ -111,19 +132,6 @@ if (!gradle.includes('CHIP_RELEASE_SIGNING_CONFIG')) {
 `;
   gradle = gradle.replace(/buildTypes\s*\{/, signingBlock + '\n    buildTypes {');
 }
-
-gradle = gradle.replace(
-  /release\s*\{[\s\S]*?\n\s*\}/,
-  `release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            def ksFile = System.getenv("KEYSTORE_FILE")
-            if (ksFile != null && !ksFile.isEmpty()) {
-                signingConfig signingConfigs.release
-            }
-        }`
-);
 
 fs.writeFileSync(appGradlePath, gradle, 'utf8');
 console.log('Patched app/build.gradle (R8 + Release signing)');
