@@ -17,7 +17,7 @@
 | B05.1 | b05/tdcc-weekly-update | [v0.6.0-b05.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b05.1) · 2d6249a | [#6](https://github.com/Jimmy0916-LAI/chip-screener/pull/6) | 集保更新；使用者接受 |
 | B06.1 | b06/market-overlay | [v0.6.0-b06.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b06.1) · be72aa3 | [#7](https://github.com/Jimmy0916-LAI/chip-screener/pull/7) | 名單、日行情、同日期疊圖、篩選說明、自選股；四項 CI 成功，實機待驗 |
 
-詳細歷史驗收：[PROJECT_STATE.md](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.0-b06.1/PROJECT_STATE.md)（止於 B05）；[B06 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45141840175)。截至快照五個既有 tag、零正式 Release；不能把 Artifact 或 draft PR 當正式 Release。
+詳細歷史驗收：[PROJECT_STATE.md](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.0-b06.1/PROJECT_STATE.md)（止於 B05）；[B06 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45141840175)。整理時有五個主線 tag、零正式 Release；不能把 Artifact 或 draft PR 當正式 Release。
 
 ## 02｜所有現有分支（整理前 14 個）
 
@@ -40,7 +40,16 @@
 
 上述分組是導航排序，不是改名；舊 PR 的 base/head、tag 及歷史 refs 保留。未提供可靠原子改名／刪除操作時不建立重複 alias，不刪分支。原 PR #1–#7 為堆疊依賴，PR #9 為研究文件；整理前全部 open、未合併。
 
-## 03｜建議接續（未建立正式版本）
+## 03｜上傳封存與下一次開發
+
+| 版本（由舊至新） | 封存標籤 | 內容 |
+| --- | --- | --- |
+| 0.6.1 | [v0.6.1-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.1-archive/archives/v0.6.1) | JL 上傳原件，內部 Electron 套件標為 `0.6.0-b05.1` |
+| 0.6.2 | [v0.6.2-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-archive/archives/v0.6.2) | 上傳原件的執行環境標為 `0.6.1-t` |
+
+**下一次開發從 [`feat/v0.6.2-runtime-integration`](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration) 起步。** 此分支以 B06.1 已驗證桌面程式為基座，納入最新版上傳的更新包原件及可讀程式碼供整合。Windows 驗收待安排。兩份原件 SHA-256 與整合入口見[封存說明](https://github.com/Jimmy0916-LAI/chip-screener/blob/feat/v0.6.2-runtime-integration/archives/README.md)，[歸檔驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45911355707/job/140220240341)已通過。
+
+## 04｜後續開發規劃
 
 - v0.6.1：主線與 JL 功能比較、模組化整合、B06 回歸、免安裝與資料容錯驗收。
 - v0.7.0：集保歷史回補、統一資料庫、分點研究、籌碼峰；具體版本範圍由所有者批准。
