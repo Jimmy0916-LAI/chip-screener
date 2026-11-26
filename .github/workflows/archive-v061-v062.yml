@@ -1,0 +1,71 @@
+name: Verify and tag the two uploaded source packages
+on:
+  pull_request:
+    branches: [b06/market-overlay]
+    paths: ['.github/workflows/archive-v061-v062.yml']
+permissions:
+  contents: write
+jobs:
+  archive:
+    if: github.head_ref == 'ops/archive-v0.6.1-v0.6.2' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check both originals and record the development baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cat archive-input/part-01 archive-input/part-02 > "$RUNNER_TEMP/chip-screener-0.6.1 b07-JL.zip"
+          cp archive-input/stocks-screener--0.6.2.zip "$RUNNER_TEMP/"
+          git worktree add --detach "$RUNNER_TEMP/archive" 42c3dcd95fdfb98f80d5df9b88509933cfd3fe8c
+          cd "$RUNNER_TEMP/archive"
+          mkdir -p archives/v0.6.1 archives/v0.6.2
+          cp "$RUNNER_TEMP/chip-screener-0.6.1 b07-JL.zip" archives/v0.6.1/
+          printf '%s  %s\n' df101087c7fc5ca5797ba8f4baa7c368747170c485617cafa5462ee237bc4138 'archives/v0.6.1/chip-screener-0.6.1 b07-JL.zip' | sha256sum -c -
+          unzip -tq 'archives/v0.6.1/chip-screener-0.6.1 b07-JL.zip'
+          git add archives/v0.6.1
+          git commit -m 'Archive the original v0.6.1 JL upload'
+          old=$(git rev-parse HEAD)
+          cp "$RUNNER_TEMP/stocks-screener--0.6.2.zip" archives/v0.6.2/
+          printf '%s  %s\n' 378e7589724fcde0d4ff86900f9a2a5f3fe58c6d354e2c0fc5515e67d9695d49 archives/v0.6.2/stocks-screener--0.6.2.zip | sha256sum -c -
+          cp "$GITHUB_WORKSPACE/archive-input/IMPORTS.md" archives/README.md
+          python - <<'PY'
+          import hashlib, io, json
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          with ZipFile('archives/v0.6.2/stocks-screener--0.6.2.zip') as outer:
+              assert outer.testzip() is None
+              manifest = json.loads(outer.read('stocks-screener--0.6.2/manifest.json'))
+              stable = manifest['channels']['stable']
+              bundle = outer.read('stocks-screener--0.6.2/ChipScreener-runtime-0.6.1-t.zip')
+              assert hashlib.sha256(bundle).hexdigest() == stable['sha256']
+              assert stable['appVersion'] == '0.6.1-t'
+              with ZipFile(io.BytesIO(bundle)) as runtime:
+                  assert runtime.testzip() is None
+                  for entry in runtime.infolist():
+                      name = PurePosixPath(entry.filename)
+                      if name.is_absolute() or '..' in name.parts or entry.is_dir():
+                          continue
+                      if entry.filename != 'build/dashboard.html' and not (
+                          name.parts[0] == 'scripts' and (name.suffix == '.py' or name.name == 'release_meta.json')):
+                          continue
+                      dest = Path('archives/v0.6.2/runtime') / name
+                      dest.parent.mkdir(parents=True, exist_ok=True)
+                      dest.write_bytes(runtime.read(entry))
+          PY
+          git add archives
+          git commit -m 'Archive the v0.6.2 upload and prepare its runtime integration baseline'
+          latest=$(git rev-parse HEAD)
+          refs=$(git ls-remote origin refs/tags/v0.6.1-archive refs/tags/v0.6.2-archive refs/heads/feat/v0.6.2-runtime-integration)
+          if [[ -z "$refs" ]]; then
+            git push --atomic origin "$old:refs/tags/v0.6.1-archive" "$latest:refs/tags/v0.6.2-archive" "$latest:refs/heads/feat/v0.6.2-runtime-integration"
+          else
+            echo 'Archive refs already exist. Inspect them before attempting another import.'
+            exit 1
+          fi
+          git ls-remote origin refs/tags/v0.6.1-archive refs/tags/v0.6.2-archive refs/heads/feat/v0.6.2-runtime-integration
