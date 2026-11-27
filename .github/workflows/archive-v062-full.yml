@@ -1,0 +1,40 @@
+name: Archive the v0.6.2 full Windows upload
+on:
+  pull_request:
+    branches: [b06/market-overlay]
+    paths: ['.github/workflows/archive-v062-full.yml']
+permissions:
+  contents: write
+jobs:
+  archive:
+    if: github.head_ref == 'ops/archive-v0.6.2-full' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify the uploaded bytes and create the replacement archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git worktree add --detach "$RUNNER_TEMP/full" dd845417b7ce402cccee2f23c7a425edf3e2a0a3
+          cd "$RUNNER_TEMP/full"
+          dest='archives/v0.6.2/ChipScreener-Windows-0.6.2-full(1).zip'
+          cp "$GITHUB_WORKSPACE/archive-input-full/ChipScreener-Windows-0.6.2-full(1).zip" "$dest"
+          printf '%s  %s\n' '525a7539da9cdf9bbe2042170a425566606c2c0b4ed3b700df74464ff66e32d4' "$dest" | sha256sum -c -
+          unzip -tq "$dest"
+          python - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('archives/v0.6.2/ChipScreener-Windows-0.6.2-full(1).zip') as package:
+              assert json.loads(package.read('package.json'))['version'] == '0.6.2'
+              assert json.loads(package.read('scripts/release_meta.json'))['appVersion'] == '0.6.2'
+          PY
+          cp "$GITHUB_WORKSPACE/archive-input-full/README.md" archives/README.md
+          git add -- "$dest" archives/README.md
+          git commit -m 'Make the v0.6.2 full Windows ZIP the current upload'
+          new=$(git rev-parse HEAD)
+          git push --atomic origin "$new:refs/tags/v0.6.2-full" "$new:refs/heads/feat/v0.6.2-runtime-integration"
+          git ls-remote origin refs/tags/v0.6.2-full refs/heads/feat/v0.6.2-runtime-integration
