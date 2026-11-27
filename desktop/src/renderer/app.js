@@ -128,6 +128,7 @@ function go(page) {
   state.page = page;
   state.pageNum = 0;
   render();
+  if (page === 'screen' && usesPriceSignals(applied)) loadSignalPrices();
   if (page === 'stock' && state.stockMode === 'detail') {
     loadStockDetail(state.stock);
   }
@@ -1517,6 +1518,7 @@ function applyPaperState(payload) {
   if (typeof doc.fxUsdTwd === 'number' && isFinite(doc.fxUsdTwd) && doc.fxUsdTwd > 0) {
     state.paperFxUsdTwd = doc.fxUsdTwd;
   }
+  if (doc.ai) state.paperAi = doc.ai;
   if (doc.hasGeminiKey !== undefined) {
     state.paperHasGeminiKey = Boolean(doc.hasGeminiKey);
   }
@@ -2881,43 +2883,6 @@ document.body.addEventListener('click', e => {
         toast('本機服務已停止。請關閉此視窗，再開啟要使用的版本。');
       }).catch(error => toast(error.message));
       break;
-    case 'swSaveGeminiKeyBtn': {
-      const inp = $('#swGeminiKeyInput');
-      const val = (inp?.value || '').trim();
-      if (!val) {
-        toast('請先貼上 Gemini API Key');
-        inp?.focus();
-        break;
-      }
-      if (state.swKeyBusy) break;
-      if (inp) inp.value = '';
-      state.swKeyBusy = true;
-      state.swConfirmClearKey = false;
-      render();
-      saveSoftwareConfig({ geminiApiKey: val }, '已加密儲存 Gemini API Key').finally(() => {
-        state.swKeyBusy = false;
-        if (state.page === 'software') render();
-      });
-      break;
-    }
-    case 'swClearGeminiKeyBtn':
-      state.swConfirmClearKey = true;
-      render();
-      break;
-    case 'swCancelClearGeminiKeyBtn':
-      state.swConfirmClearKey = false;
-      render();
-      break;
-    case 'swConfirmClearGeminiKeyBtn':
-      if (state.swKeyBusy) break;
-      state.swKeyBusy = true;
-      state.swConfirmClearKey = false;
-      render();
-      saveSoftwareConfig({ clearGeminiKey: true }, '已清除已儲存的 Gemini API Key').finally(() => {
-        state.swKeyBusy = false;
-        if (state.page === 'software') render();
-      });
-      break;
     case 'usQuickSearchBtn': {
       const sym = resolveStockInput($('#usQuickSearchInput')?.value || '', 'US');
       if (sym) selectUsStock(sym);
@@ -3171,6 +3136,9 @@ document.body.addEventListener('click', e => {
       state.pageNum++;
       render();
       break;
+    case 'loadSignalPrice':
+      loadSignalPrice($('#signalPriceCode').value.trim());
+      break;
     case 'exportScreener':
       exportScreener();
       break;
@@ -3347,6 +3315,16 @@ document.body.addEventListener('change', async e => {
       snapshotPaperOrderDraftFromDom();
       render();
       break;
+    case 'signalMode':
+    case 'signalTdcc':
+    case 'signalMacd':
+    case 'signalBreakout':
+    case 'signalFast':
+    case 'signalSlow':
+    case 'signalPeriod':
+    case 'signalLookback':
+      updateSignalDraft();
+      break;
     case 'swChannelSelect':
       saveSoftwareConfig(
         { channel: el.value },
@@ -3497,9 +3475,6 @@ document.body.addEventListener('keydown', e => {
     } else if (e.target.id === 'chAddUrlInput') {
       e.preventDefault();
       $('#chAddBtn')?.click();
-    } else if (e.target.id === 'swGeminiKeyInput') {
-      e.preventDefault();
-      $('#swSaveGeminiKeyBtn')?.click();
     } else if (e.target.id === 'ptOrderCode') {
       e.preventDefault();
       fetchPaperOrderQuote(e.target.value, true);

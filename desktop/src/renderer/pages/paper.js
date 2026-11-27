@@ -111,6 +111,7 @@ function ptSourceMeta(source) {
 
 function ptEngineLabel(engineMode) {
   const m = String(engineMode || '').toLowerCase();
+  if (m.endsWith('_analysis')) return { label: 'AI 研究分析', tone: 'good' };
   if (m === 'gemini_fc' || m.includes('gemini')) return { label: 'Gemini 多輪推理', tone: 'good' };
   return { label: '量化規則降級', tone: '' };
 }
@@ -162,15 +163,6 @@ function ptFmtTime(raw) {
 function ptPnlCls(val) {
   if (typeof val !== 'number' || !isFinite(val) || val === 0) return 'wl-pnl-flat';
   return val > 0 ? 'tw-up' : 'tw-down';
-}
-
-function ptHasGeminiKey() {
-  return Boolean(
-    state.paperHasGeminiKey ||
-      state.softwareState?.config?.hasGeminiKey ||
-      state.channelsConfig?.hasGeminiKey ||
-      state.briefingConfig?.hasGeminiKey
-  );
 }
 
 function ptBuildDefaultSlotDraft(slot = null) {
@@ -477,17 +469,13 @@ function renderPaperTradesTab(slot) {
 
 function renderPaperAiLogsTab(slot) {
   const logs = Array.isArray(slot.aiLogs) ? slot.aiLogs : [];
-  const hasKey = ptHasGeminiKey();
 
   const keyBar =
     '<div class="card pt-ai-status-bar">' +
     '<div class="pt-ai-status-left">' +
-    (hasKey
-      ? badge('Gemini 多輪推理已啟用', 'good') +
-        '<span class="mini">AI 操盤手將透過 Function Calling 自主查詢站內工具並通過後端硬性風控護欄。</span>'
-      : badge('量化規則降級模式', '') +
-        '<span class="mini">未設定 Gemini Key；AI 操盤手將以多因子規則引擎運作，也可至軟體設定加密填寫 Key。</span>' +
-        '<button type="button" class="btn ghost sm" data-go-software-ai="1">前往軟體設定管理 Key →</button>') +
+    renderAiStatus(state.paperAi) +
+    '<span class="mini">模擬決策經本機硬性風控。AI 關閉或可用性不足時採本機規則。</span>' +
+    '<button type="button" class="btn ghost sm" data-go-software-ai="1">管理 AI 設定</button>' +
     '</div>' +
     (slot.mode !== 'ai'
       ? '<span class="mini">目前存檔為手動模式，可於「⚙ 存檔設定」切換為 AI 代操</span>'
@@ -576,6 +564,8 @@ function renderPaperAiLogsTab(slot) {
         (log.reasoning
           ? `<div class="pt-log-reasoning"><b>推理摘要：</b>${esc(log.reasoning)}</div>`
           : '') +
+        renderAiStatus(log.ai) +
+        renderAiAnalysis(log.analysis, { evidence: '決策依據', counterRisks: '反向風險', riskPlan: '資金與風控計畫' }) +
         toolsHtml +
         checksHtml +
         '</div>' +

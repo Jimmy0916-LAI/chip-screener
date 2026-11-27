@@ -10,8 +10,8 @@
    - channels: get_channel_strategies（訂閱財經頻道最新策略卡）
    - liveQuotes: get_live_quotes（盤中／最新即時報價查詢）
 2. 雙引擎決策迴圈：
-   - Engine A (gemini_fc): 透過 secret_store 解密讀取 Gemini API Key，進行最多 6 輪真實
-     Function Calling 查詢工具後輸出結構化 JSON 決策（gemini-2.5-flash 優先，降級 gemini-2.0-flash）。
+   - Engine A (gemini_fc): 透過 secret_store 解密讀取 Gemini API Key，依選定模型進行最多 6 輪
+     Function Calling 查詢工具後輸出結構化 JSON 決策。
    - Engine B (rule_fallback): 未設定金鑰或 Gemini 失敗時，確定性呼叫已啟用工具並以多因子量化評分產出決策。
 3. 程式碼強制硬性風控護欄（enforce_guardrails，不可被 Prompt 或 LLM 輸出覆寫）：
    - 市場範圍檢核（TW / US / MIXED）、有效報價檢核
@@ -28,18 +28,14 @@ import json
 import math
 import re
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from providers import secret_store
+from providers import ai_router
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
-GEMINI_MODELS = ('gemini-2.5-flash', 'gemini-2.0-flash')
 MAX_FC_TURNS = 6
 GEMINI_TIMEOUT_SEC = 28
 
@@ -1360,22 +1356,7 @@ class AiTraderService:
     # Engine A: Gemini Multi-Turn Function Calling
     # ------------------------------------------------------------------
 
-    def _gemini_post(self, model: str, api_key: str, payload: dict) -> dict:
-        url = (
-            f'https://generativelanguage.googleapis.com/v1beta/models/'
-            f'{model}:generateContent?key={urllib.parse.quote(api_key, safe="")}'
-        )
-        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-        req = urllib.request.Request(
-            url,
-            data=body,
-            headers={'Content-Type': 'application/json', 'User-Agent': 'ChipScreener/0.7'},
-            method='POST',
-        )
-        with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT_SEC) as resp:
-            return json.loads(resp.read().decode('utf-8'))
-
-    def _build_system_instruction(self, slot: dict, ai_cfg: dict, fx_rate: float) -> str:
+    def _build_system_instruction(self, slot: dict, ai_cfg: dict, fx_rate: float, tools_available=True) -> str:
         market = str(slot.get('market') or 'TW').upper()
         currency = str(slot.get('currency') or ('USD' if market == 'US' else 'TWD')).upper()
         style = ai_cfg['style']
@@ -1405,10 +1386,12 @@ class AiTraderService:
             ])
         lines.extend([
             '【決策流程】',
-            '1. 請先主動呼叫已啟用的工具收集目前帳戶持倉、市場籌碼／篩選、收藏夾六維分析、晨報與訂閱頻道策略。',
-            '2. 若欲下單特定標的，建議呼叫報價或個股詳情工具確認最新價位。',
+            '1. 請先使用已啟用的工具核對持倉與市場資訊。' if tools_available else
+            '1. 使用以下已取得的站內研究證據，資料不足時維持觀望。',
+            '2. 請按可得證據說明價格與時點，無法查證時勿推測。',
             '3. 完成研究後，請輸出單一純 JSON 物件（不可多餘說明文字），格式如下：',
             '{"reasoning": "詳細繁體中文推理依據與風控說明", "summary": "一句精簡操作總結（60字內）", '
+            '"evidence": ["依據、時點"], "counterRisks": ["反向理由"], "riskPlan": ["停損或資金風險"], '
             '"actions": [{"side": "BUY"|"SELL", "code": "股票代號", "shares": 股數, '
             '"reason": "簡短理由", "stopLossPct": 8.0, "takeProfitPct": 18.0}]}',
             '4. 若目前無合適機會或應觀望，請回傳 "actions": [] 並說明原因。',
@@ -1421,7 +1404,7 @@ class AiTraderService:
         ai_cfg: dict,
         fx_rate: float,
         trigger: str,
-        api_key: str,
+        ai: ai_router.AiSession,
         tools_used: list[dict],
         quote_cache: dict[str, dict | None],
     ) -> dict:
@@ -1434,9 +1417,6 @@ class AiTraderService:
         )
         contents: list[dict] = [{'role': 'user', 'parts': [{'text': user_prompt}]}]
 
-        active_model = GEMINI_MODELS[0]
-        last_err = ''
-
         for turn in range(MAX_FC_TURNS + 1):
             allow_tools = bool(declarations) and turn < MAX_FC_TURNS
             payload: dict = {
@@ -1447,22 +1427,9 @@ class AiTraderService:
             if allow_tools:
                 payload['tools'] = [{'functionDeclarations': declarations}]
 
-            resp_data = None
-            models_to_try = GEMINI_MODELS if turn == 0 else (active_model,)
-            for m in models_to_try:
-                try:
-                    resp_data = self._gemini_post(m, api_key, payload)
-                    active_model = m
-                    break
-                except urllib.error.HTTPError as exc:
-                    last_err = _sanitize_error(f'HTTP {exc.code} ({m})')
-                    continue
-                except Exception as exc:
-                    last_err = _sanitize_error(f'{type(exc).__name__}: {exc}')
-                    continue
-
+            resp_data = ai.send(payload, GEMINI_TIMEOUT_SEC)
             if not isinstance(resp_data, dict):
-                raise RuntimeError(last_err or 'Gemini API 無回應')
+                raise RuntimeError('AI 回應格式無效')
 
             candidates = resp_data.get('candidates') or []
             if not candidates:
@@ -1507,25 +1474,48 @@ class AiTraderService:
             if not isinstance(parsed, dict):
                 raise RuntimeError('Gemini 回應無法解析為有效決策 JSON')
 
-            raw_actions = parsed.get('actions')
-            if raw_actions is None:
-                raw_actions = []
-            if not isinstance(raw_actions, list):
-                raise RuntimeError('Gemini 決策 JSON 之 actions 欄位格式無效')
-
-            reasoning = str(parsed.get('reasoning') or '').strip()
-            summary = str(parsed.get('summary') or '').strip()
-            if not summary:
-                summary = f'Gemini 決策：提出 {len(raw_actions)} 筆操作' if raw_actions else 'Gemini 決策：維持觀望'
-            if not reasoning:
-                reasoning = summary
-            return {
-                'reasoning': reasoning,
-                'summary': summary[:120],
-                'actions': [a for a in raw_actions if isinstance(a, dict)],
-            }
+            return self._normalize_ai_decision(parsed)
 
         raise RuntimeError('Gemini 多輪工具呼叫超過上限仍未產出最終決策')
+
+    def _normalize_ai_decision(self, raw):
+        actions = raw.get('actions')
+        if not isinstance(actions, list) or any(not isinstance(item, dict) for item in actions):
+            raise RuntimeError('AI 決策缺少有效的 actions')
+        summary = str(raw.get('summary') or '').strip()[:120]
+        reasoning = str(raw.get('reasoning') or '').strip()[:4000]
+        if not summary and not reasoning:
+            raise RuntimeError('AI 決策缺少說明')
+        return {
+            'summary': summary or '模擬決策已完成',
+            'reasoning': reasoning or summary,
+            'actions': actions,
+            'analysis': {name: ai_router.text_items(raw.get(name))
+                         for name in ('evidence', 'counterRisks', 'riskPlan')},
+        }
+
+    def _run_provider_decision(self, ai, slot, ai_cfg, fx_rate, trigger, tools_used, quote_cache):
+        market = str(slot.get('market') or 'TW').upper()
+        tool_requests = [
+            ('get_portfolio_state', {}, True),
+            ('screen_tw_tdcc_chips', {'weeks': 2, 'min_pp': 0.2, 'limit': 8}, market in ('TW', 'MIXED')),
+            ('screen_us_sp500', {'mode': 'smart_money', 'limit': 8}, market in ('US', 'MIXED')),
+            ('get_watchlist_summary', {}, True),
+            ('get_daily_briefing', {}, True),
+            ('get_channel_strategies', {'limit': 5}, True),
+        ]
+        evidence = {}
+        for tool, args, applicable in tool_requests:
+            if applicable and ai_cfg['tools'].get(TOOL_GATE_MAP[tool]):
+                data = self.call_tool(slot, tool, args, tools_used, fx_rate, quote_cache)
+                serialized = json.dumps(data, ensure_ascii=False, default=str)
+                evidence[tool] = data if len(serialized) <= 6000 else {
+                    'summary': tools_used[-1]['summary'] if tools_used else '',
+                    'note': '資料過長，僅提供站內摘要',
+                }
+        prompt = self._build_system_instruction(slot, ai_cfg, fx_rate, tools_available=False)
+        prompt += '\n觸發來源：' + trigger + '\n研究證據：' + json.dumps(evidence, ensure_ascii=False, default=str)
+        return self._normalize_ai_decision(ai.generate(prompt))
 
     # ------------------------------------------------------------------
     # Engine B: Deterministic Multi-Factor Rule Fallback
@@ -2196,44 +2186,26 @@ class AiTraderService:
         engine_mode = 'rule_fallback'
         error_str = ''
 
-        # 僅透過 secret_store 讀取 Gemini API Key（嚴禁記錄明文）
-        api_key = secret_store.get_gemini_api_key(self.app_data_dir)
-        decision: dict | None = None
-
-        if api_key:
+        ai = ai_router.session(self.app_data_dir, 'trader')
+        ai_status = ai.status
+        decision = None
+        if ai_status == 'ready':
             try:
-                decision = self._run_gemini_fc(
-                    slot=slot,
-                    ai_cfg=ai_cfg,
-                    fx_rate=fx_rate,
-                    trigger=trigger,
-                    api_key=api_key,
-                    tools_used=tools_used,
-                    quote_cache=quote_cache,
-                )
-                engine_mode = 'gemini_fc'
-            except Exception as exc:
-                safe_err = _sanitize_error(str(exc))
-                error_str = f'Gemini 降級：{safe_err}'
-                fallback_note = f'【已自動切換至量化規則降級引擎】Gemini 推理失敗（{safe_err}），改採站內多因子規則完成決策。'
-                decision = self._run_rule_fallback(
-                    slot=slot,
-                    ai_cfg=ai_cfg,
-                    fx_rate=fx_rate,
-                    tools_used=tools_used,
-                    quote_cache=quote_cache,
-                    fallback_note=fallback_note,
-                )
-                engine_mode = 'rule_fallback'
-        else:
+                if ai.provider == 'gemini':
+                    decision = self._run_gemini_fc(slot, ai_cfg, fx_rate, trigger, ai, tools_used, quote_cache)
+                    engine_mode = 'gemini_fc'
+                else:
+                    decision = self._run_provider_decision(ai, slot, ai_cfg, fx_rate, trigger, tools_used, quote_cache)
+                    engine_mode = ai.provider + '_analysis'
+                ai_status = 'success'
+            except Exception:
+                ai_status = 'failed'
+                error_str = ai.metadata(ai_status)['message']
+        if decision is None:
             decision = self._run_rule_fallback(
-                slot=slot,
-                ai_cfg=ai_cfg,
-                fx_rate=fx_rate,
-                tools_used=tools_used,
-                quote_cache=quote_cache,
+                slot, ai_cfg, fx_rate, tools_used, quote_cache,
+                fallback_note=ai.metadata(ai_status)['message'],
             )
-            engine_mode = 'rule_fallback'
 
         raw_actions = decision.get('actions') or []
         compliant_actions, guardrail_checks = self.enforce_guardrails(
@@ -2312,6 +2284,8 @@ class AiTraderService:
             'autonomy': autonomy,
             'toolsUsed': tools_used,
             'reasoning': str(decision.get('reasoning') or ''),
+            'ai': ai.metadata(ai_status),
+            'analysis': decision.get('analysis', {}),
             'summary': str(decision.get('summary') or ''),
             'guardrailChecks': guardrail_checks,
             'executedTrades': executed_trades,

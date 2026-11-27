@@ -38,5 +38,6 @@ function validateSettings(input) {
   for (const k of ['needShares', 'needPeak', 'needPrice']) {
     out[k] = Boolean(out[k]);
   }
+  if (out.signals !== undefined) out.signals = validateSignalStrategy(out.signals);
   return out;
 }

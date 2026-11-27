@@ -58,6 +58,7 @@ function settingsPage() {
     '</div>' +
     '</div>' +
     '</div>' +
+    signalSettings(draft.signals || DEFAULT_SIGNAL_STRATEGY) +
     '<div class="section"><h2>進階研究與成交參數</h2></div>' +
     '<div class="card">' +
     '<div class="notice warn">此處先完整保留設定欄位。底峰模型使用暖機、格寬與保留比例等參數；收益計算需要價格資料及事件驗收，不能只靠輸入費率就虛構績效。</div>' +
@@ -76,4 +77,43 @@ function settingsPage() {
     '</div>' +
     '</div>'
   );
+}
+
+function signalSettings(config) {
+  const checked = id => config.enabled.includes(id) ? ' checked' : '';
+  const input = (id, label, min, max, value) =>
+    `<label>${label} <input id="${id}" type="number" min="${min}" max="${max}" value="${value}"></label>`;
+  return '<div class="card" id="signalSettings"><h3>多條件訊號</h3>' +
+    '<p class="help">集保條件沿用上方級距與週門檻。日 K 依交易日曆、價格快取與評估時點判定。</p>' +
+    '<div class="toolbar"><label>組合方式 <select id="signalMode">' +
+    `<option value="all"${config.mode === 'all' ? ' selected' : ''}>全部符合</option>` +
+    `<option value="any"${config.mode === 'any' ? ' selected' : ''}>任一符合</option>` +
+    '</select></label></div>' +
+    '<div class="formgrid">' +
+    `<label><input id="signalTdcc" type="checkbox"${checked('tdcc')}>大股東連續增持</label>` +
+    `<label><input id="signalMacd" type="checkbox"${checked('macd')}>日線 MACD 黃金交叉</label>` +
+    `<label><input id="signalBreakout" type="checkbox"${checked('breakout')}>突破前 N 日高點</label>` +
+    input('signalFast', 'MACD 快線', 2, 60, config.macd.fast) +
+    input('signalSlow', 'MACD 慢線', 3, 120, config.macd.slow) +
+    input('signalPeriod', 'MACD 訊號線', 2, 60, config.macd.signal) +
+    input('signalLookback', '前高回看交易日', 2, 120, config.breakoutDays) +
+    '</div></div>';
+}
+
+function updateSignalDraft() {
+  try {
+    const enabled = ['tdcc', 'macd', 'breakout'].filter(id =>
+      document.getElementById('signal' + id[0].toUpperCase() + id.slice(1)).checked);
+    const number = id => document.getElementById(id).valueAsNumber;
+    const signals = validateSignalStrategy({
+      version: 1, mode: $('#signalMode').value, enabled,
+      macd: { fast: number('signalFast'), slow: number('signalSlow'), signal: number('signalPeriod') },
+      breakoutDays: number('signalLookback')
+    });
+    draft = { ...draft, signals };
+    saveConfig();
+  } catch (error) {
+    render();
+    toast(error.message);
+  }
 }

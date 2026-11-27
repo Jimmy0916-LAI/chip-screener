@@ -1,5 +1,13 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5 B02｜篩選與 AI 入口
+
+[草稿 PR #14](https://github.com/Jimmy0916-LAI/chip-screener/pull/14) 從 B01 `01970586ed138e1292238ef749cf30888ab2b171` 接續。全市場篩選使用相同組合結果產出畫面與 CSV，策略套用、命名、載入與可讀的舊策略維持原儲存入口。日 K 依個股快取判定，提供逐檔補抓與可判定覆蓋。
+
+軟體設定支援 Gemini、DeepSeek、Claude、OpenAI 的模型與分開金鑰。Windows 使用 DPAPI，既有 Gemini 可讀。總開關與三個模組開關控制 AI 外送。每日晨報、影片策略卡、AI 模擬操盤各顯示供應商、結果及降級原因。已執行 `python desktop/qa/ai_router_test.py` 5 項模擬測試，4 項集保測試及 8 項篩選測試。付費 API 待驗。
+
+B03 的 [Windows 成品流程](.github/workflows/v065.yml) 執行實際 ZIP 與已驗證的 v0.6.3-rc.1 升降版測試。候選雜湊、期限與下載以 [PR #14 的候選段落](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download) 為準。
+
 ## v0.6.5 B01｜上游對照與篩選核心
 
 由使用者確認已獨立複驗的 `v0.6.3-rc.1`（`7d0f59a0b7acd540ab23099438eedd4bea0418c6`）開 `feat/v0.6.5-signals-ai`。預設分支的 [封測驗收首頁](https://github.com/Jimmy0916-LAI/chip-screener/blob/ab0070390a11c59d2600fcf6ef41f6bc5478d91e/README.md) 已更新，Windows 11 實機待補驗。

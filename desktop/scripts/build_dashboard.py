@@ -13,10 +13,10 @@ BUILD_DIR = ROOT / 'build'
 MODULE_ORDER = [
     'core/constants.js',
     'core/format.js',
+    'core/signal-engine.js',
     'core/settings.js',
     'core/storage-adapter.js',
     'core/weekly-engine.js',
-    'core/signal-engine.js',
     'core/peak-model.js',
     'core/data-io.js',
     'components/ui-kit.js',
