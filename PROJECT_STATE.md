@@ -1,5 +1,13 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5 B01｜上游對照與篩選核心
+
+由使用者確認已獨立複驗的 `v0.6.3-rc.1`（`7d0f59a0b7acd540ab23099438eedd4bea0418c6`）開 `feat/v0.6.5-signals-ai`。預設分支的 [封測驗收首頁](https://github.com/Jimmy0916-LAI/chip-screener/blob/ab0070390a11c59d2600fcf6ef41f6bc5478d91e/README.md) 已更新，Windows 11 實機待補驗。
+
+已下載比對朋友兩版 x64／full 成品、runtime 與 manifest，摘要與逐案驗收見 [v0.6.5 功能對照](docs/V065_SCOPE.md)。核心沿用集保週判定，新增 MACD、前高、三值組合與交易日／取得時間限制。`node --test desktop/qa/signal-engine.test.cjs` 8 項通過，`python desktop/qa/feed_test.py` 4 項通過。
+
+恢復主線時先切至 `feat/v0.6.5-signals-ai` 並執行上述測試。B02 接 EXE／CSV、策略儲存與三個 AI 模組，B03 封裝與成品驗收。既有 065-01～04 分點覆蓋、權限及資料缺口留於功能對照。候選 Tag 與下載待成品實測。
+
 ## 0.6.3 候選交接
 
 基準 2c4276368f3ee043ea17f1754f47fd444cee9c57。Windows 11 x64 實機與獨立驗收待驗。開發基準與成品入口詳見 README。
