@@ -35,7 +35,7 @@ function screen() {
   return (
     title(
       '全市場籌碼篩選',
-      '從真實集保原始股數計算，而非展示人工假資料。',
+      priceRules ? '依所選集保與個股日 K 條件篩選。' : '從集保原始股數計算。',
       '<button class="btn" data-nav="settings">⚙ 調整篩選參數</button>'
     ) +
     `<div class="notice">目前母體：${fmt(D.universe.length)} 檔候選股票。所選窗口可判定：${fmt(t.all - t.unknown)} 檔，資料不足：${fmt(t.unknown)} 檔。<b>注意：</b>來自 2026-11-13 的股票名單，未重建歷史逐日母體，也尚未逐檔完成公司行動核對；篩選通過僅代表算術條件符合。</div>` +
@@ -51,7 +51,8 @@ function screen() {
     '<div class="toolbar">' +
     `<input id="searchCode" placeholder="搜尋股票代號或名稱" value="${esc(state.query)}" aria-label="股票搜尋">` +
     `<span class="mini">連續 ${cfg.weeks} 週增持，累計至少 ${fmt(cfg.minPp, 2)} 百分點</span>` +
-    wndSelect() +
+    wndSelect(priceRules ? time.asOf : undefined) +
+    (priceRules && state.manualWeek ? '<button class="btn ghost sm" id="useDefaultWeek">恢復最新評估</button>' : '') +
     `<select id="filterPass">` +
     `<option value="pass" ${state.filter === 'pass' ? 'selected' : ''}>只看通過</option>` +
     `<option value="all" ${state.filter === 'all' ? 'selected' : ''}>全部結果</option>` +

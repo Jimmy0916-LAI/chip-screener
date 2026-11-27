@@ -2,13 +2,15 @@
 
 Windows 11 離線優先的台股籌碼研究工具。此 README 為唯一專案導航入口；版本狀態不以 main 的原始 ZIP 或分支名稱推斷。
 
-## v0.6.3-rc.1 封測候選
+## v0.6.5-rc.1 封測
 
-登入有私庫權限的 GitHub 帳號，從 [封測下載與校驗頁](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download) 下載 Artifact，取出內層 `ChipScreener-v0.6.3-rc.1-Windows-x64.zip` 並核對 SHA-256。解壓到新目錄後雙擊「股票雷達.exe」。首次開啟時從首頁按「更新市場資料」，核對集保統計日與行情交易日。個股第一期快照可直接看摘要，週訊號區會提示何時欠缺連續資料。按「匯出輕量資料」後雙擊「股票雷達輕量版.html」，選取所匯出的 JSON 即可離線查詢。
+登入有私庫權限的 GitHub 帳號，從 [PR #14 下載與校驗頁](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download) 下載 Artifact。取出內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip` 並核對 SHA-256。解壓到新的版本資料夾，舊版背景服務仍在運作時先在「軟體設定」按「停止本機服務」，再雙擊 `股票雷達.exe`。保留舊版資料夾，換版及回退使用同一 Windows 帳號和瀏覽器設定檔。
 
-換版或手動回退時，先在目前版本的「軟體設定」按「停止本機服務」，再關閉視窗。若舊版沒有此按鈕，啟動新版時依提示用工作管理員結束舊版的 `pythonw.exe`，再雙擊要使用的版本。保留兩個版本資料夾，使用原有 Windows 帳號及瀏覽器設定檔，讓策略沿用同一本機網址。集保快取及自選儲存在 `%LOCALAPPDATA%/ChipScreener`。更新失敗可重試，程式保留上次成功資料。個股持股研究可勾選「疊加日 K」。下載範圍、占用和清除入口在「資料與驗收」頁。
+- 從「策略設定」組合集保連續增持、日線 MACD 黃金交叉及前高突破。可另存方案並套用到篩選，查看個別條件的判定、資料覆蓋和同結果 CSV。日 K 使用已下載的個股快取，缺資料可在篩選頁按股讀取。
+- 從「軟體設定」為 Gemini、DeepSeek、Claude 或 OpenAI 設定模型與金鑰，選擇供應商及開啟所需的 AI 模組。Windows 金鑰用 DPAPI 儲存。晨報、影片策略卡與 AI 模擬操盤會顯示所選模型和狀態。無可用 AI 時維持本機規則；缺字幕且所選模型無影片能力時，會等字幕可用。
+- 首次可在首頁更新官方集保，或在離線狀態開啟隨包頁面。從桌面匯出快照後，雙擊 `股票雷達輕量版.html` 離線匯入。回測仍維持既有範圍，AI 操盤僅使用本機模擬帳戶。
 
-[本版企劃與 12 項驗收](docs/VERSION_PLAN_20261127.md) · [開發交接](PROJECT_STATE.md) · [Windows 建置與測試](.github/workflows/v063.yml)
+[v0.6.5 功能和驗收案例](docs/V065_SCOPE.md) · [專案交接](PROJECT_STATE.md) · [Windows 建置與測試](.github/workflows/v065.yml) · [v0.6.3-rc.1 舊候選](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download)
 
 ## 01｜目前從哪裡開始
 
