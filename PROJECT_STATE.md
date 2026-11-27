@@ -1,5 +1,9 @@
 # 台股籌碼雷達專案狀態
 
+## 0.6.3 候選交接
+
+基準 2c4276368f3ee043ea17f1754f47fd444cee9c57。Windows 11 x64 實機與獨立驗收待驗。開發基準與成品入口詳見 README。
+
 **B04.2 已獲接受。B05 v0.6.0-b05.1 通過 Windows Server 2022 實際 ZIP 驗收。Windows 11 實機待驗，PR #6 待審。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)

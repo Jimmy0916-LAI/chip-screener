@@ -1,0 +1,67 @@
+name: Windows 0.6.3 candidate
+on:
+  pull_request:
+    branches: [feat/v0.6.2-runtime-integration]
+    paths: ['desktop/**', '.github/workflows/v063.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install ziglang==0.13.0
+          export ZIG="$(python -c 'import ziglang,pathlib; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
+          python desktop/package.py
+          sha256sum desktop/dist/*.zip > "$RUNNER_TEMP/hash"
+          python desktop/package.py
+          sha256sum --check "$RUNNER_TEMP/hash"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChipScreener-v0.6.3-Windows-x64
+          path: desktop/dist/*.zip
+          retention-days: 30
+  windows:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ChipScreener-v0.6.3-Windows-x64
+          path: candidate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP '候選 測試'
+          Expand-Archive -Path candidate/*.zip -DestinationPath $out
+          if ((Get-ChildItem $out).Count -ne 3) { throw 'ZIP layout' }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP '全新資料'
+          Start-Process (Join-Path $out '股票雷達.exe')
+          $ready = $false
+          for ($n=0; $n -lt 45; $n++) {
+            try { $ready = (Invoke-RestMethod http://127.0.0.1:18765/api/health).appVersion -eq '0.6.3' } catch {}
+            if ($ready) { break }
+            Start-Sleep 1
+          }
+          if (!$ready) { throw 'EXE did not start' }
+          python -m pip install playwright==1.56.0
+          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-Server-evidence
+          path: evidence/*.png
