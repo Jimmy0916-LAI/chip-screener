@@ -1,5 +1,13 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5-rc.3 交付驗收
+
+候選程式 `6e3657b27c843fcc4a25095781913309e4bc2fcc` 對應 [Tag](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.3) 及 [Pre-release](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3)。[Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip) SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`。Windows Server 2022 驗收及從 Release 回讀後重新解壓啟動已通過。[CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274) · [Windows 逐案](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274/job/140695516153) · [Release 回讀](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274/job/140696882738)。
+
+2330 台積電與 2404 漢唐各有 2026-10-30、11-06、11-13、11-20，4 期連續且無缺週。再次下載 11-20 維持原快取及圖表點數。RC1 換版與回退保留既有策略、自選與資料，最後視窗關閉後隨包 Python 服務退出。[畫面](https://github.com/Jimmy0916-LAI/chip-screener/blob/main/docs/evidence/v0.6.5-rc.3-2330.png)。
+
+[PR #16](https://github.com/Jimmy0916-LAI/chip-screener/pull/16) 合併下載首頁及索引。產品分支接續 PR #14，Windows 11 x64 開啟、換版與關窗實機待驗。恢復時 `git fetch origin --tags` 後 `git switch --detach v0.6.5-rc.3`，比對上列 Release ZIP SHA-256，再補實機驗收。
+
 ## v0.6.5-rc.3｜舊日曆與新快照的缺週判定
 
 RC2 程式提交 `6e824d3a8ba0d9b4c00e9e55870d1dd50d60eb79`，Windows Server 2022 已驗兩檔 2026-10-30 至 11-20 四週、關窗停止、先前版升降版、漢唐和 A/B，見 [RC2 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054234686)。本機另用舊版快取重開，發現日曆僅到 11-19 時，即使已有 11-20 快照仍列偽缺週。RC3 改按統計週判斷，CI 加測同週重抓與舊日曆。現階段不進下一個產品版本。
