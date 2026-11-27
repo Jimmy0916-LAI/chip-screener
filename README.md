@@ -1,6 +1,6 @@
 # 籌碼雷達
 
-## [下載 Windows x64｜v0.6.5-rc.3](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip)
+## [下載 Windows x64｜v0.6.5-rc.4](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.4/ChipScreener-v0.6.5-rc.4-Windows-x64.zip)
 
 1. 登入有此私庫權限的 GitHub 帳號，下載 Windows x64 ZIP。
 2. 把成品 ZIP **全部解壓**到新版本資料夾，保留 `resources`。
@@ -8,7 +8,11 @@
 
 同一資料夾附 `股票雷達輕量版.html`。版本、雜湊、測試與舊版見 [版本索引](docs/VERSION_INDEX.md) 和 [專案狀態](PROJECT_STATE.md)。
 
-## 最新封測｜v0.6.5-rc.3
+## 最新封測｜v0.6.5-rc.4
+
+台股全市場篩選已恢復。首次離線可評估，連線取得完整窗口後自動更新。 [Release](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.4) · [全量 CSV 與證據](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46067740266/artifacts/15231513204)。Windows 11 x64 實機待驗。
+
+## 問題基準｜v0.6.5-rc.3（使用者驗收未通過）
 
 集保個股歷史、左上角版本與雷達圖示、關閉最後一個桌面視窗後停止背景工作。[發布說明](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) · [成品 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274) · [左上角與集保圖表](docs/evidence/v0.6.5-rc.3-2330.png)。Windows 11 x64 實機待驗。
 
@@ -51,7 +55,7 @@
 1. **核對交付。** 記錄候選版號、固定 commit SHA 或 tag、ZIP 下載連結與 ZIP SHA-256。若要測試安裝或資料升級，先備份現有測試資料。
 2. **離線啟動與介面。** 在 Windows 11 x64 解壓，以該版的交付說明啟動。測試首次斷網開啟、七個既有頁面及移至含中文與空格的路徑後重開。核對該版本的免安裝入口與 ZIP 結構。
 3. **資料保留與更新。** 驗證重開、移動或換版後的設定與本機資料，核對集保統計日與行情交易日。測試官方資料更新、部分來源失敗時沿用最近成功資料，以及相應的重試與復原。
-4. **選股與行情回歸。** 依本次變更範圍比對週篩選、同窗 A/B、日行情與自選股。有涉及集保運算時，用漢唐（2404）400 張級距基準核對兩週分別增加 796,897、579,084 股，合計 +0.721971163 個百分點。
+4. **選股與行情回歸。** 依本次變更範圍比對週篩選、同窗 A/B、日行情與自選股。有涉及集保運算時，用台積電（2330）的 2026-11-13 固定窗口核對 400 張以上兩週 −37,973,336、−10,706,718 股，合計 −0.187719263 個百分點。
 5. **記錄結果。** 針對同一份 ZIP 分別記錄 CI 和 Windows 11 實機結果。每項標為通過、未通過或待驗，附指令或操作步驟、預期與實際結果，以及可追溯的截圖或日誌。
 
 ## 驗收紀錄
