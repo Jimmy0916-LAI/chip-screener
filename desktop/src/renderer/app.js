@@ -2132,8 +2132,15 @@ function submitPaperOrderModal() {
   placePaperOrder(body);
 }
 
+let activeStockDetailRequest;
+
 async function loadStockDetail(code, force = false) {
+  const request = Symbol(code);
+  activeStockDetailRequest = request;
   if (!force && state.stockDetailByCode?.[code]?.bars?.length) {
+    state.stockDetailLoading = false;
+    state.stockDetailError = '';
+    render();
     return;
   }
   if (!hasHttpFeed) {
@@ -2154,13 +2161,14 @@ async function loadStockDetail(code, force = false) {
     if (!resp.ok || payload.error) {
       throw Error(payload.error || '無法取得個股詳情資料');
     }
+    if (payload.code !== code) throw Error('來源股票代號與本次查詢不符');
     state.stockDetailByCode[code] = payload;
   } catch (e) {
-    state.stockDetailError = e.message;
+    if (activeStockDetailRequest === request) state.stockDetailError = e.message;
   } finally {
-    state.stockDetailLoading = false;
-    if (state.page === 'stock' && state.stock === code) {
-      render();
+    if (activeStockDetailRequest === request) {
+      state.stockDetailLoading = false;
+      if (state.page === 'stock' && state.stock === code) render();
     }
   }
 }

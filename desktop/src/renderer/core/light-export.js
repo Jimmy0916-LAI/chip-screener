@@ -19,7 +19,7 @@ async function loadOverlayHistory(code) {
   try {
     const response = await fetch('/api/daily?code='+encodeURIComponent(code));
     const result = await response.json();
-    if (!response.ok || !result.bars?.length) throw Error(result.error||'來源未提供日行情');
+    if (!response.ok || result.code !== code || !result.bars?.length) throw Error(result.error||'來源未提供此股日行情');
     D.dailyByCode[code] = result.bars;
     if (!result.stale) downloadedHistory.add(code);
     if (state.stock === code && state.page === 'stock') render();
