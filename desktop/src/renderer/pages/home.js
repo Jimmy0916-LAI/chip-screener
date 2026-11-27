@@ -67,7 +67,7 @@ function home() {
       '以集保分級股數計算，先找到異動，再辨別證據是否足以支持交易。',
       '<button class="btn main" data-nav="screen">查看完整篩選結果 →</button>'
     ) +
-    '<div class="notice warn"><b>研究範圍聲明：</b>已載入六期原始集保全表，可依最新三期篩選約兩千檔上市櫃候選；股票母體採 11/13 行情備份，可能有存活偏差。除漢唐外，逐檔公司行動與正式回測未通過驗收。不是即時報價或買賣訊號。</div>' +
+    '<div class="notice warn"><b>研究範圍聲明：</b>篩選需要連續且已驗證的集保週資料。母體採 11/13 行情備份，可能有存活偏差。除漢唐外，逐檔公司行動與正式回測未通過驗收。不是即時報價或買賣訊號。</div>' +
     '<div class="metricgrid">' +
     metric('目前候選股票池', fmt(D.universe.length), '四碼非零開頭、上市櫃行情備份') +
     metric('所選窗口通過數', fmt(t.pass), `級距 ${applied.band} 張 · 門檻 ${fmt(applied.minPp, 2)} pp`, 'green') +

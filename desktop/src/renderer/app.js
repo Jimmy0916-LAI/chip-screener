@@ -3104,6 +3104,15 @@ document.body.addEventListener('click', e => {
     case 'retryDetailBtn':
       loadStockDetail(state.stock, true);
       break;
+    case 'inspectCache':
+      inspectHistoryCache();
+      break;
+    case 'clearHistory':
+      inspectHistoryCache(true);
+      break;
+    case 'loadArchivedSample':
+      loadArchivedSample();
+      break;
     case 'exportLight':
       exportLight();
       break;

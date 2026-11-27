@@ -4,6 +4,8 @@
 """
 
 import csv
+from concurrent.futures import Future, ThreadPoolExecutor
+from market import SOURCES, parse_market
 import hashlib
 import io
 import json
@@ -255,10 +257,6 @@ def parse_month(raw_bytes: bytes, month: str, fetched: str, known: list[str]) ->
     }
 
 
-from concurrent.futures import Future, ThreadPoolExecutor
-from market import SOURCES, parse_market
-
-
 class LocalFeedService:
     def __init__(self, cache_dir: Path, base: dict):
         self.cache_dir = cache_dir
@@ -307,7 +305,10 @@ class LocalFeedService:
         target.parent.mkdir(parents=True, exist_ok=True)
         stage = target.with_suffix('.json.tmp')
         raw = json.dumps(value, ensure_ascii=False, separators=(',', ':'))
-        stage.write_text(raw, encoding='utf-8')
+        with stage.open('w', encoding='utf-8') as file:
+            file.write(raw)
+            file.flush()
+            os.fsync(file.fileno())
         os.replace(stage, target)
 
     def latest(self) -> str:
@@ -316,21 +317,33 @@ class LocalFeedService:
     def initial(self) -> dict:
         return {'weeks': self.weeks.copy(), 'months': self.months.copy(), 'market': self.market.copy(), 'notes': self.notes[:]}
 
-    def _check_week(self) -> tuple[dict | None, str]:
-        raw_bytes = download_url(TDCC_URL)
+    def _check_week(self, raw_bytes: bytes) -> tuple[dict | None, str]:
         week = parse_week(raw_bytes, self.base['universe'], taipei_now())
         latest_day = self.latest()
         day = week['day']
 
         if day < latest_day:
             raise ValueError(f'忽略舊回應 {day}，已保存 {latest_day}')
+        sessions = set(self.base['sessions'])
+        for record in self.months.values():
+            sessions.update(record['days'])
+        observed_day = date.fromisoformat(day)
+        end_of_week = observed_day + timedelta(days=4-observed_day.weekday())
+        verified_later_session = any(day < d <= end_of_week.isoformat() for d in sessions)
+        check(day in sessions and not verified_later_session, f'{day} 不是可確認的當週最後交易日')
+
         if day == latest_day:
             known_hash = (self.weeks.get(day, {}).get('quality', {}).get('sha256') or self.base['hashes'].get(day))
             previous = self.weeks.get(day)
             if previous and known_hash == week['quality']['sha256'] and 'extraRows' in previous:
-                return None, f'已是最新 {day}'
+                finished_weeks = [
+                    d for d in sessions if date.fromisoformat(d).weekday() == 4
+                ]
+                next_pending = max(finished_weeks, default='') > day
+                return None, f'新一期尚未發布（最新 {day}）' if next_pending else f'已是最新 {day}'
             if previous and known_hash != week['quality']['sha256']:
-                self._atomic_save('revisions', f'{day}-{known_hash}', previous)
+                revision = digest_bytes(json.dumps(previous, ensure_ascii=False).encode('utf-8'))
+                self._atomic_save('revisions', f'{day}-{revision}', previous)
 
         self._atomic_save('official', day, week)
         self.weeks[day] = week
@@ -382,19 +395,23 @@ class LocalFeedService:
         months, errors = {}, []
         week, message = None, ''
         with ThreadPoolExecutor(max_workers=6) as pool:
-            weekly = pool.submit(self._check_week)
+            weekly = pool.submit(download_url, TDCC_URL)
             calendar = pool.submit(self._check_calendar, months)
             jobs = {key: pool.submit(self._refresh_market, key) for key in SOURCES}
             try:
-                week, message = weekly.result()
+                calendar.result()
+            except Exception as exc:
+                errors.append(f'交易日曆：{exc}')
+            try:
+                week, message = self._check_week(weekly.result())
             except Exception as exc:
                 errors.append('集保更新失敗，保留上次資料：' + str(exc))
-            for key, task in [('交易日曆', calendar), *jobs.items()]:
+            for key, task in jobs.items():
                 try:
                     task.result()
                 except Exception as exc:
                     errors.append(f'{key}：{exc}')
-        status = '更新成功' if week else '已是最新'
+        status = '更新成功' if week else '新一期尚未發布' if message.startswith('新一期') else '已是最新'
         if errors:
             status = '更新失敗，已保留上次資料' if len(errors) == len(jobs)+2 else '部分成功'
         return {'weeks': {week['day']: week} if week else {}, 'months': months,
@@ -411,7 +428,7 @@ class DailyService:
     def __init__(self, cache_dir: Path, feed_service: LocalFeedService):
         self.cache_dir = cache_dir
         self.feed_service = feed_service
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def _fetch_finmind(self, dataset: str, code: str, start_date: str = '2024-01-01') -> list[dict]:
         qs = urllib.parse.urlencode({'dataset': dataset, 'data_id': code, 'start_date': start_date})
@@ -434,70 +451,100 @@ class DailyService:
             raise ValueError('請輸入有效四碼股票或 ETF 代號')
 
         cache_file = self.cache_dir / f'{code}.json'
-        if cache_file.exists():
-            try:
-                age = time.time() - cache_file.stat().st_mtime
-                if age < self.CACHE_TTL_SEC:
-                    return json.loads(cache_file.read_text(encoding='utf-8'))
-            except Exception:
-                pass
-
         with self._lock:
-            prices = self._fetch_finmind('TaiwanStockPrice', code)
-            if not prices:
-                raise ValueError(f'查無 {code} 的日行情資料')
+            cached = None
+            try:
+                candidate = json.loads(cache_file.read_bytes())
+                if candidate['code'] == code and candidate['bars']:
+                    cached = candidate
+                    if time.time() - cache_file.stat().st_mtime < self.CACHE_TTL_SEC:
+                        return cached
+            except (ValueError, OSError, KeyError, TypeError):
+                pass
+            try:
+                return self._download_daily(code, cache_file)
+            except (ValueError, OSError) as exc:
+                if cached:
+                    return {**cached, 'stale': True, 'warning': str(exc)}
+                raise
 
-            shares_rows = self._fetch_finmind('TaiwanStockShareholding', code)
-            issued_by_date: list[tuple[str, int, str]] = []
-            stock_name = ''
-            for r in shares_rows:
-                n = int(r.get('NumberOfSharesIssued') or 0)
-                if n > 0:
-                    issued_by_date.append((r['date'], n, r.get('stock_name') or ''))
-                    if not stock_name and r.get('stock_name'):
-                        stock_name = r['stock_name']
-            issued_by_date.sort(key=lambda x: x[0])
-
-            fallback_den = self._fallback_issued_shares(code)
-            bars = []
-            idx = 0
-            last_issued = issued_by_date[0][1] if issued_by_date else fallback_den
-
-            for p in prices:
-                d = p.get('date', '')
-                o = float(p.get('open') or 0)
-                h = float(p.get('max') or 0)
-                l = float(p.get('min') or 0)
-                c = float(p.get('close') or 0)
-                vol = int(p.get('Trading_Volume') or 0)
-
-                while idx < len(issued_by_date) and issued_by_date[idx][0] <= d:
-                    last_issued = issued_by_date[idx][1]
-                    idx += 1
-
-                issued = last_issued or fallback_den
-                if l <= 0 or h < l or c <= 0 or o <= 0 or vol < 0 or issued <= 0:
-                    continue
-                turnover = vol / issued
-                if turnover < 0 or turnover > 1:
-                    continue
-                bars.append([d, o, h, l, c, vol, issued, turnover, '', False])
-
-            if not bars:
-                raise ValueError(f'{code} 缺少有效日 K 或發行股數資料')
-
-            result = {
-                'code': code,
-                'name': stock_name,
-                'bars': bars,
-                'source': 'FinMind (TaiwanStockPrice + TaiwanStockShareholding)',
-                'fetched': taipei_now(),
+    def cache_info(self):
+        with self._lock:
+            files = [p for p in self.cache_dir.glob('*.json')
+                     if re.fullmatch(r'(?:\d{4}|00\d{2,4}[A-Z]?)', p.stem) and p.is_file() and not p.is_symlink()]
+            entries = [(p, p.stat()) for p in files]
+            return {
+                'path': str(self.cache_dir),
+                'bytes': sum(stat.st_size for _, stat in entries),
+                'count': len(entries),
+                'last': max((datetime.fromtimestamp(stat.st_mtime, TAIPEI_TZ).isoformat(timespec='seconds')
+                             for _, stat in entries), default=None),
+                'files': files,
             }
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            stage = cache_file.with_suffix('.json.tmp')
-            stage.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-            os.replace(stage, cache_file)
-            return result
+
+    def clear_cache(self):
+        with self._lock:
+            info = self.cache_info()
+            for path in info.pop('files'):
+                path.unlink()
+            return info
+
+    def _download_daily(self, code, cache_file):
+        prices = self._fetch_finmind('TaiwanStockPrice', code)
+        if not prices:
+            raise ValueError(f'查無 {code} 的日行情資料')
+
+        shares_rows = self._fetch_finmind('TaiwanStockShareholding', code)
+        issued_by_date: list[tuple[str, int, str]] = []
+        stock_name = ''
+        for r in shares_rows:
+            n = int(r.get('NumberOfSharesIssued') or 0)
+            if n > 0:
+                issued_by_date.append((r['date'], n, r.get('stock_name') or ''))
+                if not stock_name and r.get('stock_name'):
+                    stock_name = r['stock_name']
+        issued_by_date.sort(key=lambda x: x[0])
+
+        fallback_den = self._fallback_issued_shares(code)
+        bars = []
+        idx = 0
+        last_issued = issued_by_date[0][1] if issued_by_date else fallback_den
+
+        for p in prices:
+            d = p.get('date', '')
+            o = float(p.get('open') or 0)
+            h = float(p.get('max') or 0)
+            l = float(p.get('min') or 0)
+            c = float(p.get('close') or 0)
+            vol = int(p.get('Trading_Volume') or 0)
+
+            while idx < len(issued_by_date) and issued_by_date[idx][0] <= d:
+                last_issued = issued_by_date[idx][1]
+                idx += 1
+
+            issued = last_issued or fallback_den
+            if l <= 0 or h < l or c <= 0 or o <= 0 or vol < 0 or issued <= 0:
+                continue
+            turnover = vol / issued
+            if turnover < 0 or turnover > 1:
+                continue
+            bars.append([d, o, h, l, c, vol, issued, turnover, '', False])
+
+        if not bars:
+            raise ValueError(f'{code} 缺少有效日 K 或發行股數資料')
+
+        result = {
+            'code': code,
+            'name': stock_name,
+            'bars': bars,
+            'source': 'FinMind (TaiwanStockPrice + TaiwanStockShareholding)',
+            'fetched': taipei_now(),
+        }
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        stage = cache_file.with_suffix('.json.tmp')
+        stage.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+        os.replace(stage, cache_file)
+        return result
 
 
 def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPServer:
@@ -568,7 +615,16 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
             self.end_headers()
             self.wfile.write(body)
 
+        def local_request(self):
+            host_header = self.headers.get('Host')
+            if host_header not in {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}:
+                self._send_json(403, {'error': '請從本機股票雷達操作'})
+                return False
+            return True
+
         def do_GET(self) -> None:
+            if not self.local_request():
+                return
             parsed = urllib.parse.urlsplit(self.path)
             if parsed.path in ('/', '/dashboard.html', '/index.html'):
                 html = DASHBOARD_FILE.read_bytes()
@@ -607,11 +663,16 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
             if parsed.path == '/api/official/read':
                 self._send_json(200, service.initial())
                 return
+            if parsed.path == '/api/cache':
+                info = daily_service.cache_info()
+                info.pop('files')
+                self._send_json(200, {'history': info, 'root': str(app_data_root)})
+                return
             if parsed.path == '/api/daily':
                 params = urllib.parse.parse_qs(parsed.query)
                 code = (params.get('code') or [''])[0].strip().upper()
                 try:
-                    self._send_json(200, daily_service.get_detail(code) if hasattr(daily_service, 'get_detail') else daily_service.get_daily(code))
+                    self._send_json(200, daily_service.get_daily(code))
                 except Exception as exc:
                     self._send_json(400, {'error': str(exc)})
                 return
@@ -688,11 +749,22 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 return {}
 
         def do_POST(self) -> None:
+            if not self.local_request():
+                return
             origin = self.headers.get('Origin')
             if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get('Host'):
                 self._send_json(403, {'error': '請從本機股票雷達操作'})
                 return
             parsed = urllib.parse.urlsplit(self.path)
+            if parsed.path == '/api/cache/history/clear':
+                if self._read_json_body().get('confirm') is not True:
+                    self._send_json(400, {'error': '請先確認清除範圍'})
+                    return
+                try:
+                    self._send_json(200, daily_service.clear_cache())
+                except OSError as exc:
+                    self._send_json(500, {'error': str(exc)})
+                return
             if parsed.path == '/api/official/update':
                 try:
                     self._send_json(200, service.update())
@@ -886,10 +958,6 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                     self._send_json(200, st)
                 except Exception as exc:
                     self._send_json(500, {'error': str(exc)})
-                return
-            if parsed.path == '/api/software/restart':
-                updater_service.schedule_restart()
-                self._send_json(200, {'ok': True, 'restarting': True, 'message': '正在背景重啟本機服務...'})
                 return
             if parsed.path == '/api/quotes/live':
                 body = self._read_json_body()

@@ -36,6 +36,9 @@ function dataPage() {
     '</tbody></table></div>' +
     `<p class="footnote">資料版本：${D.run}。備份取得時間不是交易當下公布時間；原集保官方上架的精確時刻仍待證。</p>` +
     '</div>' +
+    '<div class="card"><h2>個股下載快取</h2><p id="cacheInfo">查詢快取占用與位置後可清除可重抓的日 K。</p>' +
+    '<button class="btn sm" id="inspectCache">查看快取範圍</button> ' +
+    '<button class="btn sm" id="clearHistory" hidden>清除個股下載快取</button></div>' +
     '<div class="section"><h2>匯入更多集保歷史資料</h2></div>' +
     '<div class="grid2">' +
     '<div class="card">' +

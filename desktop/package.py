@@ -2,6 +2,7 @@
 import hashlib
 import os
 from pathlib import Path
+import struct
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -33,7 +34,13 @@ def build():
                         '-Os', '-s', '-municode', '-Wl,--subsystem,windows',
                         '-lkernel32', '-luser32',
                         'launcher.c', '-o', str(launcher)], cwd=ROOT, check=True)
-        files['股票雷達.exe'] = launcher.read_bytes()
+        launcher_bytes = bytearray(launcher.read_bytes())
+        pe_header, = struct.unpack_from('<I', launcher_bytes, 0x3c)
+        if launcher_bytes[pe_header:pe_header+4] != b'PE\0\0':
+            raise ValueError('啟動器未產出 Windows PE')
+        # Zig's PE COFF TimeDateStamp otherwise varies across builds.
+        struct.pack_into('<I', launcher_bytes, pe_header + 8, 0)
+        files['股票雷達.exe'] = launcher_bytes
         files['股票雷達輕量版.html'] = (ROOT / 'light.html').read_text(encoding='utf-8').replace('__HOLDING_CHART__', (ROOT / 'src/renderer/components/holding-chart.js').read_text(encoding='utf-8')).encode('utf-8')
         for path in [ROOT / 'package.json', *sorted((ROOT / 'scripts').rglob('*.py')),
                      ROOT / 'scripts/release_meta.json', ROOT / 'build/dashboard.html',

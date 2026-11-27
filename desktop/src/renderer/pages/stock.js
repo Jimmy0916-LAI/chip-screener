@@ -376,6 +376,11 @@ function renderStockDetailMode(code, info) {
   );
 }
 
+function holdingDays() {
+  const days = state.manualWeek ? archiveDays() : dates();
+  return state.chartRange === 'recent' ? days.slice(-3) : days;
+}
+
 function stock() {
   const code = state.stock;
   const qName = state.watchlistQuotes?.[code]?.name;
@@ -450,7 +455,7 @@ function stock() {
     ).join('') +
     `<label><input type="checkbox" id="overlayK" ${state.overlayK?'checked':''}>疊加日 K</label>` +
     '</div>' +
-    holdingChart((state.chartRange === 'recent' ? archiveDays().slice(-3) : archiveDays()).map(d=>[d,D.series[d]?.[code] || null]), stockBars(code), chartBand, D.sessions, !!state.overlayK) +
+    holdingChart(holdingDays().map(d=>[d,D.series[d]?.[code] || null]), stockBars(code), chartBand, D.sessions, !!state.overlayK) +
     '<p class="footnote">選取級距僅改變圖表，並不修改實際選股策略。400 張含千張級距，不能把兩條線相加。</p>' +
     '</div>' +
     signalTable(code) +

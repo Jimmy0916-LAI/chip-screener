@@ -10,6 +10,7 @@ parser.add_argument('url')
 parser.add_argument('light', type=Path)
 parser.add_argument('output', type=Path)
 parser.add_argument('--chromium')
+parser.add_argument('--inline-html', action='store_true', help='Test document and File API when the runner blocks file://')
 args = parser.parse_args()
 args.output.mkdir(exist_ok=True, parents=True)
 with sync_playwright() as driver:
@@ -18,10 +19,13 @@ with sync_playwright() as driver:
     errors = []
     page.on('pageerror', lambda exc: errors.append(str(exc)))
     page.goto(args.url)
+    assert page.locator('#feedDay').inner_text() == '—'
     page.get_by_role('button', name='更新市場資料').click()
     page.wait_for_function("!document.querySelector('#refreshTDCC').disabled", timeout=150000)
     print('market', page.locator('#feedPanel').inner_text(), flush=True)
+    assert page.locator('#feedDay').inner_text() != '—', '集保官方更新未完成'
     page.screenshot(path=args.output / 'market.png')
+    page.get_by_role('button', name='載入封存研究樣本').click()
     with page.expect_download() as download:
         page.get_by_role('button', name='匯出輕量資料').click()
     path = args.output / 'snapshot.json'
@@ -37,7 +41,10 @@ with sync_playwright() as driver:
     page.screenshot(path=args.output / 'overlay.png')
     reader = browser.new_page()
     reader.on('pageerror', lambda exc: errors.append(str(exc)))
-    reader.goto(args.light.resolve().as_uri())
+    if args.inline_html:
+        reader.set_content(args.light.read_text(encoding='utf-8'))
+    else:
+        reader.goto(args.light.resolve().as_uri())
     reader.locator('#file').set_input_files(path)
     reader.locator('#results').wait_for()
     assert reader.locator('#stocks option').count() == len(snapshot['stocks'])

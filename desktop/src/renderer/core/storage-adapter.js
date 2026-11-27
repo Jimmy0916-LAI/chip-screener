@@ -25,7 +25,7 @@ function loadLocal(kind) {
 const configFile = loadLocal('settings');
 const snapshotFile = loadLocal('snapshot');
 let savedConfig;
-let savedWeeks = snapshotFile.value || {};
+let savedWeeks = snapshotFile.value || legacy('snapshot', {});
 
 function legacy(key, fallback) {
   try {
@@ -67,6 +67,7 @@ let { applied, draft, presets } = structuredClone(savedConfig);
 
 function persist(kind, value) {
   if (!hasDesktopStore) {
+    if (kind === 'snapshot') localStorage.setItem('chipscr_snapshot', JSON.stringify(value));
     if (kind === 'settings') {
       try {
         localStorage.setItem('chipscr_applied', JSON.stringify(value.applied));
@@ -121,6 +122,26 @@ function applyWeek(day, week) {
   for (const code of Object.keys(D.series[day])) {
     if (!D.stocks[code]) D.stocks[code] = [/^00/.test(code) ? 'ETF' : '名稱待證', '?'];
   }
+}
+
+const archivedSample = Object.fromEntries(
+  ['series', 'observed', 'quality', 'issues', 'adjustments', 'dates', 'daily2404'].map(key => [key, D[key]])
+);
+let sampleLoaded = false;
+for (const key of Object.keys(archivedSample)) {
+  D[key] = Array.isArray(archivedSample[key]) ? [] : {};
+}
+
+function loadArchivedSample() {
+  if (sampleLoaded) return;
+  sampleLoaded = true;
+  for (const key of ['series', 'observed', 'quality', 'issues', 'adjustments'])
+    D[key] = { ...archivedSample[key], ...D[key] };
+  D.dates = [...new Set([...D.dates, ...archivedSample.dates])].sort();
+  D.daily2404 = archivedSample.daily2404;
+  if (!D.dailyByCode['2404']?.length) D.dailyByCode['2404'] = D.daily2404;
+  if (!state.manualWeek) useDefaultWeek();
+  render();
 }
 
 for (const [day, week] of Object.entries(savedWeeks)) {

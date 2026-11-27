@@ -4,11 +4,7 @@
  * 支援 Electron (window.officialFeed) 與本機 Python 伺服器 (/api/official/*) 兩種執行環境。
  */
 
-const frozenDays = dates();
-const frozenLast = Object.keys(D.quality)
-  .filter(d => !Object.hasOwn(savedWeeks, d))
-  .sort()
-  .at(-1);
+const frozenLast = Object.keys(archivedSample.quality).sort().at(-1);
 
 const officialWeeks = {};
 const officialMonths = {};
@@ -45,7 +41,7 @@ function receiveOfficial(packet) {
 }
 
 function latestVerifiedDay() {
-  return [...frozenDays.filter(d => !Object.hasOwn(savedWeeks, d)), ...Object.keys(officialWeeks)]
+  return dates().filter(d => !Object.hasOwn(savedWeeks,d) || Object.hasOwn(officialWeeks,d))
     .sort()
     .at(-1);
 }
@@ -89,11 +85,12 @@ function feedPanel() {
     '<span class="feed-sep">|</span>' +
     `<span>最新已驗證統計日 <b id="feedDay">${esc(day || '—')}</b></span>` +
     `<span>目前篩選週 <b>${esc(state.win || '無可評估窗口')}</b></span>` +
-    `<span class="mini">行情交易日 ${esc(quoteDates)} · 上次集保成功 ${esc(last?.fetched || '內建封存資料')} · 最近檢查 ${esc(checkedAt || '—')}</span>` +
+    `<span class="mini">行情交易日 ${esc(quoteDates)} · 上次集保成功 ${esc(last?.fetched || '尚未下載')} · 最近檢查 ${esc(checkedAt || '—')}</span>` +
     '</div>' +
     `<button id="refreshTDCC" class="btn sm"${feedBusy ? ' disabled' : ''}>更新市場資料</button>` +
     '</div>' +
     '<button id="exportLight" class="btn sm">匯出輕量資料</button>' +
+    (sampleLoaded ? '' : '<button id="loadArchivedSample" class="btn sm">載入封存研究樣本</button>') +
     details +
     '</div>'
   );
