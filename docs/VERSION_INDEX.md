@@ -2,6 +2,14 @@
 
 快照日期：2026-11-27（Asia/Taipei）。按開發順序列出，不代表所有分支已合併。SHA 為整理前已核對的版本／分支檢查點；文件提交不變更產品 tag。
 
+## 最新封測
+
+| 版本 | 提交／範圍 | 下載與驗收 |
+| --- | --- | --- |
+| [v0.6.3-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.3-rc.1) | `7d0f59a0b7acd540ab23099438eedd4bea0418c6`。集保首更與快取保留、日 K 疊圖、Windows 雙入口、手動換版。 | [Windows x64 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/artifacts/15193938549) · [CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449) · [PR #13](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download)。獨立複驗已確認，Windows 11 x64 實機待補驗。 |
+
+內層 ZIP SHA-256 為 `77f213eb1b4784b343931440be90c0a41a2b0726a92dc58da43f1ad3de9de6d0`，到期時間為 2026-12-27 19:44:40 台北時間。交接見 [PROJECT_STATE](../PROJECT_STATE.md)。
+
 ## 01｜主線版本（由舊至新）
 
 | 批次 / 版本 | 分支 | 產品提交 / 版本標籤 | PR | 狀態與用途 |
@@ -47,7 +55,7 @@
 | 0.6.1 | [v0.6.1-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.1-archive/archives/v0.6.1) | JL 上傳原件，內部 Electron 套件標為 `0.6.0-b05.1` |
 | 0.6.2 | [v0.6.2-windows-x64](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-windows-x64/archives/v0.6.2) | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/raw/refs/tags/v0.6.2-windows-x64/archives/v0.6.2/ChipScreener-v0.6.2-Windows-x64.zip)，內含 Python 執行環境 |
 
-**下一次開發從 [`feat/v0.6.2-runtime-integration`](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration) 起步。** 分支以 B06.1 為基座，附上最新 Windows x64 ZIP 供整合。歷史上傳可從 [v0.6.2-full](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-full/archives/v0.6.2) 和 [v0.6.2-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-archive/archives/v0.6.2) 回溯。新 ZIP 的完整性、SHA-256 與內部版本已通過 [Actions 驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45947545481/job/140335601737)，Windows 執行待驗。
+v0.6.3 曾從 [`feat/v0.6.2-runtime-integration`](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration) 起步。分支以 B06.1 為基座，附上 v0.6.2 Windows x64 ZIP 供整合。歷史上傳可從 [v0.6.2-full](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-full/archives/v0.6.2) 和 [v0.6.2-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-archive/archives/v0.6.2) 回溯。該 ZIP 的完整性、SHA-256 與內部版本已通過 [Actions 驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45947545481/job/140335601737)。
 
 ## 04｜後續開發規劃
 
