@@ -1,8 +1,20 @@
 # 版本與分支索引
 
-快照日期：2026-11-27（Asia/Taipei）。按開發順序列出，不代表所有分支已合併。SHA 為整理前已核對的版本／分支檢查點；文件提交不變更產品 tag。
+快照日期：2026-11-28（Asia/Taipei）。按開發順序列出，不代表所有分支已合併。SHA 為整理前已核對的版本／分支檢查點；文件提交不變更產品 tag。
 
 ## 最新封測
+
+| 版本 | 程式提交 | 下載與驗收 |
+| --- | --- | --- |
+| [v0.6.5-rc.3](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) | `6e3657b27c843fcc4a25095781913309e4bc2fcc` · [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15) | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip) · [CI 與截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274)。Windows Server 2022 通過，Windows 11 x64 實機待驗。 |
+
+ZIP SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`。本次程式分支另接 PR #14。
+
+## 歷史封測
+
+[RC2 下載](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.2) 保留作為回溯。
+
+## 上一封測 v0.6.5-rc.1
 
 | 版本 | 提交／範圍 | 下載與驗收 |
 | --- | --- | --- |

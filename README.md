@@ -1,14 +1,18 @@
 # 籌碼雷達
 
-## [下載 Windows x64｜v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239)
+## [下載 Windows x64｜v0.6.5-rc.3](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip)
 
-1. 登入有此私庫權限的 GitHub 帳號，下載 Windows x64 ZIP。從 Actions 下載時，先取出內層的 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip`。
+1. 登入有此私庫權限的 GitHub 帳號，下載 Windows x64 ZIP。
 2. 把成品 ZIP **全部解壓**到新版本資料夾，保留 `resources`。
 3. 雙擊資料夾內的 **`股票雷達.exe`**。可用原 Windows 帳號和原瀏覽器設定檔讀取既有資料。若出現舊服務占用通知，先在舊版「軟體設定」按「停止本機服務」，再重開新版。
 
 同一資料夾附 `股票雷達輕量版.html`。版本、雜湊、測試與舊版見 [版本索引](docs/VERSION_INDEX.md) 和 [專案狀態](PROJECT_STATE.md)。
 
-## 上架與驗收紀錄｜v0.6.5-rc.1
+## 最新封測｜v0.6.5-rc.3
+
+集保個股歷史、左上角版本與雷達圖示、關閉最後一個桌面視窗後停止背景工作。[發布說明](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) · [成品 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274) · [左上角與集保圖表](docs/evidence/v0.6.5-rc.3-2330.png)。Windows 11 x64 實機待驗。
+
+## 歷史封測｜v0.6.5-rc.1
 
 可組合集保連續增持、日線 MACD 黃金交叉及前高突破，另存方案並匯出與畫面一致的 CSV。四家 AI 供應商可獨立保存模型與金鑰，支援每日晨報、影片策略卡和 AI 模擬操盤。雙入口與集保更新沿用既有架構。
 
@@ -69,4 +73,4 @@ CI 結果與連結：
 - [產品規格](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.2-windows-x64/PRODUCT_SPEC.md) · [開發路線圖](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.2-windows-x64/ROADMAP.md) · [主線開發 PR #7](https://github.com/Jimmy0916-LAI/chip-screener/pull/7) · [v0.6.2 整合分支](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration)
 - [JL 協作者分支（唯讀）](https://github.com/Jimmy0916-LAI/chip-screener/tree/b07/JL) · [Android 平行開發分支](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/android-mobile) · [原始研究 ZIP](chip-screener-phase1.zip)
 
-`main` 保存驗收導航與研究基線。產品下載以本頁列出的版本封存和測試產物為準。
+`main` 保存驗收導航與研究基線。Windows 封測成品請從本頁頂部下載。
