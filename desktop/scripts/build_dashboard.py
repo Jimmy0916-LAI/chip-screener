@@ -1,5 +1,6 @@
 """純 Python 模組化建置腳本：組裝 src/renderer/ 與凍結證據資料，產出 build/dashboard.html 與 data/feed-base.json。"""
 
+import base64
 import json
 from pathlib import Path
 from weekly_evidence import enrich
@@ -61,6 +62,22 @@ def build(
 
     base_data = json.loads((DATA_DIR / 'web_data.json').read_bytes())
     enriched = enrich(base_data, DATA_DIR / 'chip-screener-phase1.zip')
+    recovered = json.loads((DATA_DIR / 'verified-tdcc-2026-11-20.json').read_bytes())
+    week, trade_day = recovered['week'], recovered['tradeDay']
+    day = week['day']
+    assert day == trade_day and day not in enriched['series']
+    enriched['series'][day] = {**week['extraRows'], **week['rows']}
+    enriched['dates'] = sorted([*enriched['dates'], day])
+    enriched['sessions'] = sorted(set(enriched['sessions']) | {trade_day})
+    enriched['observed'][day] = week['observed']
+    enriched['quality'][day] = week['quality']
+    enriched['issues'][day] = week['issues']
+    enriched['adjustments'][day] = week['adjustments']
+
+    chart_history = DATA_DIR / 'tdcc-chart-history.json'
+    if chart_history.exists():
+        enriched['tdccChartHistory'] = json.loads(chart_history.read_bytes())
+
 
     pkg_file = ROOT / 'package.json'
     shell_ver = shell_version or '0.6.0-b05.1'
@@ -103,7 +120,7 @@ def build(
     feed_base = {
         'universe': enriched['universe'],
         'sessions': enriched['sessions'],
-        'hashes': {day: q['raw_source'] for day, q in enriched['quality'].items()},
+        'hashes': {day: q.get('sha256', q['raw_source']) for day, q in enriched['quality'].items()},
     }
     (DATA_DIR / 'feed-base.json').write_text(json.dumps(feed_base), encoding='utf-8')
 
@@ -113,8 +130,11 @@ def build(
     assert '__DATA_JSON__' in template
     assert '__APP_JS__' in template
 
+    icon = base64.b64encode((ROOT / 'assets' / 'radar.svg').read_bytes()).decode('ascii')
     html = (
         template
+        .replace('__RADAR_ICON__', 'data:image/svg+xml;base64,' + icon)
+        .replace('__APP_VERSION__', app_ver)
         .replace('__STYLES_CSS__', styles, 1)
         .replace('__DATA_JSON__', data_json, 1)
         .replace('__APP_JS__', bundled_js, 1)

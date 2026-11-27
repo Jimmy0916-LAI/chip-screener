@@ -3094,9 +3094,6 @@ document.body.addEventListener('click', e => {
     case 'clearHistory':
       inspectHistoryCache(true);
       break;
-    case 'loadArchivedSample':
-      loadArchivedSample();
-      break;
     case 'exportLight':
       exportLight();
       break;
@@ -3730,10 +3727,25 @@ useDefaultWeek();
 render();
 
 if (hasOfficialFeedBackend) {
-  setInterval(() => { if (Object.keys(officialWeeks).length) refreshTDCC(); }, 6 * 60 * 60 * 1000);
+  setInterval(() => { refreshTDCC(); }, 6 * 60 * 60 * 1000);
 }
 
 if (hasHttpFeed) {
+  const client = crypto.randomUUID();
+  const leaseBody = active => JSON.stringify({client, active});
+  const renewLease = () => fetch('/api/window/lease', {
+    method: 'POST', body: leaseBody(true), keepalive: true
+  }).catch(() => {});
+  renewLease();
+  const leaseTimer = setInterval(renewLease, 30000);
+  window.addEventListener('pagehide', () => {
+    clearInterval(leaseTimer);
+    navigator.sendBeacon('/api/window/lease', leaseBody(false));
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) location.reload();
+  });
+
   if (state.page === 'us_home') setTimeout(() => loadUsOverview(false), 120);
   setTimeout(() => loadBriefing('', true), 2600);
   setTimeout(() => loadWatchlist(true), 3200);

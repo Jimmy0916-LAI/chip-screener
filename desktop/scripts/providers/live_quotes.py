@@ -13,7 +13,7 @@ import re
 import threading
 import time
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
+from crawler_pool import CrawlerPool
 from datetime import date, datetime, time as dtime, timedelta, timezone
 from pathlib import Path
 
@@ -401,7 +401,7 @@ class LiveQuoteService:
 
         quotes: dict[str, dict] = {}
         if fetch_targets:
-            with ThreadPoolExecutor(max_workers=min(8, max(1, len(fetch_targets)))) as pool:
+            with CrawlerPool(max_workers=min(8, max(1, len(fetch_targets)))) as pool:
                 for sym, q in zip(fetch_targets, pool.map(self._fetch_one, fetch_targets)):
                     if not q:
                         continue

@@ -17,7 +17,7 @@ def weekly_csv(day, increment=0):
     for level in range(1, 18):
         shares = 150 + increment if level == 17 else 0 if level == 16 else 10 + (increment if level == 1 else 0)
         people = 15 if level == 17 else int(level < 16)
-        lines.append(f'{stamp},2404,{level},{people},{shares},0.00')
+        lines.append(f'{stamp},2330,{level},{people},{shares},0.00')
     return ('\n'.join(lines) + '\n').encode()
 
 
@@ -29,14 +29,14 @@ class FeedTest(unittest.TestCase):
         self.feed = service.LocalFeedService(root / 'weekly', {
             'hashes': {'2026-11-13':'a'*64},
             'sessions': ['2026-11-13', '2026-11-20'],
-            'universe': ['2404'],
+            'universe': ['2330'],
         })
 
     def test_same_hash_revision_and_older(self):
         day = '2026-11-20'
         first = weekly_csv(day)
         packet, _ = self.feed._check_week(first)
-        self.assertEqual(packet['rows']['2404'][0], 150)
+        self.assertEqual(packet['rows']['2330'][0], 150)
         path = Path(self.directory.name) / 'weekly' / 'official' / f'{day}.json'
         saved_bytes = path.read_bytes()
         self.assertIsNone(self.feed._check_week(first)[0])
@@ -50,7 +50,7 @@ class FeedTest(unittest.TestCase):
                 self.feed._check_week(weekly_csv(day, 5))
         self.assertEqual(self.feed.initial()['weeks'][day], packet)
         revised, _ = self.feed._check_week(weekly_csv(day, 5))
-        self.assertEqual(revised['rows']['2404'][0], 155)
+        self.assertEqual(revised['rows']['2330'][0], 155)
         self.assertEqual(len(list((path.parent.parent / 'revisions').glob('*.json'))), 1)
         reloaded = service.LocalFeedService(self.feed.cache_dir, self.feed.base)
         self.assertEqual(reloaded.initial()['weeks'][day], revised)
@@ -90,11 +90,29 @@ class FeedTest(unittest.TestCase):
                 self.assertIs(second.result(), expected)
             work.assert_called_once()
 
+    def test_window_leases_keep_other_windows_and_allow_reload(self):
+        now = [0]
+        leases = service.WindowLeases(lambda: now[0])
+        leases.update('first', True)
+        leases.update('second', True)
+        leases.update('first', False)
+        now[0] = 10
+        self.assertFalse(leases.expired())
+        leases.update('second', False)
+        now[0] = 12
+        self.assertFalse(leases.expired())
+        leases.update('replacement', True)
+        now[0] = 15
+        self.assertFalse(leases.expired())
+        leases.update('replacement', False)
+        now[0] = 20
+        self.assertTrue(leases.expired())
+
     def test_cache_clear_preserves_other_files(self):
         root = Path(self.directory.name)
         path = root / 'daily'
         path.mkdir()
-        (path / '2404.json').write_text('{}')
+        (path / '2330.json').write_text('{}')
         (path / 'unknown.json').write_text('{}')
         (root / 'watchlist.json').write_text('{}')
         daily = service.DailyService(path, self.feed)

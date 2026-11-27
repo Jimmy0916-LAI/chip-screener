@@ -1,0 +1,181 @@
+name: Windows v0.6.5 market screen and prerelease
+on:
+  pull_request:
+    branches: [feat/v0.6.5-signals-ai]
+    paths: ['desktop/**', '.github/workflows/v065-history.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      name: ${{ steps.package.outputs.name }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test desktop/qa/signal-engine.test.cjs
+      - run: python desktop/qa/feed_test.py
+      - run: python desktop/qa/ai_router_test.py
+      - name: Build the candidate twice and compare ZIP SHA-256
+        id: package
+        run: |
+          python -m pip install ziglang==0.13.0
+          export ZIG="$(python -c 'import ziglang,pathlib; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
+          version=$(python -c 'import json; print(json.load(open("desktop/package.json"))["version"])')
+          name="ChipScreener-v${version}-Windows-x64"
+          zip="desktop/dist/$name.zip"
+          python desktop/package.py
+          sha256sum "$zip" > "$RUNNER_TEMP/hash"
+          python desktop/package.py
+          sha256sum --check "$RUNNER_TEMP/hash"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(cut -d ' ' -f 1 "$RUNNER_TEMP/hash")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: desktop/dist/${{ steps.package.outputs.name }}.zip
+          if-no-files-found: error
+          retention-days: 30
+  windows:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.name }}
+          path: candidate
+      - name: Download the original RC3 baseline from Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.6.5-rc.3 -R $env:GITHUB_REPOSITORY -p 'ChipScreener-v0.6.5-rc.3-Windows-x64.zip' -D previous
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test the exact Windows ZIP and the previous candidate
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+          CANDIDATE_NAME: ${{ needs.build.outputs.name }}
+          CANDIDATE_SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP '候選 測試'
+          $old = Join-Path $env:RUNNER_TEMP '上一個候選'
+          $zip = "candidate/$env:CANDIDATE_NAME.zip"
+          $oldZip = 'previous/ChipScreener-v0.6.5-rc.3-Windows-x64.zip'
+          if ((Get-FileHash $zip).Hash -ne $env:CANDIDATE_SHA256) { throw 'Candidate ZIP SHA-256 mismatch' }
+          if ((Get-FileHash $oldZip).Hash -ne '8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b') { throw 'Previous ZIP SHA-256 mismatch' }
+          Write-Host ("Verified candidate ZIP SHA-256 " + $env:CANDIDATE_SHA256)
+          Expand-Archive -Path $zip -DestinationPath $out
+          Expand-Archive -Path $oldZip -DestinationPath $old
+          if (((Get-ChildItem $out).Name | Sort-Object) -join ',' -ne (('股票雷達.exe','股票雷達輕量版.html','resources' | Sort-Object) -join ',')) { throw 'ZIP layout' }
+          $info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $out '股票雷達.exe'))
+          if ($info.FileVersion -ne '0.6.5-rc.4' -or $info.ProductVersion -ne '0.6.5-rc.4') { throw 'EXE version resource mismatch' }
+          Add-Type -AssemblyName System.Drawing
+          $icon = [Drawing.Icon]::ExtractAssociatedIcon((Join-Path $out '股票雷達.exe'))
+          if ($null -eq $icon) { throw 'EXE missing icon' }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP '全新資料'
+          & (Join-Path $out 'resources/runtime-python/python.exe') -B -X utf8 desktop/qa/ai_router_test.py "$out/resources/scripts"
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged AI/DPAPI acceptance failed' }
+          python -m pip install playwright==1.56.0
+          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --old-exe "$old/股票雷達.exe" --version 0.6.5-rc.4 --old-version 0.6.5-rc.3 --v065 --history-fix --screen-fix --download "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.4" --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-Server-evidence
+          path: |
+            evidence/*.png
+            evidence/*.csv
+            evidence/*-data.json
+  release:
+    needs: [build, windows]
+    if: github.repository == 'Jimmy0916-LAI/chip-screener' && github.head_ref == 'fix/v0.6.5-tdcc-history-release' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.name }}
+          path: candidate
+      - name: Publish the tested ZIP to the private repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ZIP_BASENAME: ${{ needs.build.outputs.name }}
+          SHA: ${{ needs.build.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          tag=v0.6.5-rc.4
+          file="$ZIP_BASENAME.zip"
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = true
+          test "$ZIP_BASENAME" = "ChipScreener-v0.6.5-rc.4-Windows-x64"
+          printf '%s  %s\n' "$SHA" "$file" > candidate/SHA256SUMS.txt
+          (cd candidate && sha256sum -c SHA256SUMS.txt)
+          cat > notes.md <<'NOTES'
+          ## Windows x64 封測
+          下載 ZIP 與 SHA256SUMS.txt。登入有私庫權限的 GitHub 帳號，把 ZIP 全部解壓至新版本資料夾，保留 resources，再雙擊股票雷達.exe。舊版服務占用時，先在舊版的「軟體設定」選「停止本機服務」，再啟動新版。使用原 Windows 帳號和瀏覽器設定檔以沿用資料。
+          
+          - 兩種市場模式的側欄都有台股全市場篩選入口。首次離線直接用可追溯的集保及日曆基線，連續資料不足時保留上個可評估窗口。日 K 條件與集保分開說明覆蓋。
+          - B04.2 固定 2026-11-13 的 1,985 檔逐股對照通過，篩選 268 通過、1,692 不符合、25 資料不足。隨包 2026-11-20 另有 B05 官方取得證據，連線可追補最新一期。
+          - 通過 Windows Server 2022 乾淨離線、真實資料更新、全市場畫面與 CSV、台積電案例、重開與舊版升級。Windows 11 x64 實機待驗。
+          - [上一候選 RC3](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) 為使用者驗收失敗的問題基準，供回溯。
+          NOTES
+          printf '\n候選提交 `%s`。ZIP SHA-256 `%s`。\n\n[成品 CI 與截圖](%s/%s/actions/runs/%s)。\n' "$HEAD_SHA" "$SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> notes.md
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/fix/v0.6.5-tdcc-history-release" --jq .object.sha)" = "$HEAD_SHA"
+          ref="repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"
+          if ! gh api "$ref" --silent 2>/dev/null; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$HEAD_SHA" --silent
+          fi
+          test "$(gh api "$ref" --jq .object.sha)" = "$HEAD_SHA"
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" "candidate/$file" candidate/SHA256SUMS.txt --verify-tag --prerelease --latest=false --repo "$GITHUB_REPOSITORY" --title '籌碼雷達 v0.6.5-rc.4' --notes-file notes.md
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,isPrerelease,assets
+          gh release download "$tag" -R "$GITHUB_REPOSITORY" -D readback
+          (cd readback && sha256sum -c SHA256SUMS.txt)
+          cmp "candidate/$file" "readback/$file"
+  release_windows:
+    needs: [build, release]
+    runs-on: windows-2022
+    steps:
+      - name: Download the released ZIP and start the EXE from an extracted folder
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP_BASENAME: ${{ needs.build.outputs.name }}
+          SHA: ${{ needs.build.outputs.sha256 }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release download v0.6.5-rc.4 -R $env:GITHUB_REPOSITORY -p "$env:ZIP_BASENAME.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $zip = "$env:ZIP_BASENAME.zip"
+          if ((Get-FileHash $zip).Hash -ne $env:SHA) { throw 'Release hash mismatch' }
+          $folder = Join-Path $env:RUNNER_TEMP '解壓 啟動'
+          Expand-Archive -LiteralPath $zip -DestinationPath $folder
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Release全新帳號'
+          Start-Process -FilePath (Join-Path $folder '股票雷達.exe')
+          $health = $null
+          for ($i=0; $i -lt 30; $i++) {
+            try { $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18765/api/health' -TimeoutSec 2; break } catch { Start-Sleep 1 }
+          }
+          if (!$health -or $health.appVersion -ne '0.6.5-rc.4') { throw 'Released EXE health check failed' }
+          Write-Host "Release ZIP matched SHA-256 $env:SHA and the extracted EXE launched $($health.appVersion)"

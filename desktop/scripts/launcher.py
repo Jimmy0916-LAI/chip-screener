@@ -254,6 +254,9 @@ def main() -> None:
 
     
 
+    if args.portable and not args.no_open and hasattr(server, 'stop_with_windows'):
+        server.stop_with_windows = True
+
     if not args.no_open:
         def delayed_open():
             time.sleep(0.4)

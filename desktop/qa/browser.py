@@ -21,6 +21,8 @@ parser.add_argument('--chromium')
 parser.add_argument('--version', default='0.6.3-rc.1')
 parser.add_argument('--old-version', default='0.6.3')
 parser.add_argument('--download', default='https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download')
+parser.add_argument('--screen-fix', action='store_true')
+parser.add_argument('--history-fix', action='store_true')
 parser.add_argument('--v065', action='store_true', help='Exercise additional signal and AI settings on the candidate')
 parser.add_argument('--old-exe', type=Path, help='Run Windows upgrade and rollback from the previous ZIP')
 parser.add_argument('--inline-html', action='store_true', help='Test document and File API when the runner blocks file://')
@@ -103,7 +105,7 @@ def stop(page):
 
 def stock_summary(page, day, shares):
     go(page, 'stock')
-    expect(page.locator('#stockCode')).to_have_value('2404')
+    expect(page.locator('#stockCode')).to_have_value('2330')
     expect(page.locator('#stockTdccSummary')).to_contain_text(day)
     expect(page.locator('#daySelect')).to_have_value(day)
     expect(page.get_by_role('row').filter(has_text='400 張以上')).to_contain_text(f'{shares:,}')
@@ -153,7 +155,7 @@ def assert_user_data(page, day, week):
     expect(page.locator('[data-setting="minPp"]')).to_have_value('0.43')
     expect(page.get_by_text('換版驗收策略', exact=True)).to_be_visible()
     favorite = read_api('/api/watchlist')['config']['folders'][0]
-    assert any(item['code'] == '2404' for item in favorite['items']), favorite
+    assert any(item['code'] == '2330' for item in favorite['items']), favorite
     assert read_api('/api/official/read')['weeks'][day] == week
 
 
@@ -175,7 +177,7 @@ def verify_upgrade(context, page, day, week, errors):
     page.locator('.preset-dialog').get_by_role('button', name='儲存').click()
     favorite = read_api('/api/watchlist')['config']['folders'][0]
     response = page.request.post(args.url + '/api/watchlist/stock/add',
-                                 data={'folderId': favorite['id'], 'code': '2404'})
+                                 data={'folderId': favorite['id'], 'code': '2330'})
     assert response.ok
     assert_user_data(page, day, week)
     page.close()
@@ -191,10 +193,13 @@ def verify_upgrade(context, page, day, week, errors):
     page = open_app(context, errors)
     assert_user_data(page, day, week)
     go(page, 'watchlist')
-    expect(page.locator('#page')).to_contain_text('2404')
+    expect(page.locator('#page')).to_contain_text('2330')
     go(page, 'stock')
-    expect(page.locator('[data-quick-fav="2404"]')).to_contain_text('已收藏')
+    expect(page.locator('[data-quick-fav="2330"]')).to_contain_text('已收藏')
     page.screenshot(path=args.output / 'upgrade.png')
+    if args.screen_fix:
+        inspect_screen(page, args.output, 'rc4-upgraded-offline')
+        inventory(page, args.url, 'rc4-upgraded-offline', args.output)
     stop(page)
 
     rollback_pid = start(old, args.old_version, fail_network=True)
@@ -207,8 +212,40 @@ def verify_upgrade(context, page, day, week, errors):
     print('063-06 closed window, stopped old service, upgraded and rolled back: applied strategy, draft, preset, watchlist and TDCC cache preserved', flush=True)
 
 
+if args.screen_fix:
+    from market_screen_checks import inspect_screen, inventory
+    clean = os.environ['LOCALAPPDATA']
+    os.environ['LOCALAPPDATA'] = clean + '-rc3-repro'
+    start(args.old_exe, args.old_version, fail_network=True)
+    with sync_playwright() as driver:
+        baseline_browser = driver.chromium.launch(executable_path=args.chromium)
+        baseline_context = baseline_browser.new_context()
+        baseline = open_app(baseline_context, [])
+        baseline.evaluate("localStorage.setItem('chipscr_market_mode', 'US')")
+        baseline.reload()
+        expect(baseline.locator('#nav [data-nav=us_screen]')).to_be_visible()
+        assert baseline.locator('#nav [data-nav=screen]').count() == 0
+        baseline.locator('#brandMarketToggle').click()
+        expect(baseline.locator('#feedDay')).to_have_text('—')
+        inspect_screen(baseline, args.output, 'rc3-clean-offline', usable=False)
+        inventory(baseline, args.url, 'rc3-clean-offline', args.output)
+        stop(baseline)
+        start(args.old_exe, args.old_version)
+        baseline = open_app(baseline_context, [])
+        baseline.locator('#refreshTDCC').click()
+        expect(baseline.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
+        inspect_screen(baseline, args.output, 'rc3-live', usable=False)
+        inventory(baseline, args.url, 'rc3-live', args.output)
+        stop(baseline)
+        start(args.old_exe, args.old_version, fail_network=True)
+        baseline = open_app(baseline_context, [])
+        baseline.wait_for_function("Object.keys(officialWeeks).length === 1", timeout=20000)
+        inspect_screen(baseline, args.output, 'rc3-reopened', usable=False)
+        stop(baseline)
+    os.environ['LOCALAPPDATA'] = clean
+
 if args.old_exe:
-    start(new_exe, VERSION, shell=True)
+    start(new_exe, VERSION, fail_network=args.screen_fix, shell=not args.screen_fix)
 else:
     wait_health(VERSION)
 
@@ -218,33 +255,85 @@ with sync_playwright() as driver:
     errors = []
     page = open_app(context, errors)
     page.screenshot(path=args.output / 'startup.png')
-    assert page.locator('#feedDay').inner_text() == '—'
+    initial_day = '2026-11-20' if args.screen_fix else '—'
+    expect(page.locator('#feedDay')).to_have_text(initial_day)
+    if args.screen_fix:
+        page.evaluate("localStorage.setItem('chipscr_market_mode', 'US')")
+        page.reload()
+        expect(page.locator('#nav [data-nav=screen]')).to_contain_text('台股全市場篩選')
+        clean_result = inspect_screen(page, args.output, 'rc4-clean-offline')
+        assert clean_result['day'] == '2026-11-20'
+        assert [clean_result[k] for k in ('pass', 'fail', 'unknown')] == [301, 1662, 22]
+        inspect_screen(page, args.output, 'fixed-2026-11-13', expected_week='2026-11-13', fixed=True, all_pages=True)
+        inventory(page, args.url, 'rc4-clean-offline', args.output)
+        page.locator('#useDefaultWeek').click()
+    if args.history_fix:
+        from history_browser_checks import verify_history
+        expect(page.locator('#brandVersion')).to_have_text('籌碼雷達V' + VERSION)
+        expect(page.locator('link[rel=icon]')).to_have_attribute('href', page.locator('img.brand-mark').get_attribute('src'))
+        verify_history(page, args.output)
     for nav in ('screen', 'stock', 'backtest', 'peak', 'settings', 'data'):
         go(page, nav)
         assert page.locator('#page').inner_text().strip()
     go(page, 'home')
-    assert page.locator('#feedDay').inner_text() == '—'
-    print('063-10 seven existing pages open before first download', flush=True)
+    expect(page.locator('#feedDay')).to_have_text(initial_day)
+    print('063-10 seven existing pages open before first live download', flush=True)
 
-    page.locator('#refreshTDCC').click()
-    page.wait_for_function("!document.querySelector('#refreshTDCC').disabled", timeout=150000)
+    if args.screen_fix:
+        stop(page)
+        start(new_exe, VERSION)
+        page = open_app(context, errors)
+        expect(page.locator('#feedDay')).not_to_have_text(initial_day, timeout=150000)
+    else:
+        page.locator('#refreshTDCC').click()
+    expect(page.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
     print('market', page.locator('#feedPanel').inner_text(), flush=True)
     day = page.locator('#feedDay').inner_text()
     downloaded = read_api('/api/official/read')['weeks']
     assert list(downloaded) == [day], downloaded.keys()
     week = downloaded[day]
-    shares = week['rows']['2404'][3]
+    shares = week['rows']['2330'][3]
     assert week['quality']['raw_source'] == 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
     assert week['quality']['valid'] >= 1900 and shares > 0
     cache = Path(os.environ['LOCALAPPDATA']) / 'ChipScreener/tdcc-local-v1/official' / f'{day}.json'
     saved_sha = hashlib.sha256(cache.read_bytes()).hexdigest()
+    if args.history_fix:
+        # Downloading the same live statistics week must keep one persisted record.
+        page.locator('#refreshTDCC').click()
+        expect(page.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
+        repeated = read_api('/api/official/read')['weeks']
+        if list(repeated) == [day] and repeated[day]['quality']['sha256'] == week['quality']['sha256']:
+            assert hashlib.sha256(cache.read_bytes()).hexdigest() == saved_sha
+            print(f'Repeated official week {day}: one unchanged cached record', flush=True)
+        else:
+            assert day in repeated
+            print('Another validated statistics week or official revision arrived during retry', list(repeated), flush=True)
+
     stock_summary(page, day, shares)
-    expect(page.locator('#stockSignalAvailability')).to_contain_text('嚴格週訊號資料不足')
+    if args.screen_fix:
+        live = inspect_screen(page, args.output, 'rc4-live', all_pages=True)
+        assert live['day'] == day and day > '2026-11-20'
+        fallback = page.evaluate('''latest => {
+          const previous = D.series['2026-11-20'];
+          delete D.series['2026-11-20'];
+          try {
+            const selection = defaultStrictWeek(applied);
+            return {end: selection.end, latest: selection.skipped.find(item => item.end === latest)?.reason};
+          } finally {
+            D.series['2026-11-20'] = previous;
+          }
+        }''', day)
+        assert fallback == {'end':'2026-11-13', 'latest':'2026-11-20 缺週'}, fallback
+        print('A missing intervening week keeps the verified 11/13 window:', fallback, flush=True)
+        inventory(page, args.url, 'rc4-live', args.output)
+        go(page, 'stock')
+    else:
+        expect(page.locator('#stockSignalAvailability')).to_contain_text('嚴格週訊號資料不足')
     page.locator('#windowSelect').select_option(day)
     page.locator('#daySelect').select_option(day)
     expect(page.locator('#stockTdccSummary')).to_contain_text(day)
     page.screenshot(path=args.output / 'stock-first-week.png')
-    print(f"063-02 real TDCC: {day}, covered {week['quality']['valid']}, 2404 400-share-band {shares}, raw SHA-256 {week['quality']['sha256']}", flush=True)
+    print(f"063-02 real TDCC: {day}, covered {week['quality']['valid']}, 2330 400-share-band {shares}, raw SHA-256 {week['quality']['sha256']}", flush=True)
 
     if args.old_exe:
         stop(page)
@@ -256,7 +345,26 @@ with sync_playwright() as driver:
     stock_summary(page, day, shares)
     page.locator('#windowSelect').select_option(day)
     page.locator('#daySelect').select_option(day)
-    print('063-02 reopened 2404 and selected the official week manually', flush=True)
+    if args.history_fix:
+        page.reload()
+        expect(page.locator('#feedDay')).to_have_text(day)
+        verify_history(page, args.output, latest=day)
+        missing = page.evaluate('''day => {
+          const original = weekEnds.slice();
+          const index = weekEnds.indexOf(day);
+          if (index < 0) return null;
+          const prior = new Date(day + "T12:00:00Z");
+          prior.setUTCDate(prior.getUTCDate() - 1);
+          const partial = prior.toISOString().slice(0,10);
+          weekEnds[index] = partial;
+          try { return stockMissingWeeks(stockHistory('2330').map(point => point.day)).includes(partial); }
+          finally { weekEnds.splice(0, weekEnds.length, ...original); }
+        }''', day)
+        assert missing is False, missing
+        print('An incomplete calendar does not mark an existing statistics week as missing', flush=True)
+        page.locator('#daySelect').select_option(day)
+        stock_summary(page, day, shares)
+    print('063-02 reopened 2330 and selected the official week manually', flush=True)
     go(page, 'home')
     if args.old_exe:
         page.wait_for_function("document.querySelector('#feedStatus').textContent.includes('集保更新失敗，保留上次資料')",
@@ -267,27 +375,34 @@ with sync_playwright() as driver:
         page.screenshot(path=args.output / 'retained-week.png')
         print('063-03 blocked outbound proxy: update failed, first valid week and cache bytes retained', flush=True)
 
-    page.locator('#loadArchivedSample').click()
+    if args.screen_fix:
+        offline = inspect_screen(page, args.output, 'rc4-reopened-offline')
+        assert offline['csvSha256'] == live['csvSha256']
+    else:
+        page.locator('#loadArchivedSample').click()
     go(page, 'stock')
     page.locator('#windowSelect').select_option('2026-11-13')
     signal = page.locator('[data-signal-band="400"]')
-    expect(signal).to_contain_text('796,897 / 579,084')
+    expect(signal).to_contain_text('-37,973,336 / -10,706,718')
+    if args.screen_fix:
+        from history_browser_checks import seed_2330_overlay
+        seed_2330_overlay(page)
     page.locator('#overlayK').check()
     assert page.get_by_role('img', name='集保持股與日 K').locator('rect').count() >= 3
     page.screenshot(path=args.output / 'overlay.png')
     go(page, 'backtest')
     same = page.evaluate("""() => {
         const {a,b,rows} = comparison();
-        const row = rows.find(r => r.code === '2404');
+        const row = rows.find(r => r.code === '2330');
         return { end:[a.end,b.end], asOf:[a.asOf,b.asOf], dates:[a.dates,b.dates],
                  rows:rows.length, a:row.a.deltaShares, b:row.b.deltaShares, gain:row.a.gain };
     }""")
     assert same['end'] == ['2026-11-13'] * 2
     assert same['asOf'][0] == same['asOf'][1] and same['dates'][0] == same['dates'][1]
-    assert same['rows'] >= 1900 and same['a'] == same['b'] == [796897, 579084]
-    assert abs(same['gain'] - 0.721971163) < 1e-8
+    assert same['rows'] >= 1900 and same['a'] == same['b'] == [-37973336, -10706718]
+    assert abs(same['gain'] + 0.18771926312261655) < 1e-8
     page.screenshot(path=args.output / 'same-window-ab.png')
-    print('063-10 fixed 2404 and same-window A/B', same, flush=True)
+    print('063-10 fixed 2330 and same-window A/B', same, flush=True)
 
     go(page, 'home')
     with page.expect_download() as download:
@@ -308,12 +423,12 @@ with sync_playwright() as driver:
     reader.locator('#filter').select_option('pass')
     assert reader.locator('#stocks option').count() == sum(r['pass'] for r in snapshot['stocks'])
     reader.locator('#filter').select_option('all')
-    for code in ('2330', '2404', '6261'):
+    for code in ('2330', '6261'):
         reader.locator('#query').fill(code)
         assert reader.locator('#stocks').input_value() == code
         record = next(r for r in snapshot['stocks'] if r['code'] == code)
         assert record['name'] in reader.locator('#title').inner_text()
-    reader.locator('#query').fill('2404')
+    reader.locator('#query').fill('2330')
     selectors = ('#summary', '#title', '#chart', '#detail')
     before = [reader.locator(selector).inner_html() for selector in selectors]
     assert '開 ' in before[2]
@@ -333,7 +448,8 @@ with sync_playwright() as driver:
     go(page, 'software')
     expect(page.locator('#swCandidateDownload')).to_have_attribute('href', DOWNLOAD)
     expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('SHA-256')
-    expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('下載到期時間')
+    if not args.history_fix:
+        expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('下載到期時間')
     expect(page.locator('#swCandidateDownload')).to_contain_text(VERSION)
     page.screenshot(path=args.output / 'candidate-download.png')
     print('063-11 beta download and verification landing page', DOWNLOAD, flush=True)
@@ -344,3 +460,22 @@ with sync_playwright() as driver:
     if args.old_exe:
         verify_upgrade(context, page, day, week, errors)
     assert not errors, errors
+
+if args.history_fix and args.old_exe:
+    from history_browser_checks import close_native_dashboard
+    expected = '籌碼雷達V' + VERSION
+    close_native_dashboard(expected)
+    time.sleep(2)
+    pid = start(new_exe, VERSION, fail_network=True)
+    for _ in range(25):
+        if close_native_dashboard(expected):
+            break
+        time.sleep(1)
+    else:
+        raise AssertionError('Native dashboard window did not open')
+    wait_health(None)
+    # Closing the last UI must stop the packaged Python service, not only close its socket.
+    subprocess.run(['pwsh', '-NoProfile', '-Command',
+                    f'if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ exit 1 }}'], check=True)
+    print('Closing the last native window stopped its packaged Python service', flush=True)
+

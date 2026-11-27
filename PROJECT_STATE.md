@@ -1,5 +1,32 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5-rc.4｜恢復台股全市場篩選
+
+使用者拒收 RC3，凍結正式版與 v0.7。問題基準 [RC3](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) 程式 `6e3657b27c843fcc4a25095781913309e4bc2fcc`，ZIP SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`，續 [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15)。
+
+實際 ZIP 的瀏覽器與本機伺服器重現：乾淨離線 0 個嚴格快照，連線後只有 2026-11-27，兩者及舊快取重開均 1,985 檔不足。包內圖表僅 10/30、11/06、11/13，嚴格資料由 v0.6.3 `5a8c98f1a24549d380e5f049b79460fd42fac4ca` 起清空至使用者另選封存按鈕。美股模式同時隱藏台股篩選，既有本機市場偏好可重現。真實連線當時上市名單 1,092／行情 1,091（11/26），上櫃名單 899／行情 862（11/27），來源取得時間及缺口見 Windows 資料盤點。盤後一日價量不作為歷史日 K，個股策略日 K 快取初始 0 檔。
+
+啟動掛載原本已證的嚴格週，另外按 B05 的擷取日、交易日驗證與原檔 SHA-256 重建 11/20 的完整官方週。乾淨成品可離線評估；官方新增一期即重算，優先可評估窗口。台美股側欄都提供台股篩選。Source/CSV 的舊數字保留供歷史追溯；本輪以台積電 2330 作固定測試股，11/13 固定窗口 400 張線增減為 −37,973,336、−10,706,718 股，累計 −0.18771926312261655 pp。歷史記錄中的其他股票數值屬先前交付。
+
+驗收命令 `node --test desktop/qa/signal-engine.test.cjs`、`python -X utf8 desktop/qa/feed_test.py` 與 Windows 成品 `desktop/qa/browser.py --screen-fix --history-fix`。成品比較採 [B04.2 完整 CSV](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45007997573/artifacts/14748364432)，逐股核對日期、策略、判定、原因、增幅及來源時點。完成整包驗收後才發布 RC4，Windows 11 x64 實機待驗。
+
+
+## v0.6.5-rc.3｜舊日曆與新快照的缺週判定
+
+RC2 程式提交 `6e824d3a8ba0d9b4c00e9e55870d1dd50d60eb79`，Windows Server 2022 已驗兩檔 2026-10-30 至 11-20 四週、關窗停止、先前版升降版、漢唐和 A/B，見 [RC2 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054234686)。本機另用舊版快取重開，發現日曆僅到 11-19 時，即使已有 11-20 快照仍列偽缺週。RC3 改按統計週判斷，CI 加測同週重抓與舊日曆。現階段不進下一個產品版本。
+
+## v0.6.5-rc.2｜集保歷史檢查點
+
+RC1 產品標籤 `f72af65a8c87ab43c9923c4d948c17830a716ad6`，開工使用 PR #14 分支 `3636020df6e76dec80bc568eb59a689f3cbcae4d`（差異只有交接文件）。實際成品 SHA-256 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。包內有凍結資料；初始化清空樣本系列，整批來源每次只交付最新統計日。現有快取逐日保存，近期只有一份成功下載時只會畫一點。原凍結網頁中的 2330 部分週也缺有效級距對帳。
+
+新增 2026-10-30、11-06、11-13 共三期 TDCC 1-5 歷史封存的個股圖表資料。來源為政府資料開放授權第 1 版與 wirelessr 歷史備份；三期原始 SHA-256 與凍結來源一致。以 1–17 級核對原始統計日、股數、戶數和涵蓋範圍。公布時點待證的補登使用獨立圖表查詢，嚴格訊號、歷史時點重播及同窗 A/B 仍使用既有證據規則。保留使用者同日快取及後續修訂，原始封存可追溯。
+
+本機執行 `python -X utf8 desktop/qa/feed_test.py` 4 項與 `node --test desktop/qa/signal-engine.test.cjs` 8 項。封存重建指令為 `python desktop/qa/rebuild_tdcc_history.py <CSV目錄> <feed-base.json> 2026-11-28T02:59:52+08:00`。集保圖表檢查點提交 `ac809e0a6c08030d84292668ec2c6236dfdf2bb6`；調整交付的歷史種子至 11-13，11-20 由原官方增量路徑加入。
+
+關閉最後一個桌面畫面後，以視窗租約停止本機服務，停止背景工作並保護已提交的快取。系統首次啟動保留畫面開啟時限，切頁／重載保留短暫交接。使用新的多視窗測試重跑集保 5 項，AI 路由 5 項。生命週期檢查點 `beefaea5d6395ebe0ca8e0d384ddcefb73286277`。
+
+品牌版本來自產品版本設定，Windows EXE 內嵌同版資源字串及原創雷達圖示。[圖示原檔](desktop/assets/radar.svg)與瀏覽器分頁使用同一設計。CI 在 Windows Server 2022 從實際成品重現 RC1，驗 RC2 查詢、跨版快取、關閉視窗與現有回歸，通過後再把原成品發到私庫。Windows 11 x64 實機待驗。
+
 ## v0.6.5 B03｜Windows 封測候選交付
 
 [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) 指向 `f72af65a8c87ab43c9923c4d948c17830a716ad6`。內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip` 共 9,883,188 bytes，SHA-256 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。[私庫下載](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239) 到期 2026-12-28 00:57:36 台北時間。CI 連建兩次、Windows Runner 解壓前校驗、交付重新下載均得到相同 SHA-256。

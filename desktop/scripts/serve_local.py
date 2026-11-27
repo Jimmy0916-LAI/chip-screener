@@ -4,7 +4,8 @@
 """
 
 import csv
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
+from crawler_pool import CrawlerPool, closing
 from market import SOURCES, parse_market
 import hashlib
 import io
@@ -303,6 +304,8 @@ class LocalFeedService:
                     self.notes.append(f'{file.stem} 本機快取損毀略過')
 
     def _atomic_save(self, kind: str, key: str, value: dict) -> None:
+        if closing.is_set():
+            raise InterruptedError('籌碼雷達視窗已關閉')
         target = self._bucket_file(kind, key)
         target.parent.mkdir(parents=True, exist_ok=True)
         stage = target.with_suffix('.json.tmp')
@@ -396,7 +399,7 @@ class LocalFeedService:
     def _refresh(self):
         months, errors = {}, []
         week, message = None, ''
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with CrawlerPool(max_workers=6) as pool:
             weekly = pool.submit(download_url, TDCC_URL)
             calendar = pool.submit(self._check_calendar, months)
             jobs = {key: pool.submit(self._refresh_market, key) for key in SOURCES}
@@ -564,7 +567,32 @@ class DailyService:
         return result
 
 
+class WindowLeases:
+    """Track live dashboard documents and allow short reload/navigation gaps."""
+    def __init__(self, clock=time.monotonic):
+        self.clock = clock
+        self.lock = threading.Lock()
+        self.clients = {}
+        self.deadline = clock() + 90
+
+    def update(self, client, active):
+        with self.lock:
+            now = self.clock()
+            if active:
+                self.deadline = now + 4
+                self.clients[client] = now + 150
+            elif self.clients.pop(client, None) is not None:
+                self.deadline = now + 4
+
+    def expired(self):
+        with self.lock:
+            now = self.clock()
+            self.clients = {key: end for key, end in self.clients.items() if end > now}
+            return not self.clients and now >= self.deadline
+
+
 def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPServer:
+    leases = WindowLeases()
     base = json.loads(FEED_BASE_FILE.read_text(encoding='utf-8'))
     local_app_data = Path(os.environ.get('LOCALAPPDATA') or Path.home())
     app_data_root = local_app_data / 'ChipScreener'
@@ -780,11 +808,21 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 self._send_json(403, {'error': '請從本機股票雷達操作'})
                 return
             parsed = urllib.parse.urlsplit(self.path)
+            if parsed.path == '/api/window/lease':
+                body = self._read_json_body()
+                client, active = body.get('client'), body.get('active')
+                if origin != f"http://{self.headers.get('Host')}" or not isinstance(client, str) or not re.fullmatch('[a-f0-9-]{36}', client) or type(active) is not bool:
+                    self._send_json(400, {'error': '無效視窗識別'})
+                    return
+                leases.update(client, active)
+                self._send_json(200, {'active': active})
+                return
             if parsed.path == '/api/software/stop':
                 if origin != f"http://{self.headers.get('Host')}" or self._read_json_body().get('confirm') is not True:
                     self._send_json(403, {'error': '請從軟體設定確認停止服務'})
                     return
                 self._send_json(200, {'stopped': True})
+                closing.set()
                 self.server.shutdown()
                 return
             if parsed.path == '/api/cache/history/clear':
@@ -1019,6 +1057,13 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     class _ReusableThreadingHTTPServer(ThreadingHTTPServer):
         allow_reuse_address = os.name != 'nt'
         daemon_threads = True
+        stop_with_windows = False
+
+        def service_actions(self):
+            if self.stop_with_windows and leases.expired():
+                self.stop_with_windows = False
+                closing.set()
+                threading.Thread(target=self.shutdown, daemon=True).start()
 
         def server_bind(self):
             if os.name == 'nt':

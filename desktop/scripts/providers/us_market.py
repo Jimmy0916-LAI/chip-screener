@@ -18,7 +18,7 @@ import threading
 import time
 import urllib.error
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
+from crawler_pool import CrawlerPool, closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -745,8 +745,10 @@ class UsMarketService:
         batch_size = 36
 
         try:
-            with ThreadPoolExecutor(max_workers=12) as pool:
+            with CrawlerPool(max_workers=12) as pool:
                 for start in range(0, total, batch_size):
+                    if closing.is_set():
+                        return
                     chunk = universe[start : start + batch_size]
                     results = list(pool.map(self._scan_one_screener, chunk))
                     for item in results:
@@ -865,7 +867,7 @@ class UsMarketService:
                 'tradeTime': q['tradeTime'] if q else '',
             }
 
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with CrawlerPool(max_workers=6) as pool:
             indices = list(pool.map(fetch_idx, US_OVERVIEW_INDICES))
 
         scanning_now = False

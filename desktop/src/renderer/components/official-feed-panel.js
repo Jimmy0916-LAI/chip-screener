@@ -4,7 +4,7 @@
  * 支援 Electron (window.officialFeed) 與本機 Python 伺服器 (/api/official/*) 兩種執行環境。
  */
 
-const frozenLast = Object.keys(archivedSample.quality).sort().at(-1);
+const frozenLast = Object.keys(frozenWeeks).sort().at(-1);
 
 const officialWeeks = {};
 const officialMonths = {};
@@ -41,14 +41,14 @@ function receiveOfficial(packet) {
 }
 
 function latestVerifiedDay() {
-  return dates().filter(d => !Object.hasOwn(savedWeeks,d) || Object.hasOwn(officialWeeks,d))
+  return dates().filter(d => !Object.hasOwn(savedWeeks,d) || Object.hasOwn(officialWeeks,d) || Object.hasOwn(frozenWeeks,d))
     .sort()
     .at(-1);
 }
 
 function feedPanel() {
   const day = latestVerifiedDay();
-  const last = officialWeeks[day]?.quality;
+  const last = officialWeeks[day]?.quality || frozenWeeks[day];
   const gaps = weekEnds.filter(d => d > frozenLast && d < day && !D.observed[d]);
   const quoteDates = ['TWSE','TPEx'].map(v => v+' '+(exchangeMarket[v+'-day']?.day || '尚未下載')).join('／');
   const text = (feedBusy ? '檢查中' : feedStatus) + (feedMessage ? '｜' + feedMessage : '');
@@ -66,6 +66,15 @@ function feedPanel() {
     }
     for (const [d, w] of Object.entries(savedWeeks).sort()) {
       items.push(`<p>${esc(`${d}｜${w.quality.raw_source}｜手動快照，公布時點待證`)}</p>`);
+    }
+    for (const [d, w] of Object.entries(D.tdccChartHistory || {}).sort().reverse()) {
+      items.push(`<p>${esc(`${d}｜TDCC 1-5 歷史封存｜${Object.keys(w.rows).length} 檔｜公布時點待證，僅供個股圖表`)}<br><a href="${esc(w.source)}" target="_blank" rel="noopener">原始 CSV 封存</a> · <a href="${esc(w.license)}" target="_blank" rel="noopener">政府資料開放授權條款第 1 版</a><br>${esc(`取得 ${w.retrieved}｜SHA-256 ${w.sha256}`)}</p>`);
+    }
+    for (const [d, q] of Object.entries(frozenWeeks).sort().reverse()) {
+      items.push(`<p>${esc(d)}｜隨包可追溯集保｜${esc(q.valid)} 檔通過｜最早已知可用 ${esc(D.observed[d])}<br>${esc(q.sha256 || q.raw_source)}${q.evidence ? ` · <a href="${esc(q.evidence)}" target="_blank" rel="noopener">官方取得及日曆驗收紀錄</a>` : ''}</p>`);
+    }
+    for (const [key, data] of Object.entries(exchangeMarket)) {
+      items.push(`<p>${esc(key)}｜資料日 ${esc(data.day)}｜${Object.keys(data.rows || {}).length} 筆｜取得 ${esc(data.fetched)}｜${esc(data.source)}</p>`);
     }
     items.push(`<p>交易日曆截至 ${esc(D.sessions.at(-1))}（證交所實際成交日期）。</p>`);
     if (gaps.length) {
@@ -90,7 +99,6 @@ function feedPanel() {
     `<button id="refreshTDCC" class="btn sm"${feedBusy ? ' disabled' : ''}>更新市場資料</button>` +
     '</div>' +
     '<button id="exportLight" class="btn sm">匯出輕量資料</button>' +
-    (sampleLoaded ? '' : '<button id="loadArchivedSample" class="btn sm">載入封存研究樣本</button>') +
     details +
     '</div>'
   );
@@ -155,7 +163,8 @@ if (typeof window !== 'undefined' && window.officialFeed) {
       receiveOfficial(cached);
       if (cached.notes?.length) feedMessage = cached.notes.join('；');
       if (hadUpdates && !state.manualWeek) useDefaultWeek();
-      if (Object.keys(cached.weeks || {}).length) { feedStatus = '已載入上次驗證資料'; setTimeout(refreshTDCC,1500); }
+      if (Object.keys(cached.weeks || {}).length) feedStatus = '已載入上次驗證資料';
+      setTimeout(refreshTDCC,1500);
       if (hadUpdates) render();
       else paintFeed();
     })

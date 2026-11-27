@@ -17,7 +17,7 @@ function screen() {
 
   if (state.filter === 'pass') rows = rows.filter(r => r.pass);
   if (state.filter === 'unknown') rows = rows.filter(r => r.insufficient);
-  if (state.filter === 'miss') rows = rows.filter(r => !r.pass);
+  if (state.filter === 'miss') rows = rows.filter(r => !r.pass && !r.insufficient);
 
   rows.sort(
     state.sort === 'name'
@@ -34,12 +34,12 @@ function screen() {
 
   return (
     title(
-      '全市場籌碼篩選',
+      '台股全市場篩選',
       priceRules ? '依所選集保與個股日 K 條件篩選。' : '從集保原始股數計算。',
       '<button class="btn" data-nav="settings">⚙ 調整篩選參數</button>'
     ) +
     `<div class="notice">目前母體：${fmt(D.universe.length)} 檔候選股票。所選窗口可判定：${fmt(t.all - t.unknown)} 檔，資料不足：${fmt(t.unknown)} 檔。<b>注意：</b>來自 2026-11-13 的股票名單，未重建歷史逐日母體，也尚未逐檔完成公司行動核對；篩選通過僅代表算術條件符合。</div>` +
-    (priceRules ? signalCoverage(raw, cfg.signals, time) : '') +
+    (priceRules ? signalCoverage(raw, cfg.signals, time, t.all - tally(weeklyRows).unknown) : '') +
     '<div class="metricgrid">' +
     metric('符合現行條件', fmt(t.pass), priceRules ? '依所選條件組合' : '通過股數 + 比例 + 門檻', 'green') +
     metric('不符條件', fmt(t.all - t.pass - t.unknown), '明列原因') +
@@ -56,7 +56,7 @@ function screen() {
     `<select id="filterPass">` +
     `<option value="pass" ${state.filter === 'pass' ? 'selected' : ''}>只看通過</option>` +
     `<option value="all" ${state.filter === 'all' ? 'selected' : ''}>全部結果</option>` +
-    `<option value="miss" ${state.filter === 'miss' ? 'selected' : ''}>未通過／待證</option>` +
+    `<option value="miss" ${state.filter === 'miss' ? 'selected' : ''}>未通過</option>` +
     `<option value="unknown" ${state.filter === 'unknown' ? 'selected' : ''}>資料與條件待證</option>` +
     '</select>' +
     '<select id="sortBy">' +
@@ -132,7 +132,7 @@ function combinedSignalRow(row, strategy, time) {
   };
 }
 
-function signalCoverage(rows, strategy, time) {
+function signalCoverage(rows, strategy, time, holdingCoverage) {
   const counts = Object.fromEntries(strategy.enabled.map(id => [id, 0]));
   for (const row of rows) {
     for (const result of row.signals.conditions) {
@@ -143,9 +143,9 @@ function signalCoverage(rows, strategy, time) {
   return '<div class="card" id="signalCoverage">' +
     '<b>' + (strategy.mode === 'all' ? '全部符合' : '任一符合') + '</b>' +
     `<p>日 K 評估日 ${esc(time.day || '—')} · 截止時點 ${esc(time.asOf || '—')}</p>` +
-    `<p>可判定覆蓋 ${esc(summary)}。行情依本機快取，缺少有效日 K 的股票會標示資料不足。</p>` +
+    `<p>集保可判定 ${fmt(holdingCoverage)}／${fmt(rows.length)}；各條件覆蓋 ${esc(summary)}。日 K 條件依本機個股行情快取，缺少足夠日 K 時該條件標示資料不足。</p>` +
     (hasHttpFeed
-      ? '<label>股票代號 <input id="signalPriceCode" maxlength="4" inputmode="numeric" placeholder="2404"></label> ' +
+      ? '<label>股票代號 <input id="signalPriceCode" maxlength="4" inputmode="numeric" placeholder="2330"></label> ' +
         '<button id="loadSignalPrice" class="btn sm">讀取個股日 K</button>'
       : '') +
     '</div>';

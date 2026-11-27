@@ -3666,3 +3666,7 @@ tbody tr.clickable {
     max-width: 100%;
   }
 }
+
+.brand-switch .brand-mark, .brand-switch[data-market="US"] .brand-mark { background: none; }
+.brand-switch .brand-title-row { align-items: flex-start; flex-direction: column; gap: 3px; }
+.brand-switch #brandVersion { font-size: 14px; letter-spacing: 0; }
