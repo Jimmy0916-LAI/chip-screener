@@ -1,6 +1,16 @@
 # 台股籌碼雷達專案狀態
 
-## 最新封測 v0.6.5-rc.1
+## v0.6.5-rc.3｜集保歷史與 Windows 交付
+
+候選 `6e3657b27c843fcc4a25095781913309e4bc2fcc` · [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15) · [Release](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) · [下載 Windows x64](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip)。ZIP SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`。
+
+RC1 產品 Tag `f72af65a8c87ab43c9923c4d948c17830a716ad6`。新分支從 PR #14 上 `3636020df6e76dec80bc568eb59a689f3cbcae4d` 接續，產品檔案相同。查核時該分支與 main 比較為 43 個產品側提交、7 個 main 側提交，產品整合留於堆疊 PR。首頁由 [PR #16](https://github.com/Jimmy0916-LAI/chip-screener/pull/16) 獨立整合。
+
+個股圖表補入三個連續統計週（2026-10-30、11-06、11-13），另沿用官方新週與持久快取。三期原始 CSV 與封存 SHA-256 對帳，公布時點待證仍不進嚴格訊號。[成品驗收、截圖與 Release 回讀](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274)。本機命令為 `python -X utf8 desktop/qa/feed_test.py`、`node --test desktop/qa/signal-engine.test.cjs`、`python desktop/qa/ai_router_test.py`，Windows CI 使用 `desktop/qa/browser.py --history-fix`。
+
+Windows 11 x64 實機待驗。下次恢復執行 `git fetch origin --tags`、`git switch --detach v0.6.5-rc.3`，從 Release 下載 ZIP 並比對 SHA-256，再測實機啟動及換版。
+
+## 歷史封測 v0.6.5-rc.1
 
 候選 SHA `f72af65a8c87ab43c9923c4d948c17830a716ad6` · [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)。含多條件篩選、策略與 CSV，並接上 Gemini、DeepSeek、Claude、OpenAI 及三個可切換的 AI 模組。
 
