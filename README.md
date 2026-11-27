@@ -1,34 +1,42 @@
-# 台股籌碼雷達 | ChipScreener
+# stock-screenner｜台股籌碼雷達版本驗收
 
-Windows 11 離線優先的台股籌碼研究工具。此 README 為唯一專案導航入口；版本狀態不以 main 的原始 ZIP 或分支名稱推斷。
+這是台股籌碼雷達（ChipScreener）的 GitHub 驗收入口，用來核對另一個 AI 交付的版本、比對既有基準，並記錄 Windows 11 實機結果。
 
-## 01｜目前從哪裡開始
+**本次待驗版本：待指定。** 收到交付後，將版本、固定提交、下載連結及 SHA-256 填入下方驗收紀錄。
 
-| 項目 | 正確入口 |
-| --- | --- |
-| 最新主線測試成品 | [v0.6.0-b06.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b06.1) |
-| Windows 下載 | [B06.1 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45141840175/artifacts/14801579091)（有效期限 2026-12-23 16:54 台北時間） |
-| 主線開發 | [b06/market-overlay](https://github.com/Jimmy0916-LAI/chip-screener/tree/b06/market-overlay) · [PR #7](https://github.com/Jimmy0916-LAI/chip-screener/pull/7) |
-| 朋友 JL（獨立、禁止修改） | [b07/JL](https://github.com/Jimmy0916-LAI/chip-screener/tree/b07/JL) |
-| Android 平行線 | [feat/android-mobile](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/android-mobile) |
-| 版本與分支完整索引 | [VERSION_INDEX.md](https://github.com/Jimmy0916-LAI/chip-screener/blob/main/docs/VERSION_INDEX.md) |
-| AI 開發交接規則 | [AGENTS.md](https://github.com/Jimmy0916-LAI/chip-screener/blob/main/AGENTS.md) |
-| 外部 GitHub 資源知識庫 | [EXTERNAL_DATA_SOURCES_20261127.md](https://github.com/Jimmy0916-LAI/chip-screener/blob/main/docs/research/EXTERNAL_DATA_SOURCES_20261127.md) |
+## 下載與比對基準
 
-## 02｜閱讀順序
+| 版本 | 下載與證據 | 已知狀態 |
+| --- | --- | --- |
+| v0.6.2 Windows x64 封存 | [下載 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/raw/refs/tags/v0.6.2-windows-x64/archives/v0.6.2/ChipScreener-v0.6.2-Windows-x64.zip) · [封存標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-windows-x64/archives/v0.6.2) · [封存驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45947545481/job/140335601737) | ZIP 含 Python 執行環境，完整性、SHA-256 與內部版本已核對。Windows 執行待驗。 |
+| B06.1 主線測試基準 | [版本標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b06.1) · [下載 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45141840175/artifacts/14801579091) · [CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45141840175) | CI 已通過，Windows 11 完整實機待驗。ZIP 下載期限為 2026-12-23 16:54（台北時間）。 |
+| B05.1 已接受基準 | [版本標籤](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.0-b05.1) · [PR #6](https://github.com/Jimmy0916-LAI/chip-screener/pull/6) | 先前已由使用者接受，可比對集保更新與相關回歸。 |
 
-人類：README → 版本索引 → 需要的版本／下載連結。
-AI：AGENTS.md → 版本索引 → 目標分支的 PROJECT_STATE.md、PRODUCT_SPEC.md、ROADMAP.md → 本次相關程式／CI；涉及行情、集保、分點、籌碼峰時再讀外部資源知識庫。
+## Windows 11 x64 驗收清單
 
-## 03｜目前的版本狀態（2026-11-27）
+1. **核對交付。** 記錄候選版號、固定 commit SHA 或 tag、ZIP 下載連結與 ZIP SHA-256。若要測試安裝或資料升級，先備份現有測試資料。
+2. **離線啟動與介面。** 在 Windows 11 x64 解壓，以交付說明啟動。測試首次斷網開啟、七個既有頁面及移至含中文與空格的路徑後重開。核對是否符合免安裝單檔 EXE 規格。
+3. **資料保留與更新。** 驗證重開、移動或換版後的設定與本機資料，核對集保統計日與行情交易日。測試官方資料更新、部分來源失敗時沿用最近成功資料，以及相應的重試與復原。
+4. **選股與行情回歸。** 依本次變更範圍比對週篩選、同窗 A/B、日行情與自選股。有涉及集保運算時，用漢唐（2404）400 張級距基準核對兩週分別增加 796,897、579,084 股，合計 +0.721971163 個百分點。
+5. **記錄結果。** 針對同一份 ZIP 分別記錄 CI 和 Windows 11 實機結果。每項標為通過、未通過或待驗，附指令或操作步驟、預期與實際結果，以及可追溯的截圖或日誌。
 
-B06.1 是目前最新已標記的主線測試版本，GitHub Actions 四項工作流程成功；Windows 11 完整實機驗收仍待證，沒有正式 Release。B05.1 是使用者先前明確接受的版本。JL 與 Android 是平行開發，不因分支名較大而視作主線升級。
-v0.6.1 整合與 v0.7.0 籌碼峰／分點研究屬後續候選，尚未正式發布。
+## 驗收紀錄
 
-## 04｜資料來源與研究要求
+可將下列格式貼到候選版本的 PR 或 Issue，並把紀錄連結放回首頁。
 
-外部知識庫按 S/A/B 研究優先級登錄資料位置、實際檔案證據、用途、授權、缺陷與驗收步驟。不是已匯入或已驗收資料。禁止把受限制資料/API 金鑰推進共同 GitHub，禁止將缺值當零或以事後資料作歷史訊號。
+```text
+候選版本／commit SHA（或 tag）：
+下載連結／ZIP SHA-256：
+驗收日期／Windows 11 版本：
+CI 結果與連結：
+實機結果（通過／未通過／待驗）：
+未通過或待驗項目、重現步驟與證據：
+```
 
-## 05｜儲存庫說明
+## 規格與歷史
 
-main 暫為導航與原始研究基線，不是最新可建置產品。原 B01–B06 堆疊 PR 尚未正式合併；保留歷史 Git refs、既有標籤與 ZIP，待獨立驗收及批准後再統一主線。不要直接從 main 的舊 ZIP 重寫整個產品。
+- [版本與分支索引](docs/VERSION_INDEX.md) · [AI 交接規則](AGENTS.md) · [外部資料來源](docs/research/EXTERNAL_DATA_SOURCES_20261127.md)
+- [產品規格](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.2-windows-x64/PRODUCT_SPEC.md) · [開發路線圖](https://github.com/Jimmy0916-LAI/chip-screener/blob/v0.6.2-windows-x64/ROADMAP.md) · [主線開發 PR #7](https://github.com/Jimmy0916-LAI/chip-screener/pull/7) · [v0.6.2 整合分支](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration)
+- [JL 協作者分支（唯讀）](https://github.com/Jimmy0916-LAI/chip-screener/tree/b07/JL) · [Android 平行開發分支](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/android-mobile) · [原始研究 ZIP](chip-screener-phase1.zip)
+
+`main` 保存驗收導航與研究基線。產品下載以本頁列出的版本封存和測試產物為準。
