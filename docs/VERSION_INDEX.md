@@ -4,6 +4,14 @@
 
 ## 最新封測
 
+| 版本 | 完整程式提交 | 下載與驗收 |
+| --- | --- | --- |
+| [v0.6.5-rc.4](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.4) | `fe0a5fd4530ca83906f5ba2f28aef0f590cfe109` | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.4/ChipScreener-v0.6.5-rc.4-Windows-x64.zip) · [全市場 CSV](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46067740266/artifacts/15231513204)。Windows Server 2022 通過，Windows 11 實機待驗。 |
+
+ZIP SHA-256 `384a30beeb4b2fe5b99cd9f453fe3bcfb11f3d41c78623713d967e60fd8e81c3`。 [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15)。
+
+## 問題基準 v0.6.5-rc.3（使用者驗收未通過）
+
 | 版本 | 程式提交 | 下載與驗收 |
 | --- | --- | --- |
 | [v0.6.5-rc.3](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) | `6e3657b27c843fcc4a25095781913309e4bc2fcc` · [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15) | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip) · [CI 與截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274)。Windows Server 2022 通過，Windows 11 x64 實機待驗。 |
