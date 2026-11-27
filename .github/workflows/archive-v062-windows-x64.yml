@@ -1,0 +1,42 @@
+name: Archive the v0.6.2 Windows x64 upload
+on:
+  pull_request:
+    branches: [b06/market-overlay]
+    paths: ['.github/workflows/archive-v062-windows-x64.yml']
+permissions:
+  contents: write
+jobs:
+  archive:
+    if: github.head_ref == 'ops/archive-v0.6.2-windows-x64' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify the original ZIP and update the Windows download
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git worktree add --detach "$RUNNER_TEMP/windows" 17292f1b3c5f8b87dc69788868d8f1a32d3cb8c5
+          cd "$RUNNER_TEMP/windows"
+          dest='archives/v0.6.2/ChipScreener-v0.6.2-Windows-x64.zip'
+          cat "$GITHUB_WORKSPACE/archive-input-x64/part-01" "$GITHUB_WORKSPACE/archive-input-x64/part-02" > "$dest"
+          printf '%s  %s\n' '9e47199ff58d417f0e88b3a344212b998ef7facf95495b289598a519a3abc492' "$dest" | sha256sum -c -
+          unzip -tq "$dest"
+          python - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('archives/v0.6.2/ChipScreener-v0.6.2-Windows-x64.zip') as package:
+              root = 'ChipScreener-v0.6.2/'
+              assert json.loads(package.read(root + 'package.json'))['version'] == '0.6.2'
+              assert package.read(root + 'ChipScreener.exe')[:2] == b'MZ'
+              assert package.read(root + 'runtime-python/python.exe')[:2] == b'MZ'
+          PY
+          cp "$GITHUB_WORKSPACE/archive-input-x64/README.md" archives/README.md
+          git add -- "$dest" archives/README.md
+          git commit -m 'Use the latest v0.6.2 Windows x64 ZIP as the current download'
+          new=$(git rev-parse HEAD)
+          git push --atomic origin "$new:refs/tags/v0.6.2-windows-x64" "$new:refs/heads/feat/v0.6.2-runtime-integration"
+          git ls-remote origin refs/tags/v0.6.2-windows-x64 refs/heads/feat/v0.6.2-runtime-integration
