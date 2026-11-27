@@ -6,6 +6,14 @@
 
 | 版本 | 提交／範圍 | 下載與驗收 |
 | --- | --- | --- |
+| [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) | `f72af65a8c87ab43c9923c4d948c17830a716ad6`。多條件篩選、四家 AI、Windows 雙入口。 | [Windows x64 成品](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239) · [CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)。Windows Server 2022 通過，Windows 11 實機與獨立複驗待驗。 |
+
+內層 ZIP SHA-256 為 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`，於 2026-12-28 00:57:36 台北時間到期。
+
+## 上一封測
+
+| 版本 | 提交／範圍 | 下載與驗收 |
+| --- | --- | --- |
 | [v0.6.3-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.3-rc.1) | `7d0f59a0b7acd540ab23099438eedd4bea0418c6`。集保首更與快取保留、日 K 疊圖、Windows 雙入口、手動換版。 | [Windows x64 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/artifacts/15193938549) · [CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449) · [PR #13](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download)。獨立複驗已確認，Windows 11 x64 實機待補驗。 |
 
 內層 ZIP SHA-256 為 `77f213eb1b4784b343931440be90c0a41a2b0726a92dc58da43f1ad3de9de6d0`，到期時間為 2026-12-27 19:44:40 台北時間。交接見 [PROJECT_STATE](../PROJECT_STATE.md)。

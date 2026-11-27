@@ -2,7 +2,21 @@
 
 這是台股籌碼雷達（ChipScreener）的 GitHub 驗收入口，用來核對另一個 AI 交付的版本、比對既有基準，並記錄 Windows 11 實機結果。
 
-## 最新封測｜v0.6.3-rc.1
+## 最新封測｜v0.6.5-rc.1
+
+可組合集保連續增持、日線 MACD 黃金交叉及前高突破，另存方案並匯出與畫面一致的 CSV。四家 AI 供應商可獨立保存模型與金鑰，支援每日晨報、影片策略卡和 AI 模擬操盤。雙入口與集保更新沿用既有架構。
+
+| 項目 | 紀錄 |
+| --- | --- |
+| 封測 Tag／完整提交 | [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) · `f72af65a8c87ab43c9923c4d948c17830a716ad6` |
+| Windows x64 | [下載 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239)，取出內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip`。到期為 **2026-12-28 00:57:36 台北時間**。 |
+| 內層 ZIP SHA-256 | `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3` |
+| Windows Server 2022 | [成品 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623) 通過 · [操作截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219496482) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download) |
+| Windows 11 x64／獨立複驗 | 待實機與獨立複驗。四家付費 API 真實呼叫待驗，已用模擬回應測試。 |
+
+用有私庫權限的 GitHub 帳號下載，解壓至新的版本資料夾。若舊版背景服務仍在執行，先從軟體設定停止，再雙擊 `股票雷達.exe`。第一層亦有 `股票雷達輕量版.html` 和 `resources/`。
+
+## 上一封測｜v0.6.3-rc.1
 
 集保首更後即可查看個股週摘要，更新失敗保留上次成功資料。個股持股圖可疊加日 K，另附可離線匯入快照的輕量 HTML。軟體設定提供手動換版校驗入口，啟動器在舊服務占用時提示如何停止。
 

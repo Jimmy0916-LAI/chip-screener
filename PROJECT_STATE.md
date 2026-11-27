@@ -1,6 +1,14 @@
 # 台股籌碼雷達專案狀態
 
-## 最新封測 v0.6.3-rc.1
+## 最新封測 v0.6.5-rc.1
+
+候選 SHA `f72af65a8c87ab43c9923c4d948c17830a716ad6` · [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)。含多條件篩選、策略與 CSV，並接上 Gemini、DeepSeek、Claude、OpenAI 及三個可切換的 AI 模組。
+
+[Windows x64 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239) 於 2026-12-28 00:57:36 台北時間到期。內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip` 的 SHA-256 為 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。
+
+[Windows Server 2022 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623) 通過，使用同一份 ZIP 驗收雙入口、策略及自選換版、真實集保與失敗保留、漢唐固定算術、A/B 同窗、篩選與 AI 設定。四家 AI 模擬與 Windows DPAPI 檢查通過。Windows 11 實機、四家付費 API 實際呼叫、獨立複驗待驗。復核時執行 `git fetch origin --tags` 與 `git show -s v0.6.5-rc.1`。
+
+## 上一封測 v0.6.3-rc.1
 
 - 候選提交 `7d0f59a0b7acd540ab23099438eedd4bea0418c6`，遠端 [Tag v0.6.3-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.3-rc.1)。集保首更顯示、失敗保留、日 K 疊圖、雙入口與手動換版。
 - [Windows x64 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/artifacts/15193938549) 於 2026-12-27 19:44:40 台北時間到期。內層 `ChipScreener-v0.6.3-rc.1-Windows-x64.zip` 的 SHA-256 為 `77f213eb1b4784b343931440be90c0a41a2b0726a92dc58da43f1ad3de9de6d0`。
