@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import socket
 import threading
 import time
 import urllib.error
@@ -756,6 +757,13 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 self._send_json(403, {'error': '請從本機股票雷達操作'})
                 return
             parsed = urllib.parse.urlsplit(self.path)
+            if parsed.path == '/api/software/stop':
+                if origin != f"http://{self.headers.get('Host')}" or self._read_json_body().get('confirm') is not True:
+                    self._send_json(403, {'error': '請從軟體設定確認停止服務'})
+                    return
+                self._send_json(200, {'stopped': True})
+                self.server.shutdown()
+                return
             if parsed.path == '/api/cache/history/clear':
                 if self._read_json_body().get('confirm') is not True:
                     self._send_json(400, {'error': '請先確認清除範圍'})
@@ -974,8 +982,13 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
             pass
 
     class _ReusableThreadingHTTPServer(ThreadingHTTPServer):
-        allow_reuse_address = True
+        allow_reuse_address = os.name != 'nt'
         daemon_threads = True
+
+        def server_bind(self):
+            if os.name == 'nt':
+                self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            super().server_bind()
 
     server = _ReusableThreadingHTTPServer((host, port), Handler)
     updater_service.bind_server(server, port)

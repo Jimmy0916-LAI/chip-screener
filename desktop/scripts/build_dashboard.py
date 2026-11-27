@@ -71,19 +71,23 @@ def build(
     meta_file = ROOT / 'scripts' / 'release_meta.json'
     app_ver = app_version or shell_ver
     code_channel = channel or 'stable'
-    if (not app_version or not channel) and meta_file.exists():
+    candidate_download = ''
+    if meta_file.exists():
         try:
             rmeta = json.loads(meta_file.read_text(encoding='utf-8'))
             if not app_version:
                 app_ver = str(rmeta.get('appVersion') or app_ver)
             if not channel:
                 code_channel = str(rmeta.get('channel') or code_channel)
+            if app_ver == rmeta.get('appVersion'):
+                candidate_download = rmeta.get('candidateDownload') or ''
         except Exception:
             pass
     enriched['versionInfo'] = {
         'shellVersion': shell_ver,
         'appVersion': app_ver,
         'channel': code_channel,
+        'candidateDownload': candidate_download,
     }
 
     sp500_file = DATA_DIR / 'sp500_universe.json'

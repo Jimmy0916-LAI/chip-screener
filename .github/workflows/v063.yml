@@ -1,13 +1,17 @@
-name: Windows 0.6.3 candidate
+name: Windows v0.6.3 candidate
 on:
   pull_request:
     branches: [feat/v0.6.2-runtime-integration]
     paths: ['desktop/**', '.github/workflows/v063.yml']
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     runs-on: ubuntu-24.04
+    outputs:
+      name: ${{ steps.package.outputs.name }}
+      sha256: ${{ steps.package.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,17 +21,25 @@ jobs:
         with:
           python-version: '3.12'
       - run: python desktop/qa/feed_test.py
-      - run: |
+      - name: Build the candidate twice and compare ZIP SHA-256
+        id: package
+        run: |
           python -m pip install ziglang==0.13.0
           export ZIG="$(python -c 'import ziglang,pathlib; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
+          version=$(python -c 'import json; print(json.load(open("desktop/package.json"))["version"])')
+          name="ChipScreener-v${version}-Windows-x64"
+          zip="desktop/dist/$name.zip"
           python desktop/package.py
-          sha256sum desktop/dist/*.zip > "$RUNNER_TEMP/hash"
+          sha256sum "$zip" > "$RUNNER_TEMP/hash"
           python desktop/package.py
           sha256sum --check "$RUNNER_TEMP/hash"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(cut -d ' ' -f 1 "$RUNNER_TEMP/hash")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: ChipScreener-v0.6.3-Windows-x64
-          path: desktop/dist/*.zip
+          name: ${{ steps.package.outputs.name }}
+          path: desktop/dist/${{ steps.package.outputs.name }}.zip
+          if-no-files-found: error
           retention-days: 30
   windows:
     needs: build
@@ -40,33 +52,37 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          name: ChipScreener-v0.6.3-Windows-x64
+          name: ${{ needs.build.outputs.name }}
           path: candidate
+      - uses: actions/download-artifact@v4
+        with:
+          name: ChipScreener-v0.6.3-Windows-x64
+          run-id: 45978886068
+          github-token: ${{ github.token }}
+          path: previous
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - shell: pwsh
+      - name: Test the exact Windows ZIP and the previous candidate
+        shell: pwsh
         env:
           PYTHONUTF8: '1'
+          CANDIDATE_NAME: ${{ needs.build.outputs.name }}
+          CANDIDATE_SHA256: ${{ needs.build.outputs.sha256 }}
         run: |
           $out = Join-Path $env:RUNNER_TEMP '候選 測試'
-          Expand-Archive -Path candidate/*.zip -DestinationPath $out
-          if ((Get-ChildItem $out).Count -ne 3) { throw 'ZIP layout' }
+          $old = Join-Path $env:RUNNER_TEMP '上一個候選'
+          $zip = "candidate/$env:CANDIDATE_NAME.zip"
+          $oldZip = 'previous/ChipScreener-v0.6.3-Windows-x64.zip'
+          if ((Get-FileHash $zip).Hash -ne $env:CANDIDATE_SHA256) { throw 'Candidate ZIP SHA-256 mismatch' }
+          if ((Get-FileHash $oldZip).Hash -ne '02649178d3b791deee16a6c1acb5823ce31292555f3b414d8ec423dbe9632171') { throw 'Previous ZIP SHA-256 mismatch' }
+          Write-Host ("Verified candidate ZIP SHA-256 " + $env:CANDIDATE_SHA256)
+          Expand-Archive -Path $zip -DestinationPath $out
+          Expand-Archive -Path $oldZip -DestinationPath $old
+          if (((Get-ChildItem $out).Name | Sort-Object) -join ',' -ne (('股票雷達.exe','股票雷達輕量版.html','resources' | Sort-Object) -join ',')) { throw 'ZIP layout' }
           $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP '全新資料'
-          $clock = [Diagnostics.Stopwatch]::StartNew()
-          Start-Process (Join-Path $out '股票雷達.exe')
-          $ready = $false
-          for ($n=0; $n -lt 45; $n++) {
-            try { $ready = (Invoke-RestMethod http://127.0.0.1:18765/api/health).appVersion -eq '0.6.3' } catch {}
-            if ($ready) { break }
-            Start-Sleep 1
-          }
-          if (!$ready) { throw 'EXE did not start' }
-          Write-Host ('EXE local health ready in ' + $clock.Elapsed.TotalSeconds + ' seconds')
-          $bundled = Join-Path $out 'resources/runtime-python/pythonw.exe'
-          if (!(Get-Process pythonw -ErrorAction SilentlyContinue | Where-Object Path -eq $bundled)) { throw 'Bundled Python process missing' }
           python -m pip install playwright==1.56.0
-          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
+          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --old-exe "$old/股票雷達.exe" --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

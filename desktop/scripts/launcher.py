@@ -8,6 +8,7 @@
 """
 
 import argparse
+import errno
 import os
 import shutil
 import socket
@@ -52,16 +53,59 @@ def needs_rebuild() -> bool:
     return any(p.is_file() and p.stat().st_mtime > target_mtime for p in watch_files)
 
 
-def check_existing_server(host: str, port: int) -> bool:
+def existing_server_version(host: str, port: int) -> str | None:
     url = f'http://{host}:{port}/api/health'
     try:
-        with urllib.request.urlopen(url, timeout=1.2) as resp:
-            if resp.status == 200:
-                payload = json.loads(resp.read().decode('utf-8'))
-                return payload.get('app') == 'ChipScreener' and payload.get('appVersion') == '0.6.3'
-    except Exception:
+        direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with direct.open(url, timeout=1.2) as resp:
+            payload = json.load(resp)
+            if payload.get('app') == 'ChipScreener':
+                return payload.get('appVersion') or ''
+    except (OSError, ValueError, AttributeError):
+        pass
+    return None
+
+
+def port_is_listening(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except OSError:
         return False
-    return False
+
+
+def show_port_conflict(host: str, port: int, existing_version: str | None) -> None:
+    owner = ''
+    if os.name == 'nt':
+        netstat = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32' / 'netstat.exe'
+        try:
+            listing = subprocess.check_output(
+                [str(netstat), '-ano', '-p', 'tcp'], creationflags=subprocess.CREATE_NO_WINDOW,
+                text=True, errors='replace', timeout=4,
+            )
+            for row in listing.splitlines():
+                parts = row.split()
+                if (len(parts) >= 5 and parts[0] == 'TCP' and parts[1] in {f'{host}:{port}', f'0.0.0.0:{port}'}
+                        and parts[2].endswith(':0') and parts[-1].isdigit()):
+                    owner = f'（PID {parts[-1]}）'
+                    break
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    app = f'股票雷達 {existing_version}' if existing_version else '另一個本機服務'
+    message = (
+        f'{app}{owner}仍在使用 {host}:{port}。只關閉視窗不會停止背景服務。\n\n'
+        '1. 若舊版的「軟體設定」有「停止本機服務」，先在該處停止。\n'
+        f'2. 若沒有此按鈕，按 Ctrl+Shift+Esc 開啟工作管理員，進入「詳細資料」。'
+        f'找到占用連接埠的程序{owner}，確認為舊版股票雷達（pythonw.exe 的命令列含 scripts\\launcher.py）後，'
+        '選「結束工作」。若為其他應用程式，請從該程式結束。\n'
+        '3. 再雙擊要使用的版本。使用原本的 Windows 帳號及瀏覽器設定檔即可讀取原策略。'
+    )
+    if os.name == 'nt':
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(None, message, '股票雷達｜請先停止本機服務', 0x30)
+    else:
+        print(message, file=sys.stderr, flush=True)
 
 
 def pick_available_port(host: str, preferred: int, wait_release: bool = False) -> int:
@@ -141,6 +185,7 @@ def main() -> None:
     parser.add_argument('--port', type=int, default=DEFAULT_PORT, help='指定本機服務連接埠')
     parser.add_argument('--use-runtime', action='store_true', help='強制在開發環境中允許載入熱更 runtime 目錄（測試用）')
     parser.add_argument('--no-runtime', action='store_true', help='強制略過熱更 runtime 目錄並以安裝目錄啟動')
+    parser.add_argument('--portable', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     cli_override = True if args.use_runtime else (False if args.no_runtime else None)
@@ -166,7 +211,10 @@ def main() -> None:
     wait_release = os.environ.get('CHIP_WAIT_PORT_RELEASE') == '1'
 
     # 2. 若服務已運行，直接開啟畫面（重啟交接期間略過，避免誤連即將退出的舊行程）
-    if (not wait_release) and check_existing_server(DEFAULT_HOST, args.port):
+    active_root = runtime_root or ROOT
+    expected_version = updater.read_code_meta(active_root)['appVersion']
+    existing_version = None if wait_release else existing_server_version(DEFAULT_HOST, args.port)
+    if existing_version == expected_version:
         url = f'http://{DEFAULT_HOST}:{args.port}/dashboard.html'
         print(f'[2/3] 偵測到籌碼雷達服務已在運行：{url}', flush=True)
         if not args.no_open:
@@ -175,16 +223,24 @@ def main() -> None:
         return
 
     # 3. 啟動本機資料更新服務（含熱更失敗自動回滾）
-    port = pick_available_port(DEFAULT_HOST, args.port, wait_release=wait_release)
+    if args.portable and (existing_version is not None or port_is_listening(DEFAULT_HOST, args.port)):
+        show_port_conflict(DEFAULT_HOST, args.port, existing_version)
+        raise SystemExit(1)
+
+    port = args.port if args.portable else pick_available_port(DEFAULT_HOST, args.port, wait_release=wait_release)
     url = f'http://{DEFAULT_HOST}:{port}/dashboard.html'
     print(f'[2/3] 正在啟動本機服務與即時更新引擎（Port {port}）...', flush=True)
 
     os.environ['CHIP_RUNTIME_VERSION'] = runtime_ver
     server = None
-    active_root = runtime_root or ROOT
     try:
         server = _boot_server_from_root(active_root, DEFAULT_HOST, port)
     except Exception as exc:
+        if args.portable and isinstance(exc, OSError) and (
+            exc.errno == errno.EADDRINUSE or getattr(exc, 'winerror', None) in (10013, 10048)
+        ):
+            show_port_conflict(DEFAULT_HOST, port, existing_server_version(DEFAULT_HOST, port))
+            raise SystemExit(1) from exc
         if runtime_root is not None and runtime_ver:
             print(f'[WARN] 熱更版本 {runtime_ver} 啟動失敗（{exc}），執行自動回滾...', flush=True)
             fb_root, fb_ver = updater.record_boot_failure_and_rollback(app_data_dir, runtime_ver, str(exc))

@@ -386,13 +386,12 @@ function stock() {
   const qName = state.watchlistQuotes?.[code]?.name;
   const fallbackMkt = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(code) ? '待確認' : 'US';
   const info = D.stocks[code] || [qName || '未驗證股票名稱', fallbackMkt];
-  const ds = archiveDays().filter(day => D.series[day]?.[code]);
+  const ds = (state.manualWeek ? archiveDays() : dates()).filter(day => D.series[day]?.[code]);
   const latest = ds.at(-1);
   const chartBand = state.bands.length ? state.bands : [applied.band];
-  const rawDays = state.manualWeek ? ds : dates().filter(day => D.series[day]?.[code]);
 
-  if (!rawDays.includes(state.selectedDay)) {
-    state.selectedDay = rawDays.at(-1) || '';
+  if (!ds.includes(state.selectedDay)) {
+    state.selectedDay = latest || '';
   }
 
   const latest400 = vector(code, latest, '400');
@@ -423,7 +422,7 @@ function stock() {
     backStrip +
     title(
       `${modeLabel}｜${esc(code)} ${esc(info[0])}`,
-      `市場：${esc(info[1])}　·　目前可驗證集保快照 ${ds.length} 期　·　原始股數直接重算`,
+      `市場：${esc(info[1])}　·　目前集保快照 ${ds.length} 期　·　原始股數直接重算`,
       headerControls
     );
 
@@ -436,8 +435,8 @@ function stock() {
     (!ds.length
       ? '<div class="notice warn">沒有此股的集保原始資料；名稱可能來自舊市場名單。請在資料頁匯入可信集保 CSV。</div>'
       : '') +
-    '<div class="metricgrid">' +
-    metric('最後一次集保資料', latest || '—', '缺週時不拼接') +
+    '<div class="metricgrid" id="stockTdccSummary">' +
+    metric('最後一次集保資料', latest || '—', '依個股可讀快照顯示') +
     metric('400 張持股比例', latest400 ? fmt(latest400.pct, 3) + '%' : '—', '以最新快照的總股數為分母') +
     metric('總集保股數', fmt(latest400?.den), '股數／戶數分開追蹤') +
     metric('400 張戶數', fmt(latest400?.owner), '非持股人身分辨識') +
@@ -461,7 +460,7 @@ function stock() {
     signalTable(code) +
     '<div class="section"><h2>指定週原始股數（與訊號分開）</h2><span class="mini">股、張、人數、分母與公布證據分開顯示</span></div>' +
     '<div class="card">' +
-    `<div class="toolbar"><select id="daySelect" class="select">${rawDays.map(d => `<option value="${d}" ${d === state.selectedDay ? 'selected' : ''}>${d}</option>`).join('')}</select></div>` +
+    `<div class="toolbar"><select id="daySelect" class="select">${ds.map(d => `<option value="${d}" ${d === state.selectedDay ? 'selected' : ''}>${d}</option>`).join('')}</select></div>` +
     '<div class="tblwrap"><table><thead><tr><th>級距</th><th>占比 %</th><th>持有股數</th><th>持有張數</th><th>戶數</th><th>集保總股數</th></tr></thead><tbody>' +
     BAND_NAMES.map(b => {
       const v = vector(code, state.selectedDay, b);

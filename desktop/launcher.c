@@ -11,7 +11,7 @@ int WINAPI wWinMain(HINSTANCE current, HINSTANCE previous, PWSTR args, int show)
     lstrcatW(root, L"resources");
     lstrcpyW(python, root);
     lstrcatW(python, L"\\runtime-python\\pythonw.exe");
-    lstrcpyW(command, L"pythonw.exe -B -X utf8 scripts\\launcher.py --no-runtime");
+    lstrcpyW(command, L"pythonw.exe -B -X utf8 scripts\\launcher.py --portable --no-runtime");
     STARTUPINFOW si = {0};
     PROCESS_INFORMATION pi;
     si.cb = sizeof(si);

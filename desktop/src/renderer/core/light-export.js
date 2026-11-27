@@ -31,7 +31,7 @@ async function loadOverlayHistory(code) {
 function exportLight() {
   const days = state.manualWeek ? archiveDays() : dates();
   const snapshot = {
-    format:'chip-radar-light', version:1, created:new Date().toISOString(), end:state.win,
+    format:'chip-radar-light', version:1, created:new Date().toISOString(), end:days.includes(state.win) ? state.win : null,
     sessions:D.sessions, dates:days, sources:days.map(d=>[d,D.quality[d]?.raw_source||'來源待核']),
     market:Object.fromEntries(Object.entries(exchangeMarket).map(([k,v])=>[k,[v.day,v.source]])),
     coverage:{universe:D.universe.length, start:days[0]||null, end:days.at(-1)||null},

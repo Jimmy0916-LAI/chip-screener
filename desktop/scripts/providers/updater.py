@@ -497,6 +497,7 @@ class UpdaterService:
             'shellVersion': shell_ver,
             'appVersion': app_ver,
             'codeChannel': str(meta.get('channel') or 'stable'),
+            'candidateDownload': str(meta.get('candidateDownload') or ''),
             'builtAt': str(meta.get('builtAt') or ''),
             'changelog': [str(x).strip() for x in (meta.get('changelog') or []) if str(x).strip()],
             'usingRuntime': using_runtime,

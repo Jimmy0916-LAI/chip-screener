@@ -1,5 +1,6 @@
 """Build the Windows candidate using the pinned, verified 0.6.2 runtime."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import struct
@@ -14,6 +15,9 @@ PREFIX = 'ChipScreener-v0.6.2/'
 
 
 def build():
+    version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
+    if version != json.loads((ROOT / 'scripts/release_meta.json').read_text(encoding='utf-8'))['appVersion']:
+        raise ValueError('封裝與程式版本不符')
     if hashlib.sha256(BASE.read_bytes()).hexdigest() != '9e47199ff58d417f0e88b3a344212b998ef7facf95495b289598a519a3abc492':
         raise ValueError('0.6.2 封存 SHA-256 不符')
     dist = ROOT / 'dist'
@@ -46,7 +50,7 @@ def build():
                      ROOT / 'scripts/release_meta.json', ROOT / 'build/dashboard.html',
                      ROOT / 'data/feed-base.json', ROOT / 'data/web_data.json', ROOT / 'data/sp500_universe.json']:
             files['resources/' + path.relative_to(ROOT).as_posix()] = path.read_bytes()
-        output = dist / 'ChipScreener-v0.6.3-Windows-x64.zip'
+        output = dist / f'ChipScreener-v{version}-Windows-x64.zip'
         with ZipFile(output, 'w') as archive:
             for name, data in sorted(files.items()):
                 info = ZipInfo(name, (2026, 11, 27, 0, 0, 0))

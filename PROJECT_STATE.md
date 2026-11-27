@@ -4,6 +4,17 @@
 
 基準 2c4276368f3ee043ea17f1754f47fd444cee9c57。Windows 11 x64 實機與獨立驗收待驗。開發基準與成品入口詳見 README。
 
+### v0.6.3-rc.1 同版修正
+
+從既有候選 `256b78c3c59d336c5bb1d8e34a5da2d596e66b88` 接續 [PR #13](https://github.com/Jimmy0916-LAI/chip-screener/pull/13)。保留[上一候選 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45978886068/artifacts/15187643793)、[CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45978886068)及 PR 原驗收紀錄。上一候選內層 ZIP SHA-256 為 `02649178d3b791deee16a6c1acb5823ce31292555f3b414d8ec423dbe9632171`。
+
+- 063-02 個股摘要讀取可用集保快照，週訊號獨立顯示連續週不足。
+- 063-06 免安裝入口使用固定本機網址。舊背景服務佔用時提示如何在工作管理員停止，軟體設定另提供可供換版和回退使用的停止按鈕。
+- 063-07 輕量 HTML 核對日曆日期、順序、集保週欄位與快照範圍。匯入失敗保留原畫面。
+- 063-11 封測 ZIP、內層 SHA-256、到期與驗證證據在 [PR 封測下載與校驗頁](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download)。程式版號、封裝名稱與 CI 檢查同步。
+
+執行 `python desktop/qa/feed_test.py` 重跑固定集保案例。由 [CI 工作流程](.github/workflows/v063.yml) 對同一內層 ZIP 驗新舊版本切換、真實集保與失敗保留、七頁、漢唐固定股數及 A/B 同窗。Windows 11 x64 實機與獨立複驗待驗。恢復時先以 `git fetch origin --tags` 取得交付 Tag，再用 `git show -s v0.6.3-rc.1` 與 PR 的候選 SHA 和內層 ZIP 雜湊核對。
+
 **B04.2 已獲接受。B05 v0.6.0-b05.1 通過 Windows Server 2022 實際 ZIP 驗收。Windows 11 實機待驗，PR #6 待審。**
 
 [已確認產品規格](PRODUCT_SPEC.md) · [批次與完成條件](ROADMAP.md)

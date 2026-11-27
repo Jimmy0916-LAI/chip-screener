@@ -15,6 +15,10 @@ function softwarePage() {
 
   const appVer = ver.appVersion || '0.6.0-b05.1';
   const isBeta = cfg.channel === 'beta';
+  const candidateUrl = ver.candidateDownload || D.versionInfo?.candidateDownload;
+  const manualDownload = candidateUrl
+    ? `<p><a id="swCandidateDownload" href="${esc(candidateUrl)}" target="_blank" rel="noopener">開啟 ${esc(appVer)} 封測 ZIP 下載與校驗頁</a>。請用有私庫權限的 GitHub 帳號登入，頁內列出內層 ZIP 的 SHA-256 與下載到期時間。</p>`
+    : '<p><a href="https://github.com/Jimmy0916-LAI/chip-screener/releases" target="_blank" rel="noopener">開啟 GitHub 下載頁</a></p>';
   const liveEnabled = cfg.liveQuoteEnabled !== false;
   const liveInterval = Number(cfg.liveQuoteIntervalSec || 30);
 
@@ -107,7 +111,10 @@ function softwarePage() {
     '<div class="toolbar" style="margin-top:16px;margin-bottom:0">' +
     `<button type="button" class="btn main sm" id="swCheckUpdateBtn"${state.updateBusy ? ' disabled' : ''}>${state.updateBusy ? '檢查中...' : '檢查程式更新'}</button>` +
     '</div>' +
-    '<p><a href="https://github.com/Jimmy0916-LAI/chip-screener/releases" target="_blank" rel="noopener">開啟 GitHub 下載頁</a>。封測候選請用 README 的 ZIP，核對 SHA-256 後解壓到新資料夾，關閉舊程式再啟動新版。保留舊資料夾供回退。</p>' +
+    manualDownload +
+    (hasHttpFeed
+      ? '<p><button type="button" class="btn ghost sm" id="swStopLocalService">停止本機服務</button> 換版或回退時先停止服務，再雙擊要使用的版本。請保留舊版資料夾。</p>'
+      : '') +
     updateStatusHtml +
     currentNotesHtml +
     '</div>' +

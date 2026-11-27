@@ -2870,6 +2870,17 @@ document.body.addEventListener('click', e => {
     case 'swCheckUpdateBtn':
       checkForUpdates(false);
       break;
+    case 'swStopLocalService':
+      if (!confirm('停止後可以關閉此視窗，再雙擊要使用的版本。確定停止本機服務？')) break;
+      fetch('/api/software/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true })
+      }).then(response => {
+        if (!response.ok) throw Error('本機服務未能停止');
+        toast('本機服務已停止。請關閉此視窗，再開啟要使用的版本。');
+      }).catch(error => toast(error.message));
+      break;
     case 'swSaveGeminiKeyBtn': {
       const inp = $('#swGeminiKeyInput');
       const val = (inp?.value || '').trim();

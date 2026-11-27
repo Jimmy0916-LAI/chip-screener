@@ -92,6 +92,7 @@ function signalTable(code) {
     '<div class="section"><h2>所選窗口的週訊號</h2></div>' +
     '<div class="card">' +
     '<div class="toolbar">' + wndSelect() + '</div>' +
+    (ctx.issue ? `<p class="notice warn" id="stockSignalAvailability">嚴格週訊號資料不足（需 ${applied.weeks + 1} 期連續快照）｜${esc(ctx.issue)}</p>` : '') +
     `<p class="mini" style="margin-bottom:12px">${esc(ctx.dates.join(' → ') || '無完整連續交易週')}</p>` +
     '<div class="tblwrap"><table><thead><tr>' +
     '<th>級距</th><th>每週股數變動（股）</th><th>累計增幅（pp）</th><th>判定與原因</th><th>證據後首個開盤</th>' +
