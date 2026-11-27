@@ -52,3 +52,7 @@ manifest 的 runtime 檔名、838,349 bytes、雜湊和版號均相符。其更�
 | 065-A05 模擬操盤 | 核對決策理由、故障降級、設定限制與純模擬交易。 |
 
 在儲存庫根目錄執行 `node --test desktop/qa/signal-engine.test.cjs` 及 `python desktop/qa/feed_test.py`。付費金鑰的真實呼叫另列待驗。分點詳情依 [既有企劃](VERSION_PLAN_20261127.md)。
+
+## B03 候選驗收
+
+Windows Server 2022 對應 [同一交付 ZIP 的 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623)。065-S01～04 已由固定測試及 EXE 操作驗證。065-A01～05 的供應商、模型與開關已從 EXE 讀寫，四家和三個模組的成功與降級透過隨包 Windows Python 模擬回應驗證。Windows DPAPI、舊 Gemini 與停用後零 AI 外送均通過。付費 API 真實呼叫、Windows 11 x64 實機及獨立複驗待驗。分點 065-01～04 的覆蓋、對帳、續跑與權限仍待驗。 [操作截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219496482)

@@ -1,5 +1,17 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5 B03｜Windows 封測候選交付
+
+[v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) 指向 `f72af65a8c87ab43c9923c4d948c17830a716ad6`。內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip` 共 9,883,188 bytes，SHA-256 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。[私庫下載](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239) 到期 2026-12-28 00:57:36 台北時間。CI 連建兩次、Windows Runner 解壓前校驗、交付重新下載均得到相同 SHA-256。
+
+[Windows Server 2022 CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623) · [逐案日誌](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/job/140637994760) · [截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219496482) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)
+
+- 065-S01～04：8 項固定篩選測試。EXE 驗 OHLC 固定案例、全／任一、不同條件的資料不足、參數與命名方案重開、畫面與 CSV 相同。
+- 065-A01～05：EXE 驗四家模型、金鑰、總開關與三模組開關持久化，及晨報、影片策略卡、模擬操盤入口。5 項模擬套件從解壓後的 Windows Python 執行，涵蓋四家路由、舊 Gemini、Windows DPAPI、停用零 AI 外送與三入口故障降級。
+- 063 回歸：七頁、集保官方首更 2026-11-20／1,985 檔、重開及出站失敗保留，4 項固定測試通過。漢唐固定 796,897／579,084 股、+0.721971163 個百分點，A/B 同窗。雙入口、本機輕量版日期驗證、v0.6.3-rc.1 升降版策略、自選及快取保留均通過。
+
+Windows 11 x64 實機、付費 API 真實呼叫及獨立複驗待驗。分點 065-01～04 維持原規格與缺口。恢復時先跑 `git fetch origin --tags`、`git show -s v0.6.5-rc.1`，核對驗收卡的候選 SHA 及內層 ZIP SHA-256。建置／測試指令見 [.github/workflows/v065.yml](.github/workflows/v065.yml)。
+
 ## v0.6.5 B02｜篩選與 AI 入口
 
 [草稿 PR #14](https://github.com/Jimmy0916-LAI/chip-screener/pull/14) 從 B01 `01970586ed138e1292238ef749cf30888ab2b171` 接續。全市場篩選使用相同組合結果產出畫面與 CSV，策略套用、命名、載入與可讀的舊策略維持原儲存入口。日 K 依個股快取判定，提供逐檔補抓與可判定覆蓋。
