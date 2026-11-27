@@ -229,6 +229,8 @@ function renderStrategyCard(ch, s) {
     bulletsHtml +
     tickersHtml +
     condHtml +
+    renderAiStatus(s.ai) +
+    renderAiAnalysis(s.analysis, { catalysts: '催化劑', crossChecks: '影片與本機資料交叉核對', counterRisks: '反向風險' }) +
     presetHtml +
     '</article>'
   );
@@ -250,11 +252,6 @@ function channelsSubPage() {
   const list = state.channelsList || [];
   const selected = getSelectedChannel();
   const autoDaily = Boolean(cfg.autoDailyEnabled);
-  const hasGemini = Boolean(
-    cfg.hasGeminiKey || state.softwareState?.config?.hasGeminiKey || state.briefingConfig?.hasGeminiKey
-  );
-  const geminiHint =
-    cfg.geminiKeyHint || state.softwareState?.config?.geminiKeyHint || state.briefingConfig?.geminiKeyHint || '';
   const cooldownMin = Number(cfg.cooldownMinutes || 15);
   const maxMin = Number(cfg.maxVideoMinutes || 60);
   const maxMinChoices = [30, 60, 90, 120];
@@ -285,16 +282,11 @@ function channelsSubPage() {
     `<button type="button" class="btn main" id="chCheckAllBtn"${state.channelsChecking ? ' disabled' : ''}>${state.channelsChecking && !state.channelsCheckingId ? '檢查中...' : '↻ 檢查新片'}</button>` +
     '</div>';
 
-  const aiModeHtml = hasGemini
-    ? `<div class="ch-ai-bar"><div class="ch-ai-left">${badge('Gemini AI 已啟用' + (geminiHint ? ' · ' + geminiHint : ''), 'good')}<span class="mini">支援字幕 AI 萃取與無字幕影片音軌／硬字幕多模態解析 · 自動檢查冷卻 ${cooldownMin} 分鐘</span><button type="button" class="btn ghost sm" data-go-software-ai="1">管理金鑰</button></div>${maxMinSelectHtml}</div>`
-    : '<div class="ch-ai-bar">' +
-      '<div class="ch-ai-left">' +
-      badge('規則模式', '') +
-      '<span class="mini">規則模式（可於軟體設定填寫 Gemini Key 啟用音軌／硬字幕解析）</span>' +
-      '<button type="button" class="btn ghost sm" data-go-software-ai="1">前往軟體設定管理 Key →</button>' +
-      '</div>' +
-      maxMinSelectHtml +
-      '</div>';
+  const aiModeHtml = '<div class="ch-ai-bar"><div class="ch-ai-left">' +
+    renderAiStatus(cfg.ai) +
+    `<span class="mini">字幕可用時交由所選模型分析 · 自動檢查冷卻 ${cooldownMin} 分鐘</span>` +
+    '<button type="button" class="btn ghost sm" data-go-software-ai="1">管理 AI 設定</button>' +
+    '</div>' + maxMinSelectHtml + '</div>';
 
   const toolbarCard =
     '<div class="card ch-toolbar-card">' +
@@ -375,7 +367,6 @@ function channelsSubPage() {
       latestNotice =
         '<div class="notice warn" style="margin:12px 0 0">' +
         `<b>等待字幕中：</b>${esc(selected.statusMessage || '此最新影片尚未取得可用 CC 字幕；系統不以純標題捏造策略，將於下次檢查時自動重試。')}` +
-        (!hasGemini ? ' 若影片含口說或硬字幕，可至「軟體設定」填寫 Gemini API Key 啟用多模態解析。' : '') +
         '</div>';
     } else if (selected.status === 'skipped_non_finance') {
       latestNotice =

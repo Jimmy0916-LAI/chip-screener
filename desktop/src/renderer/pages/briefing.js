@@ -82,9 +82,6 @@ function briefingPage() {
     })
     .join('');
 
-  const hasGeminiKey = Boolean(cfg.hasGeminiKey || state.softwareState?.config?.hasGeminiKey);
-  const geminiKeyHint = cfg.geminiKeyHint || state.softwareState?.config?.geminiKeyHint || '';
-  const secretStorageMode = cfg.secretStorageMode || state.softwareState?.config?.secretStorageMode || '';
 
   const settingsPanel = state.briefingSettingsOpen
     ? '<div class="card" style="margin-bottom:18px">' +
@@ -99,9 +96,7 @@ function briefingPage() {
       '<label>AI 模型金鑰（共用設定）</label>' +
       '<div class="brief-ai-status">' +
       '<div class="sw-ai-badges">' +
-      (hasGeminiKey
-        ? badge('已設定 ' + geminiKeyHint, 'good') + (secretStorageMode ? badge(secretStorageMode, '') : '')
-        : badge('未設定（免 Key 規則彙整）', '')) +
+      renderAiStatus(cfg.ai) +
       '</div>' +
       '<button type="button" class="btn sm" data-go-software-ai="1">前往軟體設定管理 AI 金鑰 →</button>' +
       '</div>' +
@@ -195,6 +190,8 @@ function briefingPage() {
       '<div class="card" style="margin-bottom:18px">' +
       cardhead('一分鐘重點總結', `${esc(report.date)} 精簡摘要${topicInfo ? ' · ' + esc(topicInfo) : ''}`, badge(report.summaryMode, report.summaryMode.includes('AI') ? 'good' : '')) +
       `<ul class="brief-list">${summaryItems}</ul>` +
+      renderAiStatus(report.ai) +
+      renderAiAnalysis(report.analysis, { sectors: '族群輪動', watchPoints: '盤中驗證點', risks: '反向風險' }) +
       '</div>' +
       // 2. 台美股盤勢快照
       '<div class="section" style="margin-top:0"><h2>台美股盤勢快照</h2><span class="mini">台股紅漲綠跌 · 來源：Yahoo Finance</span></div>' +

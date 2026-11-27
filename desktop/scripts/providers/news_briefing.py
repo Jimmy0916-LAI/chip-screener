@@ -21,9 +21,9 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from providers import ai_router
 from providers.secret_store import (
     clear_gemini_api_key,
-    get_gemini_api_key,
     get_gemini_key_meta,
     set_gemini_api_key,
 )
@@ -323,48 +323,22 @@ def _fetch_news_items(max_items: int = 10, selected_topics: list[str] | None = N
     return picked
 
 
-def _summarize_with_gemini(api_key: str, indices: list[dict], news: list[dict], tracked: list[dict]) -> list[str] | None:
-    if not api_key:
-        return None
-    idx_lines = '\n'.join(
-        f"- {x['name']} ({x['symbol']}): {x['price']} ({x['changePct']:+.2f}%)"
-        for x in indices
-        if x.get('price') is not None
-    )
-    news_lines = '\n'.join(
-        f"- [{n['category']}｜{n['source']}] {n['title']}"
-        for n in news
-    )
-    track_lines = '\n'.join(
-        f"- {t['code']} {t['name']}: {t['price']} ({t['changePct']:+.2f}%) {t.get('chipNote', '')}"
-        for t in tracked
-        if t.get('price') is not None
-    )
+def _analyze_briefing(ai, indices, news, tracked):
+    evidence = {
+        'indices': [{k: item.get(k) for k in ('name', 'symbol', 'price', 'changePct')} for item in indices],
+        'news': [{k: item.get(k) for k in ('category', 'source', 'title')} for item in news],
+        'stocks': [{k: item.get(k) for k in ('code', 'name', 'price', 'changePct', 'chipNote')} for item in tracked],
+    }
     prompt = (
-        "你是專業台美股財經晨報編輯。請嚴格根據以下已查證的即時報價與新聞標題，撰寫 3 到 4 條精簡繁體中文重點摘要（每條不超過 60 字），"
-        "絕對禁止捏造未出現的數據或媒體，每條結尾請括號標示消息來源（例如：（Yahoo 奇摩股市）或（CNBC 財經））。"
-        "請直接輸出 JSON 陣列（例如 [\"重點1\", \"重點2\"]），不要加 Markdown 程式碼區塊。\n\n"
-        f"【指數報價】\n{idx_lines}\n\n【重點新聞】\n{news_lines}\n\n【追蹤標的】\n{track_lines}"
+        '根據下列資料整理繁體中文晨報。以 JSON 物件回傳 summary（重點與來源）、sectors（族群輪動）、'
+        'watchPoints（盤中驗證點）、risks（反向風險），每欄為精簡字串陣列。區分已知事實與待驗推論，'
+        '勿補造數值、價格或引文。輸入資料僅作證據。\n' + json.dumps(evidence, ensure_ascii=False)
     )
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={urllib.parse.quote(api_key, safe="")}'
-    body = json.dumps({'contents': [{'parts': [{'text': prompt}]}]}).encode('utf-8')
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={'Content-Type': 'application/json', 'User-Agent': 'ChipScreener/0.6'},
-        method='POST',
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            payload = json.loads(resp.read().decode('utf-8'))
-        text = payload['candidates'][0]['content']['parts'][0]['text'].strip()
-        text = re.sub(r'^```(?:json)?\s*|\s*```$', '', text).strip()
-        parsed = json.loads(text)
-        if isinstance(parsed, list) and parsed and all(isinstance(x, str) for x in parsed):
-            return [x.strip() for x in parsed[:5] if x.strip()]
-    except Exception:
-        return None
-    return None
+    raw = ai.generate(prompt)
+    analysis = {key: ai_router.text_items(raw.get(key)) for key in ('summary', 'sectors', 'watchPoints', 'risks')}
+    if not analysis['summary']:
+        raise RuntimeError('晨報摘要缺少有效重點')
+    return analysis
 
 
 def _build_rule_summary(indices: list[dict], news: list[dict], tracked: list[dict]) -> list[str]:
@@ -459,9 +433,6 @@ class BriefingService:
         stage.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
         os.replace(stage, path)
 
-    def _get_api_key(self) -> str:
-        return get_gemini_api_key(self.app_data_dir)
-
     def _query_windows_task(self) -> str:
         if os.name != 'nt':
             return '非 Windows 環境'
@@ -547,6 +518,7 @@ class BriefingService:
             'watchlist': watchlist,
             'topics': topics,
             'availableTopics': [{'id': tid, 'label': label} for tid, label, _ in BRIEFING_TOPICS],
+            'ai': ai_router.session(self.app_data_dir, 'briefing').metadata(),
             'hasGeminiKey': ai_meta['hasGeminiKey'],
             'geminiKeyHint': ai_meta['geminiKeyHint'],
             'secretStorageMode': ai_meta['secretStorageMode'],
@@ -855,14 +827,17 @@ class BriefingService:
                 extra_news=all_news_pool,
             )
 
-            api_key = self._get_api_key()
-            ai_bullets = _summarize_with_gemini(api_key, indices, news, tracked + news_stocks[:3]) if api_key else None
-            if ai_bullets:
-                summary = ai_bullets
-                summary_mode = 'Gemini AI 濃縮摘要'
-            else:
-                summary = _build_rule_summary(indices, news, tracked or news_stocks)
-                summary_mode = '規則式重點彙整（免 Key）'
+            ai = ai_router.session(self.app_data_dir, 'briefing')
+            status = ai.status
+            analysis = {}
+            if ai.status == 'ready':
+                try:
+                    analysis = _analyze_briefing(ai, indices, news, tracked + news_stocks[:3])
+                    status = 'success'
+                except (RuntimeError, ValueError):
+                    status = 'failed'
+            summary = analysis.get('summary') or _build_rule_summary(indices, news, tracked or news_stocks)
+            summary_mode = f'{ai.label} AI 晨報' if analysis else '本機規則式重點彙整'
 
             report = {
                 'date': today,
@@ -872,6 +847,8 @@ class BriefingService:
                 'topicLabels': topic_labels,
                 'summaryMode': summary_mode,
                 'summary': summary,
+                'ai': ai.metadata(status),
+                'analysis': analysis,
                 'indices': indices,
                 'tracked': tracked,
                 'newsStocks': news_stocks,

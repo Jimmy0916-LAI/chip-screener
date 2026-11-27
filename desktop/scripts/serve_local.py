@@ -30,6 +30,7 @@ FEED_BASE_FILE = INSTALL_ROOT / 'data' / 'feed-base.json'
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+from providers import ai_router
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
 from providers.watchlist import WatchlistService
@@ -469,6 +470,21 @@ class DailyService:
                     return {**cached, 'stale': True, 'warning': str(exc)}
                 raise
 
+    def screening_prices(self):
+        prices = {}
+        with self._lock:
+            for path in self.cache_info()['files']:
+                try:
+                    item = json.loads(path.read_bytes())
+                    if item['code'] == path.stem and isinstance(item['bars'], list):
+                        prices[path.stem] = {
+                            'bars': [bar[:5] for bar in item['bars'] if isinstance(bar, list)],
+                            'fetched': item.get('fetched'),
+                        }
+                except (OSError, ValueError, KeyError, TypeError):
+                    continue
+        return prices
+
     def cache_info(self):
         with self._lock:
             files = [p for p in self.cache_dir.glob('*.json')
@@ -584,7 +600,7 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     )
     updater_service = UpdaterService(app_data_root, INSTALL_ROOT, ROOT)
     live_quote_service = LiveQuoteService(stock_names=stock_names)
-    channel_service = ChannelService(app_data_root, INSTALL_ROOT, stock_names=stock_names)
+    channel_service = ChannelService(app_data_root, INSTALL_ROOT, stock_names=stock_names, feed_service=service)
     paper_service = PaperTradingService(
         app_data_root,
         INSTALL_ROOT,
@@ -648,8 +664,12 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                     'usingRuntime': v_info['usingRuntime'],
                 })
                 return
+            if parsed.path == '/api/software/ai':
+                self._send_json(200, ai_router.public_state(app_data_root))
+                return
             if parsed.path == '/api/software/state':
                 st = updater_service.get_state()
+                st['ai'] = ai_router.public_state(app_data_root)
                 st['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
                 self._send_json(200, st)
                 return
@@ -668,6 +688,9 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 info = daily_service.cache_info()
                 info.pop('files')
                 self._send_json(200, {'history': info, 'root': str(app_data_root)})
+                return
+            if parsed.path == '/api/signals/prices':
+                self._send_json(200, daily_service.screening_prices())
                 return
             if parsed.path == '/api/daily':
                 params = urllib.parse.parse_qs(parsed.query)
@@ -921,10 +944,22 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 except Exception as exc:
                     self._send_json(500, {'error': str(exc)})
                 return
+            if parsed.path == '/api/software/ai':
+                if origin != f"http://{self.headers.get('Host')}":
+                    self._send_json(403, {'error': '請從本機軟體設定操作'})
+                    return
+                try:
+                    self._send_json(200, ai_router.update_settings(app_data_root, self._read_json_body()))
+                except ValueError as exc:
+                    self._send_json(400, {'error': str(exc)})
+                except OSError:
+                    self._send_json(500, {'error': '無法儲存本機 AI 設定'})
+                return
             if parsed.path == '/api/software/config':
                 body = self._read_json_body()
                 try:
                     st = updater_service.update_config(body)
+                    st['ai'] = ai_router.public_state(app_data_root)
                     st['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
                     self._send_json(200, st)
                 except ValueError as exc:

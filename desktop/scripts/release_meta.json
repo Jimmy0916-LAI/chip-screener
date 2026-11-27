@@ -1,10 +1,10 @@
 {
-  "appVersion": "0.6.3-rc.1",
+  "appVersion": "0.6.5-rc.1",
   "channel": "beta",
-  "candidateDownload": "https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download",
+  "candidateDownload": "https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download",
   "changelog": [
-    "個股可在首批集保下載後顯示該期摘要，週訊號另提示資料不足。",
-    "換版沿用固定連接埠，新增停止本機服務與舊服務占用提示。",
-    "輕量版驗證快照日期，封測下載頁列出內層 ZIP 校驗資料。"
+    "多條件篩選可組合集保連續增持、MACD 黃金交叉與前高突破。",
+    "四家 AI 供應商及獨立加密金鑰，支援總開關與三個模組開關。",
+    "晨報、影片策略卡及模擬操盤加上分析依據與本機降級提示。"
   ]
 }

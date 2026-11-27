@@ -33,8 +33,8 @@ from providers.news_briefing import (
     _http_get,
     taipei_now,
 )
+from providers import ai_router
 from providers.secret_store import (
-    get_gemini_api_key,
     get_gemini_key_meta,
 )
 
@@ -43,7 +43,6 @@ DEFAULT_COOLDOWN_MINUTES = 15
 DEFAULT_MAX_VIDEO_MINUTES = 60
 MIN_VIDEO_MINUTES = 10
 MAX_VIDEO_MINUTES = 240
-GEMINI_MODELS = ('gemini-2.5-flash', 'gemini-2.0-flash')
 
 INNERTUBE_PLAYER_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false'
 INNERTUBE_CLIENTS = (
@@ -66,9 +65,6 @@ VALID_TW_CODE_RE = re.compile(r'^(?:\d{4}|00\d{2,4}[A-Z]?)$')
 VALID_BANDS = ('200', '400', '600', '1000')
 VALID_STANCES = ('偏多', '偏空', '中性觀望')
 
-WAITING_SUBTITLES_MSG = (
-    '最新影片尚無字幕（若設定 Gemini API Key 可直接解析音軌與硬字幕），將於下次檢查重試'
-)
 SKIPPED_NON_FINANCE_MSG = '此影片與財經／股票主題無關，已自動略過解析'
 
 EXTRA_FINANCE_KEYWORDS = (
@@ -556,10 +552,12 @@ class ChannelService:
         app_data_dir: Path,
         project_root: Path,
         stock_names: dict | None = None,
+        feed_service=None,
     ):
         self.app_data_dir = Path(app_data_dir)
         self.project_root = Path(project_root)
         self.stock_names = stock_names or {}
+        self.feed_service = feed_service
         self.user_dir = self.app_data_dir / 'user-v1'
         self.channels_dir = self.app_data_dir / 'channels-v1'
         self.config_file = self.user_dir / 'channels-config.json'
@@ -583,14 +581,6 @@ class ChannelService:
         stage = path.with_suffix('.json.tmp')
         stage.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
         os.replace(stage, path)
-
-    def _get_api_key(self) -> str:
-        return get_gemini_api_key(self.app_data_dir)
-
-    def _get_key_hint(self, key: str) -> str:
-        if len(key) >= 6:
-            return '••••' + key[-4:]
-        return '已設定' if key else ''
 
     def _channel_file(self, channel_id: str) -> Path:
         if not SAFE_CHANNEL_ID_RE.fullmatch(channel_id):
@@ -1399,50 +1389,14 @@ class ChannelService:
 
     # ---------- Gemini 呼叫（Tier 1a & Tier 2） ----------
 
-    def _call_gemini_json(self, api_key: str, parts: list[dict], timeout: int = 35) -> dict | None:
-        if not api_key:
-            return None
-        body = json.dumps({
-            'contents': [{'parts': parts}],
-            'generationConfig': {
-                'temperature': 0.2,
-                'responseMimeType': 'application/json',
-            },
-        }).encode('utf-8')
-
-        for model in GEMINI_MODELS:
-            url = (
-                f'https://generativelanguage.googleapis.com/v1beta/models/'
-                f'{model}:generateContent?key={urllib.parse.quote(api_key, safe="")}'
-            )
-            req = urllib.request.Request(
-                url,
-                data=body,
-                headers={'Content-Type': 'application/json', 'User-Agent': 'ChipScreener/0.6'},
-                method='POST',
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=timeout) as resp:
-                    payload = json.loads(resp.read().decode('utf-8'))
-                candidates = payload.get('candidates') or []
-                if not candidates:
-                    continue
-                content_parts = (candidates[0].get('content') or {}).get('parts') or []
-                text = ''.join(str(p.get('text') or '') for p in content_parts if isinstance(p, dict)).strip()
-                parsed = _parse_json_object_from_text(text)
-                if parsed:
-                    return parsed
-            except Exception:
-                continue
-        return None
-
-    def _build_gemini_prompt(
+    def _build_strategy_prompt(
         self,
         channel_name: str,
         video_title: str,
         mode: str,
         transcript_block: str = '',
         chapters_block: str = '',
+        context: tuple = (),
     ) -> str:
         base_schema = (
             '請嚴格只輸出一個 JSON 物件（不要加 Markdown 程式碼區塊或額外解釋），欄位如下：\n'
@@ -1457,6 +1411,10 @@ class ChannelService:
             '  ],\n'
             '  "entryConditions": ["明確進場或觀察觸發條件（1~4 條）"],\n'
             '  "riskControls": ["明確停損、風險或失效條件（1~4 條）"],\n'
+            '  "catalysts": ["尚待驗證的催化劑與時間"],\n'
+            '  "crossChecks": ["逐項對照影片觀點與給定本機日期及數據，標示一致、背離或待證"],\n'
+            '  "counterRisks": ["觀點反面的風險或驗證條件"],\n'
+
             '  "screenerPreset": null 或 {"name": "策略名稱", "band": "200"|"400"|"600"|"1000", "weeks": 1~4整數, "minPp": 0~20數值, "weeklyMin": 0~10數值, "needShares": true}\n'
             '}\n'
             '規則：\n'
@@ -1464,6 +1422,7 @@ class ChannelService:
             '2. summaryBullets 產出 3~6 條，timeSec 必須為影片真實秒數（整數）。\n'
             '3. screenerPreset 只有在影片明確討論台股集保大戶籌碼／選股篩選條件時才填寫物件，否則一律填 null。\n'
         )
+        base_schema += '\n本機資料僅供交叉核對，空缺標示待證。\n' + json.dumps(context, ensure_ascii=False)
         if mode == 'multimodal':
             return (
                 f'你是專業台美股財經策略分析師。請直接聆聽這支 YouTube 影片的音軌，並閱讀畫面中的硬字幕與圖表。\n'
@@ -1715,7 +1674,8 @@ class ChannelService:
         if rel == 'reject':
             return 'skipped_non_finance', SKIPPED_NON_FINANCE_MSG, None, duration_sec
 
-        api_key = self._get_api_key()
+        ai = ai_router.session(self.app_data_dir, 'channels')
+        status = ai.status
         segments = self._fetch_video_captions(
             video['videoId'],
             watch_tracks=meta['watchTracks'],
@@ -1736,69 +1696,64 @@ class ChannelService:
             if final_rel != 'pass':
                 return 'skipped_non_finance', SKIPPED_NON_FINANCE_MSG, None, duration_sec
 
-        # Tier 1：取得 CC / 自動字幕
-        if segments:
-            merged = _merge_caption_segments(segments)
-            if api_key:
-                chapters_block = '\n'.join(f'[{_format_time_label(s)}] {t}' for s, t in chapters[:20])
-                transcript_lines = [f'[{_format_time_label(s)}] {t}' for s, t in merged]
-                transcript_block = '\n'.join(transcript_lines)
-                if len(transcript_block) > 26000:
-                    transcript_block = transcript_block[:18000] + '\n...\n' + transcript_block[-7500:]
-                prompt = self._build_gemini_prompt(
-                    channel_name=channel_name,
-                    video_title=video['title'],
-                    mode='cc',
-                    transcript_block=transcript_block,
-                    chapters_block=chapters_block,
+        merged = _merge_caption_segments(segments) if segments else []
+        transcript = '\n'.join(f'[{_format_time_label(sec)}] {line}' for sec, line in merged)
+        if len(transcript) > 26000:
+            transcript = transcript[:18000] + '\n...\n' + transcript[-7500:]
+        fallback_text = f"{video['title']}\n{description}\n{transcript}"
+        if ai.status == 'ready' and (merged or ai.video):
+            try:
+                mode = 'cc' if merged else 'multimodal'
+                context = self._strategy_context(fallback_text)
+                prompt = self._build_strategy_prompt(
+                    channel_name, video['title'], mode, transcript,
+                    '\n'.join(f'[{_format_time_label(sec)}] {text}' for sec, text in chapters[:20]),
+                    context,
                 )
-                ai_raw = self._call_gemini_json(api_key, [{'text': prompt}], timeout=35)
-                if ai_raw:
-                    fallback_text = f"{video['title']}\n{description}\n{transcript_block}"
-                    strategy = self._normalize_strategy(
-                        raw=ai_raw,
-                        video=video,
-                        channel_name=channel_name,
-                        source_mode='cc_gemini',
-                        fallback_text=fallback_text,
-                    )
-                    return 'ready', '', strategy, duration_sec
-
-            # 無 Gemini Key 或 Gemini 失敗 -> 規則式摘要 (cc_rule)
-            strategy = self._summarize_by_rule(
-                video=video,
-                channel_name=channel_name,
-                merged_segments=merged,
-                chapters=chapters,
-                description=description,
-            )
-            return 'ready', '', strategy, duration_sec
-
-        # Tier 2：無 CC 字幕，但已設定 Gemini API Key -> Gemini 多模態直接解析 YouTube URL
-        if api_key:
-            prompt = self._build_gemini_prompt(
-                channel_name=channel_name,
-                video_title=video['title'],
-                mode='multimodal',
-            )
-            parts = [
-                {'file_data': {'file_uri': video['url']}},
-                {'text': prompt},
-            ]
-            ai_raw = self._call_gemini_json(api_key, parts, timeout=60)
-            if ai_raw:
-                fallback_text = f"{video['title']}\n{description}"
+                video_url = None if merged else f"https://www.youtube.com/watch?v={video['videoId']}"
+                raw = ai.generate(prompt, video_url=video_url)
+                if not isinstance(raw.get('coreThesis'), str) or not raw['coreThesis'].strip():
+                    raise RuntimeError('策略卡缺少核心觀點')
                 strategy = self._normalize_strategy(
-                    raw=ai_raw,
-                    video=video,
-                    channel_name=channel_name,
-                    source_mode='multimodal_gemini',
-                    fallback_text=fallback_text,
+                    raw, video, channel_name, 'cc_ai' if merged else 'video_ai', fallback_text,
                 )
+                strategy['ai'] = ai.metadata('success')
+                strategy['analysis'] = {key: ai_router.text_items(raw.get(key))
+                                        for key in ('catalysts', 'crossChecks', 'counterRisks')}
                 return 'ready', '', strategy, duration_sec
+            except (RuntimeError, ValueError, TypeError):
+                status = 'failed'
 
-        # Tier 3：無字幕且無法多模態解析 -> waiting_subtitles（絕不產出假策略）
-        return 'waiting_subtitles', WAITING_SUBTITLES_MSG, None, duration_sec
+        if merged:
+            strategy = self._summarize_by_rule(video, channel_name, merged, chapters, description)
+            strategy['ai'] = ai.metadata(status)
+            return 'ready', '', strategy, duration_sec
+        status = 'unsupported_video' if status == 'ready' else status
+        return 'waiting_subtitles', '尚無字幕。' + ai.metadata(status)['message'], None, duration_sec
+
+    def _strategy_context(self, text):
+        if self.feed_service is None:
+            return []
+        data = self.feed_service.initial()
+        weeks = data['weeks']
+        day = max(weeks, default='')
+        rows = weeks.get(day, {}).get('rows', {})
+        market = data['market']
+        result = []
+        for ticker in self._extract_tickers_from_text(text, max_count=5):
+            code = ticker['code']
+            row = rows.get(code)
+            item = {'code': code}
+            if row and row[0] > 0:
+                item.update(tdccDate=day, tdcc400Shares=row[3], tdccTotal=row[0])
+            for key in ('TWSE-day', 'TPEx-day'):
+                bar = (market.get(key) or {}).get('rows', {}).get(code)
+                if bar:
+                    item.update(priceDate=bar[0], close=bar[4], marketSource=key)
+                    break
+            if len(item) > 1:
+                result.append(item)
+        return result
 
     # ---------- 公開狀態與操作 API ----------
 
@@ -1811,6 +1766,7 @@ class ChannelService:
                 'autoDailyEnabled': cfg['autoDailyEnabled'],
                 'cooldownMinutes': cfg['cooldownMinutes'],
                 'maxVideoMinutes': cfg['maxVideoMinutes'],
+                'ai': ai_router.session(self.app_data_dir, 'channels').metadata(),
                 'hasGeminiKey': ai_meta['hasGeminiKey'],
                 'geminiKeyHint': ai_meta['geminiKeyHint'],
                 'secretStorageMode': ai_meta['secretStorageMode'],

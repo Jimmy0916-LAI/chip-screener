@@ -48,6 +48,11 @@ function exportScreener() {
       weekly_changes: x.delta?.join('|') ?? '',
       weekly_shares: x.deltaShares?.join('|') ?? '',
       known_by: x.knownDate ?? '',
+      ...(x.signals ? {
+        signal_date: x.signals.day, signal_as_of: x.signals.asOf,
+        signal_mode: applied.signals.mode,
+        signal_conditions: JSON.stringify(x.signals.conditions)
+      } : {}),
       data_version: D.run
     }))
   );

@@ -63,40 +63,10 @@ function softwarePage() {
   const twBadge = twMkt.isOpen ? badge('台股盤中', 'good') : badge(twMkt.reason || '台股非盤中', '');
   const usBadge = usMkt.isOpen ? badge('美股盤中', 'good') : badge(usMkt.reason || '美股非盤中', '');
 
-  const hasGeminiKey = Boolean(cfg.hasGeminiKey);
-  const geminiHint = cfg.geminiKeyHint || '';
-  const storageMode = cfg.secretStorageMode || '本機加密隔離';
-  const aiBadgesHtml = hasGeminiKey
-    ? `<div class="sw-ai-badges">${badge('已設定 ' + geminiHint, 'good')}${badge(storageMode, '')}</div>`
-    : badge('未設定（免 Key 規則模式）', '');
-
-  const clearKeyControlHtml = !hasGeminiKey
-    ? ''
-    : state.swConfirmClearKey
-      ? '<div class="ch-confirm-inline">' +
-        '<span class="mini">確認清除已存金鑰？</span>' +
-        `<button type="button" class="btn danger sm" id="swConfirmClearGeminiKeyBtn"${state.swKeyBusy ? ' disabled' : ''}>確認清除</button>` +
-        '<button type="button" class="btn ghost sm" id="swCancelClearGeminiKeyBtn">取消</button>' +
-        '</div>'
-      : `<button type="button" class="btn danger sm" id="swClearGeminiKeyBtn"${state.swKeyBusy ? ' disabled' : ''}>清除金鑰</button>`;
-
-  const aiKeyCardHtml =
-    '<div class="card sw-ai-card" style="margin-top:18px">' +
-    cardhead(
-      'AI 模型金鑰（選填）',
-      '選填 Gemini API Key；未設定仍可免費使用全站規則模式',
-      aiBadgesHtml
-    ) +
-    '<div class="sw-ai-row">' +
-    `<input id="swGeminiKeyInput" class="sw-ai-input" type="password" autocomplete="off" spellcheck="false" placeholder="貼上 Gemini API Key（不儲存明文，未設定仍可免費使用規則模式）"${state.swKeyBusy ? ' disabled' : ''}>` +
-    `<button type="button" class="btn main sm" id="swSaveGeminiKeyBtn"${state.swKeyBusy ? ' disabled' : ''}>${state.swKeyBusy ? '儲存中...' : '儲存金鑰'}</button>` +
-    clearKeyControlHtml +
-    '</div>' +
-    '<p class="sw-ai-note">共用於「每日晨報」、「訂閱頻道（含無 CC 字幕音軌／硬字幕多模態解析）」與「模擬操盤 AI」；採用 Windows 使用者本機加密（DPAPI）隔離儲存於 <code>%LOCALAPPDATA%\\ChipScreener\\user-v1\\</code>，絕不寫入專案、不進 Git、亦不回傳明文至前端。</p>' +
-    '</div>';
+  const aiKeyCardHtml = renderAiSettings(sw.ai);
 
   return (
-    title('軟體設定', '管理版本更新、盤中即時股價頻率與本機加密 AI 金鑰；設定變更會自動儲存。') +
+    title('軟體設定', '管理版本更新、盤中即時股價頻率、AI 供應商與本機加密金鑰。') +
     rollbackNotice +
     '<div class="grid2 equal">' +
     '<div class="card">' +
@@ -149,3 +119,78 @@ function softwarePage() {
     aiKeyCardHtml
   );
 }
+
+const AI_FEATURE_LABELS = { briefing: '每日晨報', channels: '影片策略卡', trader: 'AI 模擬操盤' };
+
+function renderAiSettings(cfg) {
+  if (!cfg) return '<div class="card sw-ai-card">正在讀取 AI 設定…</div>';
+  return '<form id="swAiSettings" class="card sw-ai-card">' +
+    cardhead('AI 供應商與金鑰', '模型及金鑰分開儲存，三個模組使用所選供應商', badge(esc(cfg.storage), '')) +
+    `<label>使用供應商 <select id="swAiProvider">${Object.entries(cfg.labels).map(([id, label]) =>
+      `<option value="${esc(id)}"${cfg.provider === id ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select></label>` +
+    ` <label><input id="swAiEnabled" type="checkbox"${cfg.enabled ? ' checked' : ''}>AI 總開關</label>` +
+    '<div class="toolbar">' + Object.entries(AI_FEATURE_LABELS).map(([id, label]) =>
+      `<label><input type="checkbox" data-ai-feature="${id}"${cfg.features[id] ? ' checked' : ''}>${label}</label>`).join(' ') +
+    '</div><div class="formgrid">' +
+    Object.entries(cfg.labels).map(([id, label]) =>
+      '<div class="field">' +
+      `<label>${esc(label)} 模型 <input data-ai-model="${id}" value="${esc(cfg.models[id])}" required maxlength="100"></label>` +
+      `<label>${esc(label)} 金鑰 <input type="password" data-ai-key="${id}" autocomplete="off" maxlength="512" placeholder="${cfg.keys[id] ? '已加密儲存' : '尚未設定'}"></label>` +
+      (cfg.keys[id] ? `<label><input type="checkbox" data-ai-clear="${id}">移除此金鑰</label>` : '') +
+      '</div>').join('') +
+    '</div>' +
+    `<p class="mini" id="swAiVideo">${cfg.supportsVideo ? '目前模型支援影片直接解析。' : '目前模型僅處理字幕或文字。沒有字幕時等待來源補上。'}</p>` +
+    '<button type="submit" class="btn main" id="swSaveAiSettings">儲存 AI 設定</button>' +
+    '</form>';
+}
+
+function renderAiStatus(meta) {
+  if (!meta) return '';
+  return `<span class="mini ai-status" data-ai-status="${esc(meta.status || '')}">${esc(meta.label || '')} ${esc(meta.model || '')} · ${esc(meta.message || '')}</span>`;
+}
+
+function renderAiAnalysis(data, labels) {
+  if (!data) return '';
+  return Object.entries(labels).map(([key, label]) =>
+    Array.isArray(data[key]) && data[key].length
+      ? `<div class="ch-block"><b>${label}</b><ul class="brief-list">${data[key].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`
+      : ''
+  ).join('');
+}
+
+document.addEventListener('submit', async event => {
+  if (event.target.id !== 'swAiSettings') return;
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector('button[type="submit"]');
+  if (button.disabled) return;
+  const fields = (selector, prop, value) =>
+    Object.fromEntries(Array.from(form.querySelectorAll(selector), field => [field.dataset[prop], value(field)]));
+  const keys = fields('[data-ai-key]', 'aiKey', field => field.value.trim());
+  for (const id of Object.keys(keys)) {
+    if (!keys[id]) delete keys[id];
+  }
+  for (const field of form.querySelectorAll('[data-ai-clear]:checked')) keys[field.dataset.aiClear] = null;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/software/ai', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: form.querySelector('#swAiProvider').value,
+        enabled: form.querySelector('#swAiEnabled').checked,
+        models: fields('[data-ai-model]', 'aiModel', field => field.value.trim()),
+        features: fields('[data-ai-feature]', 'aiFeature', field => field.checked),
+        keys
+      })
+    });
+    const result = await response.json();
+    if (!response.ok) throw Error(result.error || '無法儲存 AI 設定');
+    state.softwareState.ai = result;
+    if (state.page === 'software') render();
+    toast('AI 設定已儲存');
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});

@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from providers.live_quotes import LiveQuoteService, fetch_yahoo_chart_lite
+from providers import ai_router
 from providers.secret_store import get_gemini_key_meta
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -744,6 +745,7 @@ class PaperTradingService:
                 'activeSlotId': slot_obj['id'] if slot_obj else '',
                 'fxUsdTwd': fx_rate,
                 'hasGeminiKey': ai_meta['hasGeminiKey'],
+                'ai': ai_router.session(self.app_data_dir, 'trader').metadata(),
                 'geminiKeyHint': ai_meta['geminiKeyHint'],
                 'secretStorageMode': ai_meta['secretStorageMode'],
                 'slots': summaries,

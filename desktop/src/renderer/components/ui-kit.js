@@ -27,8 +27,11 @@ const metric = (label, value, foot, cl = '') =>
 const settingsHint = () =>
   `<span class="tag">${esc(applied.band)} 張 · ${fmt(applied.minPp, 2)} pp · ${applied.weeks} 週</span>`;
 
-function wndSelect() {
-  const asOf = state.asOf || evidenceTime(state.win);
+function wndSelect(displayAsOf) {
+  const instant = Date.parse(displayAsOf);
+  const asOf = Number.isFinite(instant)
+    ? new Date(instant + 8 * 60 * 60 * 1000).toISOString()
+    : state.asOf || evidenceTime(state.win);
   const saved = dates();
   const ends = [...new Set([...saved, ...weekEnds.filter(d => d >= saved[0] && d <= saved.at(-1))])].sort();
 

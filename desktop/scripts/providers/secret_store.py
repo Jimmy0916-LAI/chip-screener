@@ -195,14 +195,14 @@ def _cleanup_legacy_plaintext(app_data_dir: Path) -> None:
 
 def _sanitize_api_key(key: str) -> str:
     if not isinstance(key, str):
-        raise ValueError('Gemini API Key 格式無效')
+        raise ValueError('AI 金鑰格式無效')
     cleaned = key.strip()
     if not cleaned:
-        raise ValueError('Gemini API Key 不能為空')
+        raise ValueError('AI 金鑰不能為空')
     if len(cleaned) > MAX_KEY_LENGTH:
-        raise ValueError(f'Gemini API Key 長度超過安全上限（{MAX_KEY_LENGTH} 字元）')
+        raise ValueError(f'AI 金鑰長度超過安全上限（{MAX_KEY_LENGTH} 字元）')
     if any(ord(ch) < 32 or ord(ch) == 127 or ch.isspace() for ch in cleaned):
-        raise ValueError('Gemini API Key 不能包含換行、控制字元或空白')
+        raise ValueError('AI 金鑰不能包含換行、控制字元或空白')
     return cleaned
 
 
@@ -332,3 +332,47 @@ def get_gemini_key_meta(app_data_dir: Path) -> dict:
         'geminiKeyHint': mask_api_key(key),
         'secretStorageMode': storage_mode_label(),
     }
+
+
+AI_KEY_FIELDS = {
+    'gemini': 'geminiApiKey',
+    'deepseek': 'deepseekApiKey',
+    'claude': 'claudeApiKey',
+    'openai': 'openaiApiKey',
+}
+
+
+def get_ai_key(app_data_dir: Path, provider: str) -> str:
+    if provider == 'gemini':
+        return get_gemini_api_key(app_data_dir)
+    with _STORE_LOCK:
+        doc = _read_json(_secrets_file(app_data_dir))
+        secrets = doc.get('secrets') if isinstance(doc.get('secrets'), dict) else {}
+        return _decode_secret(str(doc.get('encoding') or ''), str(secrets.get(AI_KEY_FIELDS[provider]) or ''))
+
+
+def update_ai_keys(app_data_dir: Path, changes: dict) -> None:
+    cleaned = {AI_KEY_FIELDS[provider]: _sanitize_api_key(value) if value is not None else None
+               for provider, value in changes.items()}
+    if not cleaned:
+        return
+    with _STORE_LOCK:
+        path = _secrets_file(app_data_dir)
+        doc = _read_json(path)
+        encoding = 'dpapi-v1' if _is_dpapi_available() else 'file-0600'
+        if os.name == 'nt' and encoding != 'dpapi-v1':
+            raise ValueError('Windows DPAPI 無法使用，金鑰未儲存')
+        secrets = doc.get('secrets') if isinstance(doc.get('secrets'), dict) else {}
+        if secrets and doc.get('encoding') != encoding:
+            raise ValueError('現有金鑰儲存格式與本機不相容')
+        for field, key in cleaned.items():
+            if key is None:
+                secrets.pop(field, None)
+            else:
+                _, protected = _encode_secret(key)
+                secrets[field] = protected
+        _atomic_write_json(path, {
+            'version': 1, 'encoding': encoding, 'updatedAt': _taipei_now(), 'secrets': secrets,
+        })
+        if 'geminiApiKey' in cleaned:
+            _cleanup_legacy_plaintext(app_data_dir)

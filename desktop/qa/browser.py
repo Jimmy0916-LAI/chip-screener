@@ -18,13 +18,17 @@ parser.add_argument('url')
 parser.add_argument('light', type=Path)
 parser.add_argument('output', type=Path)
 parser.add_argument('--chromium')
+parser.add_argument('--version', default='0.6.3-rc.1')
+parser.add_argument('--old-version', default='0.6.3')
+parser.add_argument('--download', default='https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download')
+parser.add_argument('--v065', action='store_true', help='Exercise additional signal and AI settings on the candidate')
 parser.add_argument('--old-exe', type=Path, help='Run Windows upgrade and rollback from the previous ZIP')
 parser.add_argument('--inline-html', action='store_true', help='Test document and File API when the runner blocks file://')
 args = parser.parse_args()
 args.output.mkdir(exist_ok=True, parents=True)
 
-VERSION = '0.6.3-rc.1'
-DOWNLOAD = 'https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download'
+VERSION = args.version
+DOWNLOAD = args.download
 new_exe = args.light.with_name('股票雷達.exe')
 port = urlsplit(args.url).port
 http = build_opener(ProxyHandler({}))
@@ -137,7 +141,7 @@ def assert_conflict(old_pid):
     try:
         user32.EnumChildWindows(window, read_text, 0)
         message = '\n'.join(labels)
-        assert f'PID {old_pid}' in message and '股票雷達 0.6.3' in message and '工作管理員' in message, labels
+        assert f'PID {old_pid}' in message and f'股票雷達 {args.old_version}' in message and '工作管理員' in message, labels
         print(f'063-06 native collision dialog identifies old version and PID {old_pid}', flush=True)
     finally:
         user32.PostMessageW(window, 0x0010, 0, 0)
@@ -156,7 +160,7 @@ def assert_user_data(page, day, week):
 def verify_upgrade(context, page, day, week, errors):
     stop(page)
     old = args.old_exe
-    old_pid = start(old, '0.6.3', fail_network=True)
+    old_pid = start(old, args.old_version, fail_network=True)
     page = open_app(context, errors)
     go(page, 'settings')
     draft_field = page.locator('[data-setting="minPp"]')
@@ -178,7 +182,7 @@ def verify_upgrade(context, page, day, week, errors):
     assert listener_pid(old) == old_pid
     os.startfile(new_exe)
     assert_conflict(old_pid)
-    wait_health('0.6.3')
+    wait_health(args.old_version)
     assert listener_pid(old) == old_pid
     subprocess.run(['taskkill', '/PID', str(old_pid), '/F'], check=True)
     wait_health(None)
@@ -193,7 +197,7 @@ def verify_upgrade(context, page, day, week, errors):
     page.screenshot(path=args.output / 'upgrade.png')
     stop(page)
 
-    rollback_pid = start(old, '0.6.3', fail_network=True)
+    rollback_pid = start(old, args.old_version, fail_network=True)
     page = open_app(context, errors)
     assert_user_data(page, day, week)
     page.screenshot(path=args.output / 'rollback.png')
@@ -334,6 +338,9 @@ with sync_playwright() as driver:
     page.screenshot(path=args.output / 'candidate-download.png')
     print('063-11 beta download and verification landing page', DOWNLOAD, flush=True)
 
+    if args.v065:
+        from v065_browser_checks import verify_v065
+        verify_v065(browser, args.url, args.output, errors)
     if args.old_exe:
         verify_upgrade(context, page, day, week, errors)
     assert not errors, errors
