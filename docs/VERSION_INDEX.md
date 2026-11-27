@@ -45,9 +45,9 @@
 | 版本（由舊至新） | 封存標籤 | 內容 |
 | --- | --- | --- |
 | 0.6.1 | [v0.6.1-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.1-archive/archives/v0.6.1) | JL 上傳原件，內部 Electron 套件標為 `0.6.0-b05.1` |
-| 0.6.2 | [v0.6.2-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-archive/archives/v0.6.2) | 上傳原件的執行環境標為 `0.6.1-t` |
+| 0.6.2 | [v0.6.2-full](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-full/archives/v0.6.2) | [Windows 完整 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/raw/refs/tags/v0.6.2-full/archives/v0.6.2/ChipScreener-Windows-0.6.2-full%281%29.zip)，內部版本 `0.6.2` |
 
-**下一次開發從 [`feat/v0.6.2-runtime-integration`](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration) 起步。** 此分支以 B06.1 已驗證桌面程式為基座，納入最新版上傳的更新包原件及可讀程式碼供整合。Windows 驗收待安排。兩份原件 SHA-256 與整合入口見[封存說明](https://github.com/Jimmy0916-LAI/chip-screener/blob/feat/v0.6.2-runtime-integration/archives/README.md)，[歸檔驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45911355707/job/140220240341)已通過。
+**下一次開發從 [`feat/v0.6.2-runtime-integration`](https://github.com/Jimmy0916-LAI/chip-screener/tree/feat/v0.6.2-runtime-integration) 起步。** 分支以 B06.1 為基座，附上新版 0.6.2 完整 ZIP 供整合。舊更新包可在 [v0.6.2-archive](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.2-archive/archives/v0.6.2) 回溯。新版的 ZIP 完整性、雜湊與內部版本已通過 [Actions 驗證](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45945206103/job/140328205934)，Windows 執行待驗。
 
 ## 04｜後續開發規劃
 
