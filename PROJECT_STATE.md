@@ -13,7 +13,11 @@
 - 063-07 輕量 HTML 核對日曆日期、順序、集保週欄位與快照範圍。匯入失敗保留原畫面。
 - 063-11 封測 ZIP、內層 SHA-256、到期與驗證證據在 [PR 封測下載與校驗頁](https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download)。程式版號、封裝名稱與 CI 檢查同步。
 
-執行 `python desktop/qa/feed_test.py` 重跑固定集保案例。由 [CI 工作流程](.github/workflows/v063.yml) 對同一內層 ZIP 驗新舊版本切換、真實集保與失敗保留、七頁、漢唐固定股數及 A/B 同窗。Windows 11 x64 實機與獨立複驗待驗。恢復時先以 `git fetch origin --tags` 取得交付 Tag，再用 `git show -s v0.6.3-rc.1` 與 PR 的候選 SHA 和內層 ZIP 雜湊核對。
+交付 Tag [v0.6.3-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.3-rc.1) 指向 `7d0f59a0b7acd540ab23099438eedd4bea0418c6`。內層 `ChipScreener-v0.6.3-rc.1-Windows-x64.zip` 共 9,875,204 bytes，SHA-256 為 `77f213eb1b4784b343931440be90c0a41a2b0726a92dc58da43f1ad3de9de6d0`。[私庫 Artifact](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/artifacts/15193938549) 到期為 2026-12-27 19:44:40 台北時間。持有私庫權限重新下載已核對內層雜湊及 CRC。
+
+[CI 45992810449](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449) 的固定集保測試 4 項通過，同提交建置兩次雜湊一致。[Windows Server 2022 日誌](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/job/140485193361) 與[截圖](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45992810449/artifacts/15194247341) 對應同一 ZIP。由乾淨設定取得官方 2026-11-20 集保，覆蓋 1,985 檔，漢唐 400 張級距 106,376,449 股。重開、手動選週及出站連線失敗時保留快取均通過。切換舊版、新版與手動回退均讀到原策略、草稿、方案、自選和快取。輕量版拒絕無效日期與來源週不符，保留原畫面。七頁、漢唐固定兩週 796,897／579,084 股，以及 A/B 同時點、同窗口、同母體通過。
+
+Windows 11 x64 實機與獨立複驗待驗。恢復時執行 `git fetch origin --tags` 及 `git show -s v0.6.3-rc.1`，比對驗收卡的候選 SHA 和內層 ZIP 雜湊。固定測試可執行 `python desktop/qa/feed_test.py`，重建與 Windows 測試見 [CI 工作流程](.github/workflows/v063.yml)。
 
 **B04.2 已獲接受。B05 v0.6.0-b05.1 通過 Windows Server 2022 實際 ZIP 驗收。Windows 11 實機待驗，PR #6 待審。**
 
