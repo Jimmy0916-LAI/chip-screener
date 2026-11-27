@@ -394,12 +394,16 @@ function stockHistory(code) {
   });
 }
 
+function stockMissingWeeks(days) {
+  const observedWeeks = new Set(days.map(monday));
+  const first = days[0], last = days.at(-1);
+  return weekEnds.filter(day => day > first && day < last && !observedWeeks.has(monday(day)));
+}
+
 function holdingDays(points) {
   const visible = state.chartRange === 'recent' ? points.slice(-3) : points;
   const byDay = new Map(visible.map(({day, row}) => [day, row]));
-  const first = visible[0]?.day;
-  const last = visible.at(-1)?.day;
-  const gaps = weekEnds.filter(day => day > first && day < last && !byDay.has(day));
+  const gaps = stockMissingWeeks([...byDay.keys()]);
   return [...visible.map(({day}) => day), ...gaps].sort().map(day => [day, byDay.get(day) || null]);
 }
 
@@ -411,7 +415,7 @@ function stock() {
   const history = stockHistory(code);
   const ds = history.map(point => point.day);
   const selectedPoint = () => history.find(point => point.day === state.selectedDay);
-  const gaps = weekEnds.filter(day => day > ds[0] && day < ds.at(-1) && !ds.includes(day));
+  const gaps = stockMissingWeeks(ds);
   const latest = ds.at(-1);
   const chartBand = state.bands.length ? state.bands : [applied.band];
 

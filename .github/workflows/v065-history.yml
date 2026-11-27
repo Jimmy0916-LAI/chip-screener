@@ -86,7 +86,7 @@ jobs:
           Expand-Archive -Path $oldZip -DestinationPath $old
           if (((Get-ChildItem $out).Name | Sort-Object) -join ',' -ne (('股票雷達.exe','股票雷達輕量版.html','resources' | Sort-Object) -join ',')) { throw 'ZIP layout' }
           $info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $out '股票雷達.exe'))
-          if ($info.FileVersion -ne '0.6.5-rc.2' -or $info.ProductVersion -ne '0.6.5-rc.2') { throw 'EXE version resource mismatch' }
+          if ($info.FileVersion -ne '0.6.5-rc.3' -or $info.ProductVersion -ne '0.6.5-rc.3') { throw 'EXE version resource mismatch' }
           Add-Type -AssemblyName System.Drawing
           $icon = [Drawing.Icon]::ExtractAssociatedIcon((Join-Path $out '股票雷達.exe'))
           if ($null -eq $icon) { throw 'EXE missing icon' }
@@ -94,7 +94,7 @@ jobs:
           & (Join-Path $out 'resources/runtime-python/python.exe') -B -X utf8 desktop/qa/ai_router_test.py "$out/resources/scripts"
           if ($LASTEXITCODE -ne 0) { throw 'Packaged AI/DPAPI acceptance failed' }
           python -m pip install playwright==1.56.0
-          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --old-exe "$old/股票雷達.exe" --version 0.6.5-rc.2 --old-version 0.6.5-rc.1 --v065 --history-fix --download "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.2" --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
+          python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --old-exe "$old/股票雷達.exe" --version 0.6.5-rc.3 --old-version 0.6.5-rc.1 --v065 --history-fix --download "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3" --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -120,10 +120,10 @@ jobs:
           SHA: ${{ needs.build.outputs.sha256 }}
         run: |
           set -euo pipefail
-          tag=v0.6.5-rc.2
+          tag=v0.6.5-rc.3
           file="$ZIP_BASENAME.zip"
           test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = true
-          test "$ZIP_BASENAME" = "ChipScreener-v0.6.5-rc.2-Windows-x64"
+          test "$ZIP_BASENAME" = "ChipScreener-v0.6.5-rc.3-Windows-x64"
           printf '%s  %s\n' "$SHA" "$file" > candidate/SHA256SUMS.txt
           (cd candidate && sha256sum -c SHA256SUMS.txt)
           cat > notes.md <<'NOTES'
@@ -134,16 +134,18 @@ jobs:
           - 左上角顯示完整候選版號。新的雷達圖示用於 EXE、桌面介面與瀏覽器分頁。
           - 最後一個桌面畫面關閉後會停止本機服務與背景更新。
           - Windows Server 2022 通過成品 CI。Windows 11 x64 實機驗收待補。
-          - [上一候選版下載與驗證](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)
+          - 歷史統計週以週歸屬判斷。若日曆只到週四且已有同週週五快照，圖表仍視為該週完整。
+          - [原始上一版 RC1 下載與驗證](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)
           NOTES
           printf '\n候選提交 `%s`。ZIP SHA-256 `%s`。\n\n[成品 CI 與截圖](%s/%s/actions/runs/%s)。\n' "$HEAD_SHA" "$SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> notes.md
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/fix/v0.6.5-tdcc-history-release" --jq .object.sha)" = "$HEAD_SHA"
           ref="repos/$GITHUB_REPOSITORY/git/ref/tags/$tag"
           if ! gh api "$ref" --silent 2>/dev/null; then
             gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$HEAD_SHA" --silent
           fi
           test "$(gh api "$ref" --jq .object.sha)" = "$HEAD_SHA"
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$tag" "candidate/$file" candidate/SHA256SUMS.txt --verify-tag --prerelease --latest=false --repo "$GITHUB_REPOSITORY" --title '籌碼雷達 v0.6.5-rc.2' --notes-file notes.md
+            gh release create "$tag" "candidate/$file" candidate/SHA256SUMS.txt --verify-tag --prerelease --latest=false --repo "$GITHUB_REPOSITORY" --title '籌碼雷達 v0.6.5-rc.3' --notes-file notes.md
           fi
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,isPrerelease,assets
           gh release download "$tag" -R "$GITHUB_REPOSITORY" -D readback
@@ -161,7 +163,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          gh release download v0.6.5-rc.2 -R $env:GITHUB_REPOSITORY -p "$env:ZIP_BASENAME.zip"
+          gh release download v0.6.5-rc.3 -R $env:GITHUB_REPOSITORY -p "$env:ZIP_BASENAME.zip"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $zip = "$env:ZIP_BASENAME.zip"
           if ((Get-FileHash $zip).Hash -ne $env:SHA) { throw 'Release hash mismatch' }
@@ -173,5 +175,5 @@ jobs:
           for ($i=0; $i -lt 30; $i++) {
             try { $health = Invoke-RestMethod -Uri 'http://127.0.0.1:18765/api/health' -TimeoutSec 2; break } catch { Start-Sleep 1 }
           }
-          if (!$health -or $health.appVersion -ne '0.6.5-rc.2') { throw 'Released EXE health check failed' }
+          if (!$health -or $health.appVersion -ne '0.6.5-rc.3') { throw 'Released EXE health check failed' }
           Write-Host "Release ZIP matched SHA-256 $env:SHA and the extracted EXE launched $($health.appVersion)"

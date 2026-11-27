@@ -267,6 +267,18 @@ with sync_playwright() as driver:
     assert week['quality']['valid'] >= 1900 and shares > 0
     cache = Path(os.environ['LOCALAPPDATA']) / 'ChipScreener/tdcc-local-v1/official' / f'{day}.json'
     saved_sha = hashlib.sha256(cache.read_bytes()).hexdigest()
+    if args.history_fix:
+        # Downloading the same live statistics week must keep one persisted record.
+        page.locator('#refreshTDCC').click()
+        expect(page.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
+        repeated = read_api('/api/official/read')['weeks']
+        if list(repeated) == [day] and repeated[day]['quality']['sha256'] == week['quality']['sha256']:
+            assert hashlib.sha256(cache.read_bytes()).hexdigest() == saved_sha
+            print(f'Repeated official week {day}: one unchanged cached record', flush=True)
+        else:
+            assert day in repeated
+            print('Another validated statistics week or official revision arrived during retry', list(repeated), flush=True)
+
     stock_summary(page, day, shares)
     expect(page.locator('#stockSignalAvailability')).to_contain_text('嚴格週訊號資料不足')
     page.locator('#windowSelect').select_option(day)
@@ -289,6 +301,19 @@ with sync_playwright() as driver:
         page.reload()
         expect(page.locator('#feedDay')).to_have_text(day)
         verify_history(page, args.output, latest=day)
+        missing = page.evaluate('''day => {
+          const original = weekEnds.slice();
+          const index = weekEnds.indexOf(day);
+          if (index < 0) return null;
+          const prior = new Date(day + "T12:00:00Z");
+          prior.setUTCDate(prior.getUTCDate() - 1);
+          const partial = prior.toISOString().slice(0,10);
+          weekEnds[index] = partial;
+          try { return stockMissingWeeks(stockHistory('2404').map(point => point.day)).includes(partial); }
+          finally { weekEnds.splice(0, weekEnds.length, ...original); }
+        }''', day)
+        assert missing is False, missing
+        print('An incomplete calendar does not mark an existing statistics week as missing', flush=True)
         page.locator('#daySelect').select_option(day)
         stock_summary(page, day, shares)
     print('063-02 reopened 2404 and selected the official week manually', flush=True)
