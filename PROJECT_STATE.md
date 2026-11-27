@@ -1,5 +1,13 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5-rc.2｜集保歷史檢查點
+
+RC1 產品標籤 `f72af65a8c87ab43c9923c4d948c17830a716ad6`，開工使用 PR #14 分支 `3636020df6e76dec80bc568eb59a689f3cbcae4d`（差異只有交接文件）。實際成品 SHA-256 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。包內有凍結資料；初始化清空樣本系列，整批來源每次只交付最新統計日。現有快取逐日保存，近期只有一份成功下載時只會畫一點。原凍結網頁中的 2330 部分週也缺有效級距對帳。
+
+新增 2026-10-30、11-06、11-13、11-20 共四期 TDCC 1-5 歷史封存的個股圖表資料。來源為政府資料開放授權第 1 版與 wirelessr 歷史備份；前三期原始 SHA-256 與凍結來源一致。以 1–17 級核對原始統計日、股數、戶數和涵蓋範圍。公布時點待證的補登使用獨立圖表查詢，嚴格訊號、歷史時點重播及同窗 A/B 仍使用既有證據規則。保留使用者同日快取及後續修訂，原始封存可追溯。
+
+本機執行 `python -X utf8 desktop/qa/feed_test.py` 4 項與 `node --test desktop/qa/signal-engine.test.cjs` 8 項。封存重建指令為 `python desktop/qa/rebuild_tdcc_history.py <CSV目錄> <feed-base.json> 2026-11-28T02:59:52+08:00`。下一步是關窗生命週期、版本圖示與 Windows ZIP 驗收。
+
 ## v0.6.5 B03｜Windows 封測候選交付
 
 [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) 指向 `f72af65a8c87ab43c9923c4d948c17830a716ad6`。內層 `ChipScreener-v0.6.5-rc.1-Windows-x64.zip` 共 9,883,188 bytes，SHA-256 `a146c9ae68e7f5589f9c4bde4dac48b80bc937c614c82c95b7d8105b723841c3`。[私庫下載](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46037810623/artifacts/15219321239) 到期 2026-12-28 00:57:36 台北時間。CI 連建兩次、Windows Runner 解壓前校驗、交付重新下載均得到相同 SHA-256。

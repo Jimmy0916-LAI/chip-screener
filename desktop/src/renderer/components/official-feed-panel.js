@@ -67,6 +67,9 @@ function feedPanel() {
     for (const [d, w] of Object.entries(savedWeeks).sort()) {
       items.push(`<p>${esc(`${d}｜${w.quality.raw_source}｜手動快照，公布時點待證`)}</p>`);
     }
+    for (const [d, w] of Object.entries(D.tdccChartHistory || {}).sort().reverse()) {
+      items.push(`<p>${esc(`${d}｜TDCC 1-5 歷史封存｜${Object.keys(w.rows).length} 檔｜公布時點待證，僅供個股圖表`)}<br><a href="${esc(w.source)}" target="_blank" rel="noopener">原始 CSV 封存</a> · <a href="${esc(w.license)}" target="_blank" rel="noopener">政府資料開放授權條款第 1 版</a><br>${esc(`取得 ${w.retrieved}｜SHA-256 ${w.sha256}`)}</p>`);
+    }
     items.push(`<p>交易日曆截至 ${esc(D.sessions.at(-1))}（證交所實際成交日期）。</p>`);
     if (gaps.length) {
       items.push(

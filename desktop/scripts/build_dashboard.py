@@ -61,6 +61,10 @@ def build(
 
     base_data = json.loads((DATA_DIR / 'web_data.json').read_bytes())
     enriched = enrich(base_data, DATA_DIR / 'chip-screener-phase1.zip')
+    chart_history = DATA_DIR / 'tdcc-chart-history.json'
+    if chart_history.exists():
+        enriched['tdccChartHistory'] = json.loads(chart_history.read_bytes())
+
 
     pkg_file = ROOT / 'package.json'
     shell_ver = shell_version or '0.6.0-b05.1'

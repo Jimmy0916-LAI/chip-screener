@@ -376,9 +376,31 @@ function renderStockDetailMode(code, info) {
   );
 }
 
-function holdingDays() {
-  const days = state.manualWeek ? archiveDays() : dates();
-  return state.chartRange === 'recent' ? days.slice(-3) : days;
+// Raw chart history stays outside the strict signal and point-in-time engines.
+function stockHistory(code) {
+  const history = D.tdccChartHistory || {};
+  const days = state.manualWeek ? archiveDays() : [...new Set([...Object.keys(history), ...dates()])].sort();
+  return days.flatMap(day => {
+    const active = D.series[day]?.[code];
+    const archived = state.manualWeek ? null : history[day]?.rows[code];
+    if (!active && !archived) return [];
+    return [{
+      day, row: active || archived,
+      observed: active ? D.observed[day] : null,
+      source: active ? D.quality[day]?.raw_source : history[day].source,
+      receipt: active ? D.quality[day]?.fetched : history[day].retrieved,
+      conflict: !!(active && archived && active.some((value, index) => value !== archived[index]))
+    }];
+  });
+}
+
+function holdingDays(points) {
+  const visible = state.chartRange === 'recent' ? points.slice(-3) : points;
+  const byDay = new Map(visible.map(({day, row}) => [day, row]));
+  const first = visible[0]?.day;
+  const last = visible.at(-1)?.day;
+  const gaps = weekEnds.filter(day => day > first && day < last && !byDay.has(day));
+  return [...visible.map(({day}) => day), ...gaps].sort().map(day => [day, byDay.get(day) || null]);
 }
 
 function stock() {
@@ -386,7 +408,10 @@ function stock() {
   const qName = state.watchlistQuotes?.[code]?.name;
   const fallbackMkt = /^(?:\d{4}|00\d{2,4}[A-Z]?)$/.test(code) ? '待確認' : 'US';
   const info = D.stocks[code] || [qName || '未驗證股票名稱', fallbackMkt];
-  const ds = (state.manualWeek ? archiveDays() : dates()).filter(day => D.series[day]?.[code]);
+  const history = stockHistory(code);
+  const ds = history.map(point => point.day);
+  const selectedPoint = () => history.find(point => point.day === state.selectedDay);
+  const gaps = weekEnds.filter(day => day > ds[0] && day < ds.at(-1) && !ds.includes(day));
   const latest = ds.at(-1);
   const chartBand = state.bands.length ? state.bands : [applied.band];
 
@@ -394,7 +419,7 @@ function stock() {
     state.selectedDay = latest || '';
   }
 
-  const latest400 = vector(code, latest, '400');
+  const latest400 = stockHistoryVector(history.at(-1)?.row, '400');
   const mode = state.stockMode || 'study';
   const modeLabel = mode === 'detail' ? '個股詳情' : '個股研究';
   const inFav = typeof isStockInAnyFolder === 'function' && isStockInAnyFolder(code);
@@ -454,7 +479,8 @@ function stock() {
     ).join('') +
     `<label><input type="checkbox" id="overlayK" ${state.overlayK?'checked':''}>疊加日 K</label>` +
     '</div>' +
-    holdingChart(holdingDays().map(d=>[d,D.series[d]?.[code] || null]), stockBars(code), chartBand, D.sessions, !!state.overlayK) +
+    holdingChart(holdingDays(history), stockBars(code), chartBand, D.sessions, !!state.overlayK) +
+    (gaps.length ? `<p class="footnote" id="stockHistoryGaps">缺少 ${esc(gaps.join('、'))}。更新市場資料可重試最新一期，舊週可在資料與驗收匯入可核對的原始 CSV。</p>` : '') +
     '<p class="footnote">選取級距僅改變圖表，並不修改實際選股策略。400 張含千張級距，不能把兩條線相加。</p>' +
     '</div>' +
     signalTable(code) +
@@ -463,7 +489,7 @@ function stock() {
     `<div class="toolbar"><select id="daySelect" class="select">${ds.map(d => `<option value="${d}" ${d === state.selectedDay ? 'selected' : ''}>${d}</option>`).join('')}</select></div>` +
     '<div class="tblwrap"><table><thead><tr><th>級距</th><th>占比 %</th><th>持有股數</th><th>持有張數</th><th>戶數</th><th>集保總股數</th></tr></thead><tbody>' +
     BAND_NAMES.map(b => {
-      const v = vector(code, state.selectedDay, b);
+      const v = stockHistoryVector(selectedPoint()?.row, b);
       return (
         `<tr><td>${b} 張以上</td>` +
         `<td>${v ? fmt(v.pct, 6) : '—'}</td>` +
@@ -474,7 +500,13 @@ function stock() {
       );
     }).join('') +
     '</tbody></table></div>' +
-    `<p class="footnote">${esc(state.selectedDay)} 最早已知公開證據：${esc(D.observed[state.selectedDay] || '未知，禁止嚴格時點重播')}。不是集保官方實際公布秒數。</p>` +
+    (selectedPoint() ? `<p class="footnote" id="stockHistorySource">${esc(state.selectedDay)}｜來源 ${esc(selectedPoint().source || '待證')}｜取得 ${esc(selectedPoint().receipt || '見封存紀錄')}｜${esc(selectedPoint().observed || '公布時點待證，僅供圖表')}。${selectedPoint().conflict ? ' 同週來源有差異，採目前已驗證或已匯入的資料，封存仍可追溯。' : ''}</p>` : '') +
     '</div>'
   );
+}
+
+function stockHistoryVector(row, band) {
+  const i = BAND_NAMES.indexOf(band);
+  if (!row || i < 0) return null;
+  return {den:row[0], shares:row[2+i], owner:row[6+i], pct:100*row[2+i]/row[0]};
 }

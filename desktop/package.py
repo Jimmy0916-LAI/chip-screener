@@ -48,7 +48,8 @@ def build():
         files['股票雷達輕量版.html'] = (ROOT / 'light.html').read_text(encoding='utf-8').replace('__HOLDING_CHART__', (ROOT / 'src/renderer/components/holding-chart.js').read_text(encoding='utf-8')).encode('utf-8')
         for path in [ROOT / 'package.json', *sorted((ROOT / 'scripts').rglob('*.py')),
                      ROOT / 'scripts/release_meta.json', ROOT / 'build/dashboard.html',
-                     ROOT / 'data/feed-base.json', ROOT / 'data/web_data.json', ROOT / 'data/sp500_universe.json']:
+                     ROOT / 'data/feed-base.json', ROOT / 'data/web_data.json', ROOT / 'data/sp500_universe.json',
+                     ROOT / 'data/tdcc-chart-history.json']:
             files['resources/' + path.relative_to(ROOT).as_posix()] = path.read_bytes()
         output = dist / f'ChipScreener-v{version}-Windows-x64.zip'
         with ZipFile(output, 'w') as archive:
