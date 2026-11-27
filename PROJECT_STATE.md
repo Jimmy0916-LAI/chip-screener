@@ -1,5 +1,9 @@
 # 台股籌碼雷達專案狀態
 
+## v0.6.5 首頁交付
+
+下載、解壓、啟動置於首頁頂部。保留歷史及驗收資料於原索引。程式修正見 [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15)，以 PR #14 的現行產品分支為基線。比較時 main 與該基線各有獨立文件及產品提交，首頁先透過獨立文件 PR 整理。
+
 ## 最新封測 v0.6.5-rc.1
 
 候選 SHA `f72af65a8c87ab43c9923c4d948c17830a716ad6` · [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) · [PR #14 下載與校驗](https://github.com/Jimmy0916-LAI/chip-screener/pull/14#v065-rc1-download)。含多條件篩選、策略與 CSV，並接上 Gemini、DeepSeek、Claude、OpenAI 及三個可切換的 AI 模組。
