@@ -8,7 +8,9 @@ RC1 產品標籤 `f72af65a8c87ab43c9923c4d948c17830a716ad6`，開工使用 PR #1
 
 本機執行 `python -X utf8 desktop/qa/feed_test.py` 4 項與 `node --test desktop/qa/signal-engine.test.cjs` 8 項。封存重建指令為 `python desktop/qa/rebuild_tdcc_history.py <CSV目錄> <feed-base.json> 2026-11-28T02:59:52+08:00`。集保圖表檢查點提交 `ac809e0a6c08030d84292668ec2c6236dfdf2bb6`；調整交付的歷史種子至 11-13，11-20 由原官方增量路徑加入。
 
-關閉最後一個桌面畫面後，以視窗租約停止本機服務，停止背景工作並保護已提交的快取。系統首次啟動保留畫面開啟時限，切頁／重載保留短暫交接。使用新的多視窗測試重跑集保 5 項，AI 路由 5 項。下一步為版本圖示與 Windows ZIP 驗收。
+關閉最後一個桌面畫面後，以視窗租約停止本機服務，停止背景工作並保護已提交的快取。系統首次啟動保留畫面開啟時限，切頁／重載保留短暫交接。使用新的多視窗測試重跑集保 5 項，AI 路由 5 項。生命週期檢查點 `beefaea5d6395ebe0ca8e0d384ddcefb73286277`。
+
+品牌版本來自產品版本設定，Windows EXE 內嵌同版資源字串及原創雷達圖示。[圖示原檔](desktop/assets/radar.svg)與瀏覽器分頁使用同一設計。CI 在 Windows Server 2022 從實際成品重現 RC1，驗 RC2 查詢、跨版快取、關閉視窗與現有回歸，通過後再把原成品發到私庫。Windows 11 x64 實機待驗。
 
 ## v0.6.5 B03｜Windows 封測候選交付
 

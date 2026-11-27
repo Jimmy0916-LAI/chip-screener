@@ -17,7 +17,7 @@ function softwarePage() {
   const isBeta = cfg.channel === 'beta';
   const candidateUrl = ver.candidateDownload || D.versionInfo?.candidateDownload;
   const manualDownload = candidateUrl
-    ? `<p><a id="swCandidateDownload" href="${esc(candidateUrl)}" target="_blank" rel="noopener">開啟 ${esc(appVer)} 封測 ZIP 下載與校驗頁</a>。請用有私庫權限的 GitHub 帳號登入，頁內列出內層 ZIP 的 SHA-256 與下載到期時間。</p>`
+    ? `<p><a id="swCandidateDownload" href="${esc(candidateUrl)}" target="_blank" rel="noopener">開啟 ${esc(appVer)} 封測 ZIP 下載與校驗頁</a>。請用有私庫權限的 GitHub 帳號登入，頁內附 Windows x64 ZIP 與 SHA-256。</p>`
     : '<p><a href="https://github.com/Jimmy0916-LAI/chip-screener/releases" target="_blank" rel="noopener">開啟 GitHub 下載頁</a></p>';
   const liveEnabled = cfg.liveQuoteEnabled !== false;
   const liveInterval = Number(cfg.liveQuoteIntervalSec || 30);

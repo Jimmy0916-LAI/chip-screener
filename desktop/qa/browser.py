@@ -21,6 +21,7 @@ parser.add_argument('--chromium')
 parser.add_argument('--version', default='0.6.3-rc.1')
 parser.add_argument('--old-version', default='0.6.3')
 parser.add_argument('--download', default='https://github.com/Jimmy0916-LAI/chip-screener/pull/13#v063-rc1-download')
+parser.add_argument('--history-fix', action='store_true')
 parser.add_argument('--v065', action='store_true', help='Exercise additional signal and AI settings on the candidate')
 parser.add_argument('--old-exe', type=Path, help='Run Windows upgrade and rollback from the previous ZIP')
 parser.add_argument('--inline-html', action='store_true', help='Test document and File API when the runner blocks file://')
@@ -207,6 +208,29 @@ def verify_upgrade(context, page, day, week, errors):
     print('063-06 closed window, stopped old service, upgraded and rolled back: applied strategy, draft, preset, watchlist and TDCC cache preserved', flush=True)
 
 
+if args.history_fix and args.old_exe:
+    # Use the previous verified ZIP itself, in a dedicated user directory.
+    clean = os.environ['LOCALAPPDATA']
+    os.environ['LOCALAPPDATA'] = clean + '-rc1-repro'
+    start(args.old_exe, args.old_version)
+    with sync_playwright() as driver:
+        baseline_browser = driver.chromium.launch(executable_path=args.chromium)
+        baseline = open_app(baseline_browser.new_context(), [])
+        expect(baseline.locator('#feedDay')).to_have_text('—')
+        go(baseline, 'stock')
+        assert baseline.locator('#daySelect option').count() == 0
+        go(baseline, 'home')
+        baseline.locator('#refreshTDCC').click()
+        expect(baseline.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
+        previous = read_api('/api/official/read')['weeks']
+        assert len(previous) == 1
+        go(baseline, 'stock')
+        assert baseline.locator('#daySelect option').count() == 1
+        baseline.screenshot(path=args.output / 'rc1-reproduction.png')
+        print('RC1 original ZIP: clean = 0 points, one persisted real TDCC file = 1 point', list(previous), flush=True)
+        stop(baseline)
+    os.environ['LOCALAPPDATA'] = clean
+
 if args.old_exe:
     start(new_exe, VERSION, shell=True)
 else:
@@ -219,6 +243,11 @@ with sync_playwright() as driver:
     page = open_app(context, errors)
     page.screenshot(path=args.output / 'startup.png')
     assert page.locator('#feedDay').inner_text() == '—'
+    if args.history_fix:
+        from history_browser_checks import verify_history
+        expect(page.locator('#brandVersion')).to_have_text('籌碼雷達V' + VERSION)
+        expect(page.locator('link[rel=icon]')).to_have_attribute('href', page.locator('img.brand-mark').get_attribute('src'))
+        verify_history(page, args.output)
     for nav in ('screen', 'stock', 'backtest', 'peak', 'settings', 'data'):
         go(page, nav)
         assert page.locator('#page').inner_text().strip()
@@ -256,6 +285,12 @@ with sync_playwright() as driver:
     stock_summary(page, day, shares)
     page.locator('#windowSelect').select_option(day)
     page.locator('#daySelect').select_option(day)
+    if args.history_fix:
+        page.reload()
+        expect(page.locator('#feedDay')).to_have_text(day)
+        verify_history(page, args.output, latest=day)
+        page.locator('#daySelect').select_option(day)
+        stock_summary(page, day, shares)
     print('063-02 reopened 2404 and selected the official week manually', flush=True)
     go(page, 'home')
     if args.old_exe:
@@ -333,7 +368,8 @@ with sync_playwright() as driver:
     go(page, 'software')
     expect(page.locator('#swCandidateDownload')).to_have_attribute('href', DOWNLOAD)
     expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('SHA-256')
-    expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('下載到期時間')
+    if not args.history_fix:
+        expect(page.locator('#swCandidateDownload').locator('..')).to_contain_text('下載到期時間')
     expect(page.locator('#swCandidateDownload')).to_contain_text(VERSION)
     page.screenshot(path=args.output / 'candidate-download.png')
     print('063-11 beta download and verification landing page', DOWNLOAD, flush=True)
@@ -344,3 +380,22 @@ with sync_playwright() as driver:
     if args.old_exe:
         verify_upgrade(context, page, day, week, errors)
     assert not errors, errors
+
+if args.history_fix and args.old_exe:
+    from history_browser_checks import close_native_dashboard
+    expected = '籌碼雷達V' + VERSION
+    close_native_dashboard(expected)
+    time.sleep(2)
+    pid = start(new_exe, VERSION, fail_network=True)
+    for _ in range(25):
+        if close_native_dashboard(expected):
+            break
+        time.sleep(1)
+    else:
+        raise AssertionError('Native dashboard window did not open')
+    wait_health(None)
+    # Closing the last UI must stop the packaged Python service, not only close its socket.
+    subprocess.run(['pwsh', '-NoProfile', '-Command',
+                    f'if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ exit 1 }}'], check=True)
+    print('Closing the last native window stopped its packaged Python service', flush=True)
+

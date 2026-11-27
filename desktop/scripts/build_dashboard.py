@@ -1,5 +1,6 @@
 """純 Python 模組化建置腳本：組裝 src/renderer/ 與凍結證據資料，產出 build/dashboard.html 與 data/feed-base.json。"""
 
+import base64
 import json
 from pathlib import Path
 from weekly_evidence import enrich
@@ -117,8 +118,11 @@ def build(
     assert '__DATA_JSON__' in template
     assert '__APP_JS__' in template
 
+    icon = base64.b64encode((ROOT / 'assets' / 'radar.svg').read_bytes()).decode('ascii')
     html = (
         template
+        .replace('__RADAR_ICON__', 'data:image/svg+xml;base64,' + icon)
+        .replace('__APP_VERSION__', app_ver)
         .replace('__STYLES_CSS__', styles, 1)
         .replace('__DATA_JSON__', data_json, 1)
         .replace('__APP_JS__', bundled_js, 1)

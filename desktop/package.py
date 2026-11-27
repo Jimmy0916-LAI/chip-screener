@@ -1,4 +1,5 @@
 """Build the Windows candidate using the pinned, verified 0.6.2 runtime."""
+from base64 import b64encode
 import hashlib
 import json
 import os
@@ -22,6 +23,8 @@ def build():
         raise ValueError('0.6.2 封存 SHA-256 不符')
     dist = ROOT / 'dist'
     dist.mkdir(exist_ok=True)
+    version_tuple = ','.join(version.split('-', 1)[0].split('.')) + ',0'
+    zig = os.environ.get('ZIG', 'zig')
     with ZipFile(BASE) as src, TemporaryDirectory() as temp:
         files = {}
         for name in src.namelist():
@@ -34,10 +37,35 @@ def build():
                 files['resources/' + rel] = src.read(name)
         subprocess.run([sys.executable, str(ROOT / 'scripts/build_dashboard.py')], check=True)
         launcher = Path(temp) / 'launcher.exe'
-        subprocess.run([os.environ.get('ZIG', 'zig'), 'cc', '-target', 'x86_64-windows-gnu',
+        resource = Path(temp) / 'launcher.rc'
+        (Path(temp) / 'radar.ico').write_bytes((ROOT / 'assets/radar.ico').read_bytes())
+        resource.write_text(f'''
+1 ICON "radar.ico"
+1 VERSIONINFO
+FILEVERSION {version_tuple}
+PRODUCTVERSION {version_tuple}
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "FileVersion", "{version}"
+      VALUE "ProductVersion", "{version}"
+      VALUE "ProductName", "ChipScreener"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END
+''', encoding='ascii')
+        compiled = Path(temp) / 'launcher.res'
+        subprocess.run([zig, 'rc', '/fo', compiled.name, resource.name], cwd=temp, check=True)
+        subprocess.run([zig, 'cc', '-target', 'x86_64-windows-gnu',
                         '-Os', '-s', '-municode', '-Wl,--subsystem,windows',
                         '-lkernel32', '-luser32',
-                        'launcher.c', '-o', str(launcher)], cwd=ROOT, check=True)
+                        'launcher.c', str(compiled), '-o', str(launcher)], cwd=ROOT, check=True)
         launcher_bytes = bytearray(launcher.read_bytes())
         pe_header, = struct.unpack_from('<I', launcher_bytes, 0x3c)
         if launcher_bytes[pe_header:pe_header+4] != b'PE\0\0':
@@ -45,11 +73,14 @@ def build():
         # Zig's PE COFF TimeDateStamp otherwise varies across builds.
         struct.pack_into('<I', launcher_bytes, pe_header + 8, 0)
         files['股票雷達.exe'] = launcher_bytes
-        files['股票雷達輕量版.html'] = (ROOT / 'light.html').read_text(encoding='utf-8').replace('__HOLDING_CHART__', (ROOT / 'src/renderer/components/holding-chart.js').read_text(encoding='utf-8')).encode('utf-8')
+        favicon = 'data:image/svg+xml;base64,' + b64encode((ROOT / 'assets/radar.svg').read_bytes()).decode('ascii')
+        light = (ROOT / 'light.html').read_text(encoding='utf-8')
+        light = light.replace('</head>', f'<link rel="icon" type="image/svg+xml" href="{favicon}"></head>', 1)
+        files['股票雷達輕量版.html'] = light.replace('__HOLDING_CHART__', (ROOT / 'src/renderer/components/holding-chart.js').read_text(encoding='utf-8')).encode('utf-8')
         for path in [ROOT / 'package.json', *sorted((ROOT / 'scripts').rglob('*.py')),
                      ROOT / 'scripts/release_meta.json', ROOT / 'build/dashboard.html',
                      ROOT / 'data/feed-base.json', ROOT / 'data/web_data.json', ROOT / 'data/sp500_universe.json',
-                     ROOT / 'data/tdcc-chart-history.json']:
+                     ROOT / 'data/tdcc-chart-history.json', ROOT / 'assets/radar.svg']:
             files['resources/' + path.relative_to(ROOT).as_posix()] = path.read_bytes()
         output = dist / f'ChipScreener-v{version}-Windows-x64.zip'
         with ZipFile(output, 'w') as archive:
