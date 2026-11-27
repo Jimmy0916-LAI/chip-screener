@@ -46,11 +46,14 @@ jobs:
         with:
           python-version: '3.12'
       - shell: pwsh
+        env:
+          PYTHONUTF8: '1'
         run: |
           $out = Join-Path $env:RUNNER_TEMP '候選 測試'
           Expand-Archive -Path candidate/*.zip -DestinationPath $out
           if ((Get-ChildItem $out).Count -ne 3) { throw 'ZIP layout' }
           $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP '全新資料'
+          $clock = [Diagnostics.Stopwatch]::StartNew()
           Start-Process (Join-Path $out '股票雷達.exe')
           $ready = $false
           for ($n=0; $n -lt 45; $n++) {
@@ -59,6 +62,9 @@ jobs:
             Start-Sleep 1
           }
           if (!$ready) { throw 'EXE did not start' }
+          Write-Host ('EXE local health ready in ' + $clock.Elapsed.TotalSeconds + ' seconds')
+          $bundled = Join-Path $out 'resources/runtime-python/pythonw.exe'
+          if (!(Get-Process pythonw -ErrorAction SilentlyContinue | Where-Object Path -eq $bundled)) { throw 'Bundled Python process missing' }
           python -m pip install playwright==1.56.0
           python desktop/qa/browser.py http://127.0.0.1:18765 "$out/股票雷達輕量版.html" evidence --chromium "C:/Program Files/Google/Chrome/Application/chrome.exe"
       - uses: actions/upload-artifact@v4

@@ -18,7 +18,14 @@ with sync_playwright() as driver:
     page = browser.new_page()
     errors = []
     page.on('pageerror', lambda exc: errors.append(str(exc)))
-    page.goto(args.url)
+    response = page.goto(args.url)
+    assert response.ok
+    page.screenshot(path=args.output / 'startup.png')
+    assert page.locator('#feedDay').inner_text() == '—'
+    for nav in ('screen','stock','backtest','peak','settings','data'):
+        page.locator('[data-nav="'+nav+'"]').first.click()
+        assert page.locator('#page').inner_text().strip()
+    page.locator('[data-nav="home"]').first.click()
     assert page.locator('#feedDay').inner_text() == '—'
     page.get_by_role('button', name='更新市場資料').click()
     page.wait_for_function("!document.querySelector('#refreshTDCC').disabled", timeout=150000)
