@@ -276,11 +276,17 @@ with sync_playwright() as driver:
         go(page, nav)
         assert page.locator('#page').inner_text().strip()
     go(page, 'home')
-    assert page.locator('#feedDay').inner_text() == '—'
-    print('063-10 seven existing pages open before first download', flush=True)
+    expect(page.locator('#feedDay')).to_have_text(initial_day)
+    print('063-10 seven existing pages open before first live download', flush=True)
 
-    page.locator('#refreshTDCC').click()
-    page.wait_for_function("!document.querySelector('#refreshTDCC').disabled", timeout=150000)
+    if args.screen_fix:
+        stop(page)
+        start(new_exe, VERSION)
+        page = open_app(context, errors)
+        expect(page.locator('#feedDay')).not_to_have_text(initial_day, timeout=150000)
+    else:
+        page.locator('#refreshTDCC').click()
+    expect(page.locator('#refreshTDCC')).to_be_enabled(timeout=150000)
     print('market', page.locator('#feedPanel').inner_text(), flush=True)
     day = page.locator('#feedDay').inner_text()
     downloaded = read_api('/api/official/read')['weeks']
