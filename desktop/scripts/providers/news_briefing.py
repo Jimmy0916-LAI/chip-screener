@@ -654,9 +654,9 @@ class BriefingService:
     def _fetch_tracked_quotes(self, symbols: list[str]) -> list[dict]:
         if not symbols:
             return []
-        from concurrent.futures import ThreadPoolExecutor
+        from crawler_pool import CrawlerPool
         us_names, _ = self._load_us_name_map()
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with CrawlerPool(max_workers=6) as pool:
             return list(pool.map(lambda s: self._fetch_one_tracked_quote(s, us_names), symbols))
 
     def _extract_news_stocks(

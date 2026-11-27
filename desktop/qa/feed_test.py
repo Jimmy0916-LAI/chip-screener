@@ -90,6 +90,24 @@ class FeedTest(unittest.TestCase):
                 self.assertIs(second.result(), expected)
             work.assert_called_once()
 
+    def test_window_leases_keep_other_windows_and_allow_reload(self):
+        now = [0]
+        leases = service.WindowLeases(lambda: now[0])
+        leases.update('first', True)
+        leases.update('second', True)
+        leases.update('first', False)
+        now[0] = 10
+        self.assertFalse(leases.expired())
+        leases.update('second', False)
+        now[0] = 12
+        self.assertFalse(leases.expired())
+        leases.update('replacement', True)
+        now[0] = 15
+        self.assertFalse(leases.expired())
+        leases.update('replacement', False)
+        now[0] = 20
+        self.assertTrue(leases.expired())
+
     def test_cache_clear_preserves_other_files(self):
         root = Path(self.directory.name)
         path = root / 'daily'

@@ -11,7 +11,7 @@ import re
 import threading
 import time
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
+from crawler_pool import CrawlerPool
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -403,7 +403,7 @@ class WatchlistService:
         quotes_map = dict(quotes_doc.get('quotes') or {})
 
         if all_codes:
-            with ThreadPoolExecutor(max_workers=6) as pool:
+            with CrawlerPool(max_workers=6) as pool:
                 for sym, q in zip(all_codes, pool.map(self._fetch_single_quote, all_codes)):
                     if q:
                         quotes_map[sym] = q
@@ -791,7 +791,7 @@ class WatchlistService:
 
         items: list[dict] = []
         if auto_codes:
-            with ThreadPoolExecutor(max_workers=4) as pool:
+            with CrawlerPool(max_workers=4) as pool:
                 items = list(pool.map(lambda c: self._analyze_one(c, weeks), auto_codes))
 
         # 順便同步寫入最新收盤價快取（若未有盤中報價則補齊）

@@ -21,7 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor
+from crawler_pool import CrawlerPool
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -1384,7 +1384,7 @@ class ChannelService:
 
         if not cleaned:
             return []
-        with ThreadPoolExecutor(max_workers=6) as pool:
+        with CrawlerPool(max_workers=6) as pool:
             return list(pool.map(self._enrich_single_ticker, cleaned))
 
     # ---------- Gemini 呼叫（Tier 1a & Tier 2） ----------
