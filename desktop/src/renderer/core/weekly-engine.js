@@ -44,7 +44,7 @@ function evaluation(cfg, end = state.win, asOf = state.asOf || evidenceTime(end)
   } else {
     for (const d of windowDates) {
       if (!D.series[d]) {
-        context.issue = d + ' 缺週';
+        context.issue = d + (D.tdccChartHistory?.[d] ? ' 公布時點待證（個股圖表有資料）' : ' 缺週');
         break;
       }
       if (!D.observed[d] || !Number.isFinite(Date.parse(D.observed[d]))) {

@@ -1,7 +1,7 @@
 {
-  "appVersion": "0.6.5-rc.3",
+  "appVersion": "0.6.5-rc.4",
   "channel": "beta",
-  "candidateDownload": "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3",
+  "candidateDownload": "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.4",
   "changelog": [
     "多條件篩選可組合集保連續增持、MACD 黃金交叉與前高突破。",
     "四家 AI 供應商及獨立加密金鑰，支援總開關與三個模組開關。",

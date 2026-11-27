@@ -1,12 +1,15 @@
 # 台股籌碼雷達專案狀態
 
-## v0.6.5-rc.3 交付驗收
+## v0.6.5-rc.4｜恢復台股全市場篩選
 
-候選程式 `6e3657b27c843fcc4a25095781913309e4bc2fcc` 對應 [Tag](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.3) 及 [Pre-release](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3)。[Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.3/ChipScreener-v0.6.5-rc.3-Windows-x64.zip) SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`。Windows Server 2022 驗收及從 Release 回讀後重新解壓啟動已通過。[CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274) · [Windows 逐案](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274/job/140695516153) · [Release 回讀](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054836274/job/140696882738)。
+使用者拒收 RC3，凍結正式版與 v0.7。問題基準 [RC3](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.3) 程式 `6e3657b27c843fcc4a25095781913309e4bc2fcc`，ZIP SHA-256 `8c1ea508dead1d7dae411bd9f32fd1fea582f07ff337f8a1ba172385534ae57b`，續 [PR #15](https://github.com/Jimmy0916-LAI/chip-screener/pull/15)。
 
-2330 台積電與 2404 漢唐各有 2026-10-30、11-06、11-13、11-20，4 期連續且無缺週。再次下載 11-20 維持原快取及圖表點數。RC1 換版與回退保留既有策略、自選與資料，最後視窗關閉後隨包 Python 服務退出。[畫面](https://github.com/Jimmy0916-LAI/chip-screener/blob/main/docs/evidence/v0.6.5-rc.3-2330.png)。
+實際 ZIP 的瀏覽器與本機伺服器重現：乾淨離線 0 個嚴格快照，連線後只有 2026-11-27，兩者及舊快取重開均 1,985 檔不足。包內圖表僅 10/30、11/06、11/13，嚴格資料由 v0.6.3 `5a8c98f1a24549d380e5f049b79460fd42fac4ca` 起清空至使用者另選封存按鈕。美股模式同時隱藏台股篩選，既有本機市場偏好可重現。真實連線當時上市名單 1,092／行情 1,091（11/26），上櫃名單 899／行情 862（11/27），來源取得時間及缺口見 Windows 資料盤點。盤後一日價量不作為歷史日 K，個股策略日 K 快取初始 0 檔。
 
-[PR #16](https://github.com/Jimmy0916-LAI/chip-screener/pull/16) 合併下載首頁及索引。產品分支接續 PR #14，Windows 11 x64 開啟、換版與關窗實機待驗。恢復時 `git fetch origin --tags` 後 `git switch --detach v0.6.5-rc.3`，比對上列 Release ZIP SHA-256，再補實機驗收。
+啟動掛載原本已證的嚴格週，另外按 B05 的擷取日、交易日驗證與原檔 SHA-256 重建 11/20 的完整官方週。乾淨成品可離線評估；官方新增一期即重算，優先可評估窗口。台美股側欄都提供台股篩選。Source/CSV 的舊數字保留供歷史追溯；本輪以台積電 2330 作固定測試股，11/13 固定窗口 400 張線增減為 −37,973,336、−10,706,718 股，累計 −0.18771926312261655 pp。歷史記錄中的其他股票數值屬先前交付。
+
+驗收命令 `node --test desktop/qa/signal-engine.test.cjs`、`python -X utf8 desktop/qa/feed_test.py` 與 Windows 成品 `desktop/qa/browser.py --screen-fix --history-fix`。成品比較採 [B04.2 完整 CSV](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/45007997573/artifacts/14748364432)，逐股核對日期、策略、判定、原因、增幅及來源時點。完成整包驗收後才發布 RC4，Windows 11 x64 實機待驗。
+
 
 ## v0.6.5-rc.3｜舊日曆與新快照的缺週判定
 

@@ -62,6 +62,18 @@ def build(
 
     base_data = json.loads((DATA_DIR / 'web_data.json').read_bytes())
     enriched = enrich(base_data, DATA_DIR / 'chip-screener-phase1.zip')
+    recovered = json.loads((DATA_DIR / 'verified-tdcc-2026-11-20.json').read_bytes())
+    week, trade_day = recovered['week'], recovered['tradeDay']
+    day = week['day']
+    assert day == trade_day and day not in enriched['series']
+    enriched['series'][day] = {**week['extraRows'], **week['rows']}
+    enriched['dates'] = sorted([*enriched['dates'], day])
+    enriched['sessions'] = sorted(set(enriched['sessions']) | {trade_day})
+    enriched['observed'][day] = week['observed']
+    enriched['quality'][day] = week['quality']
+    enriched['issues'][day] = week['issues']
+    enriched['adjustments'][day] = week['adjustments']
+
     chart_history = DATA_DIR / 'tdcc-chart-history.json'
     if chart_history.exists():
         enriched['tdccChartHistory'] = json.loads(chart_history.read_bytes())
@@ -108,7 +120,7 @@ def build(
     feed_base = {
         'universe': enriched['universe'],
         'sessions': enriched['sessions'],
-        'hashes': {day: q['raw_source'] for day, q in enriched['quality'].items()},
+        'hashes': {day: q.get('sha256', q['raw_source']) for day, q in enriched['quality'].items()},
     }
     (DATA_DIR / 'feed-base.json').write_text(json.dumps(feed_base), encoding='utf-8')
 

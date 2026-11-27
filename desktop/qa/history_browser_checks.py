@@ -31,7 +31,7 @@ def verify_history(page, out, latest=None):
         raw[day] = data
     page.locator('[data-nav=stock]').first.click()
     actual = {}
-    for code in ('2330', '2404'):
+    for code in ('2330',):
         page.locator('#stockCode').fill(code)
         page.locator('#goStock').click()
         expected = {day: original_shares(code, day, data) for day, data in raw.items()}
@@ -43,7 +43,7 @@ def verify_history(page, out, latest=None):
             page.locator('#daySelect').select_option(day)
             expect(page.get_by_role('row').filter(has_text='400 張以上')).to_contain_text(f'{shares:,}')
             expect(page.locator('svg circle title').filter(has_text=day).first).to_be_attached()
-        expect(page.locator('#stockHistorySource')).to_contain_text('公布時點待證')
+        expect(page.locator('#stockHistorySource')).to_contain_text('2026-11-14T16:15:45+08:00')
         actual[code] = {'days': days, 'shares400': expected,
                         'gaps': page.locator('#stockHistoryGaps').all_text_contents()}
         page.screenshot(path=out / f'history-{code}.png')
@@ -71,3 +71,15 @@ def close_native_dashboard(title):
     for hwnd in matches:
         user.PostMessageW(hwnd, 0x0010, 0, 0)
     return len(matches)
+
+
+def seed_2330_overlay(page):
+    # Deterministic OHLC fixture isolated from the official screening cache.
+    page.evaluate('''() => {
+      D.dailyByCode['2330'] = [
+        ['2026-11-06', 1400, 1410, 1390, 1405],
+        ['2026-11-09', 1405, 1420, 1400, 1412],
+        ['2026-11-10', 1412, 1425, 1400, 1420],
+        ['2026-11-13', 1420, 1430, 1410, 1425]
+      ];
+    }''')

@@ -80,7 +80,7 @@ END
         for path in [ROOT / 'package.json', *sorted((ROOT / 'scripts').rglob('*.py')),
                      ROOT / 'scripts/release_meta.json', ROOT / 'build/dashboard.html',
                      ROOT / 'data/feed-base.json', ROOT / 'data/web_data.json', ROOT / 'data/sp500_universe.json',
-                     ROOT / 'data/tdcc-chart-history.json', ROOT / 'assets/radar.svg']:
+                     ROOT / 'data/tdcc-chart-history.json', ROOT / 'data/verified-tdcc-2026-11-20.json', ROOT / 'assets/radar.svg']:
             files['resources/' + path.relative_to(ROOT).as_posix()] = path.read_bytes()
         output = dist / f'ChipScreener-v{version}-Windows-x64.zip'
         with ZipFile(output, 'w') as archive:

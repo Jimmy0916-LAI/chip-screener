@@ -115,7 +115,12 @@ if (
 
 function applyWeek(day, week) {
   D.series[day] = { ...(week.extraRows || {}), ...week.rows };
-  D.observed[day] = week.observed;
+  const previous = D.quality[day];
+  const sameOriginal = week.quality.sha256 &&
+    week.quality.sha256 === (previous?.sha256 || previous?.raw_source);
+  const earlier = D.observed[day];
+  D.observed[day] = sameOriginal && earlier && Date.parse(earlier) < Date.parse(week.observed)
+    ? earlier : week.observed;
   D.quality[day] = week.quality;
   if (!D.dates.includes(day)) D.dates.push(day);
   D.dates.sort();
@@ -124,25 +129,7 @@ function applyWeek(day, week) {
   }
 }
 
-const archivedSample = Object.fromEntries(
-  ['series', 'observed', 'quality', 'issues', 'adjustments', 'dates', 'daily2404'].map(key => [key, D[key]])
-);
-let sampleLoaded = false;
-for (const key of Object.keys(archivedSample)) {
-  D[key] = Array.isArray(archivedSample[key]) ? [] : {};
-}
-
-function loadArchivedSample() {
-  if (sampleLoaded) return;
-  sampleLoaded = true;
-  for (const key of ['series', 'observed', 'quality', 'issues', 'adjustments'])
-    D[key] = { ...archivedSample[key], ...D[key] };
-  D.dates = [...new Set([...D.dates, ...archivedSample.dates])].sort();
-  D.daily2404 = archivedSample.daily2404;
-  if (!D.dailyByCode['2404']?.length) D.dailyByCode['2404'] = D.daily2404;
-  if (!state.manualWeek) useDefaultWeek();
-  render();
-}
+const frozenWeeks = {...D.quality};
 
 for (const [day, week] of Object.entries(savedWeeks)) {
   // 內建凍結基線的固定日期優先於本機手動覆寫
@@ -212,7 +199,7 @@ D.dailyByCode = D.dailyByCode || { '2404': D.daily2404 };
 let state = {
   market: loadMarketMode(),
   page: loadMarketMode() === 'US' ? 'us_home' : 'home',
-  stock: '2404',
+  stock: '2330',
   stockMode: 'study',
   stockDetailByCode: {},
   stockDetailLoading: false,

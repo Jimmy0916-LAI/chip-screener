@@ -45,4 +45,4 @@ if __name__ == '__main__':
     out = ROOT / 'data' / 'tdcc-chart-history.json'
     out.write_text(json.dumps(weeks, ensure_ascii=False, separators=(',', ':'))+'\n', encoding='utf-8')
     for day, packet in weeks.items():
-        print(day, len(packet['rows']), packet['rows']['2330'][3], packet['rows']['2404'][3], packet['sha256'])
+        print(day, len(packet['rows']), packet['rows']['2330'][3], packet['sha256'])

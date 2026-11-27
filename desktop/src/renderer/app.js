@@ -3094,9 +3094,6 @@ document.body.addEventListener('click', e => {
     case 'clearHistory':
       inspectHistoryCache(true);
       break;
-    case 'loadArchivedSample':
-      loadArchivedSample();
-      break;
     case 'exportLight':
       exportLight();
       break;
@@ -3730,7 +3727,7 @@ useDefaultWeek();
 render();
 
 if (hasOfficialFeedBackend) {
-  setInterval(() => { if (Object.keys(officialWeeks).length) refreshTDCC(); }, 6 * 60 * 60 * 1000);
+  setInterval(() => { refreshTDCC(); }, 6 * 60 * 60 * 1000);
 }
 
 if (hasHttpFeed) {
