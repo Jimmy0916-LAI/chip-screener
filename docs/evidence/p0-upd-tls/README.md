@@ -31,3 +31,21 @@ Windows 修復版使用固定版本 truststore 0.10.4，以 Windows 原生憑證
 - 真實 Windows RC5 固定入口原封保留。用 RC7 解壓後的 EXE 確認離線修復，檢查版號、上一可用版、舊市場資料與原入口重開相符。最後關窗後埠和服務程序退出。
 
 [Windows 端點與離線修復證據](windows-tls.json) · [診斷 CI 46137047372](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46137047372)
+
+## 交付候選與 U01–U12
+
+| 版號 | Tag 來源提交 | ZIP SHA-256 |
+| --- | --- | --- |
+| [RC7 修復](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.7) | `d4a29a952fb3143a6e590e8ff30a58fd15cae4c0` | `a40e77a954bc9a19238b9d5f22a69da95c8f02c3866195fc1310794b6bd9b6ae` |
+| [RC8 隔離跨版目標](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.8) | `ab14118482b34f725bb54778728a128438b572be` | `7bfb6a01d9197e17ec2a2a6d8e16928f99756fb689226a5c52d546058cbbf49b` |
+
+| 驗收 | 開發端結果及限制 |
+| --- | --- |
+| U01–U03、U05、U12 | Windows Server。隔離 README 指定 RC7 時忽略已發布的 RC8，切換唯一 ZIP 連結後從 UI 真實下載 RC8，健康驗證、同入口重開與版號一致。發行 ZIP 匿名回下載雜湊一致。 |
+| U04 | Stable 未指定及切到 Beta 已驗。公開 Stable 降版需合格正式資產。 |
+| U06、U08 | 未信任 CA、主機名稱不符均拒絕。原生故障注入時自動恢復 RC8，再手動回退至健康的 RC7。真實磁碟耗盡與斷電待驗。 |
+| U07 | RC5 固定入口和市場資料哨兵在離線遷移後保留。跨版與回退中瀏覽器設定哨兵保留。完整舊使用者資料待獨立驗收。 |
+| U09、U10 | Windows Server 原生 EXE、隨包 Python、中文空格路徑、離線開啟、畫面篩選和固定 CSV 實測。RC7 另驗 GitHub、集保及價格來源 HTTPS。Windows 11 實機需在原網路重跑。 |
+| U11 | 官源和完整包更新各由實際產品路徑驗證。並行滿載待實機長跑。 |
+
+[跨版與回退 CI 46137337984](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46137337984) · [下載、重開與關窗](native-update.json) · [故障恢復與手動回退](native-rollback.json)

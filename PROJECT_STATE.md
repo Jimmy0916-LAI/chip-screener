@@ -39,3 +39,9 @@ R01 分支 `docs/r01-architecture-governance`。文件候選 SHA 以 PR head 為
 - Linux 成品官源路徑於 11/27 實際匯出 1,991 筆。兩個資料中心庫的建立 API 回 403，[部署骨架](data-repository-skeleton/README.md)及驗證和發布工具已提交。共享 GitHub 真實分片、全歷史覆蓋與 DR 原文仍待驗。
 - 完成 Linux 訊號與資料完整性、更新器 7 案、資料路由 3 案及部署骨架驗證。Windows Server 成品及真實跨版通過。Windows Server 原生健康故障自動恢復及手動回退已通過。Windows 11 獨立驗收、斷電與磁碟耗盡實測、程式信任及容量長跑仍待完成。
 - 本檢查點前一推送為 `d439ee8`，最新提交以 `git log -1 origin/develop` 為準。續跑先執行 `git fetch origin --tags && git log -1 origin/develop && gh run view 46133876934`。已完成的固定驗收以該次證據為準。
+
+## P0-UPD-TLS
+
+RC5 在真實 Windows 11 使用者網路檢查更新時回報憑證驗證失敗，獨立驗收 FAIL。PR #19 已交付 RC7 修復候選及 RC8 隔離測試目標。Windows Server 驗證原 RC5 缺信任根錯誤、RC7 原生信任鏈、官源、離線遷移、實際跨版與回退通過。原 Windows 11 網路需獨立重驗。公開 Stable／Beta 目前未改指，main 官方通道表待 [PR #18](https://github.com/Jimmy0916-LAI/chip-screener/pull/18)。
+
+[手動遷移、ZIP 雜湊、續驗與 U01–U12](docs/evidence/p0-upd-tls/README.md)。續跑先執行 `git fetch origin --tags && git log -1 origin/fix/p0-upd-tls && gh run view 46137337984`。
