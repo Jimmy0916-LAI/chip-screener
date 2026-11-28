@@ -22,4 +22,11 @@ R01 分支 `docs/r01-architecture-governance`。文件候選 SHA 以 PR head 為
 
 ## 續跑
 
-收到「開始 R02」後，在儲存庫執行 `git fetch origin --tags && git log -1 origin/main && git branch -r`，依 [路線圖](ROADMAP.md) 核對 R01 PR 狀態及產品來源。
+本輪 A–G 已獲整體開發授權。在儲存庫執行 `git fetch origin --tags && git log -1 origin/main && git branch -r`，依 [路線圖](ROADMAP.md) 核對 R01 PR 狀態及產品來源。
+
+## 批次 A 更新
+
+- 來源與上一成功文件提交為 `7f0cd8507a9decf8844acf5dc4875e50cff9ea41`。接續 [PR #18](https://github.com/Jimmy0916-LAI/chip-screener/pull/18)，本文件候選 SHA 以該 PR 的 head 為準。RC5 為產品候選目標。
+- 已更新一般使用者網路優先與預設不永久保存市場資料、關窗停止、開發與公開通道權限，新增[缺陷台帳](docs/BUG_TRACKER.md)及專項[驗收](ACCEPTANCE.md)。文件測試執行 `git diff --check`、檢查有效相對連結與驗收 ID。
+- DOC-05 阻塞。工作區附件未見 Skill v1.0 原件，全部 Git refs 中指定路徑只有前次摘要。管理 Page 的連結文件檢索也未找到該 Skill 或 DR 原條文。收到原件後依原文保存並核對雜湊與所有驗收 ID。
+- 本批紀錄的程式狀態為 RC4。新候選須附完整成品及個別結果。下一步先執行 `git fetch origin --tags && git branch -r && gh pr view 18 --json headRefOid`，在產品整合分支對照本檢查點。
