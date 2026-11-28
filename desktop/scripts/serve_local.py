@@ -13,7 +13,9 @@ import json
 import math
 import os
 import re
+import secrets
 import socket
+import subprocess
 import threading
 import time
 import urllib.error
@@ -31,7 +33,7 @@ FEED_BASE_FILE = INSTALL_ROOT / 'data' / 'feed-base.json'
 import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-from providers import ai_router
+from providers import ai_router, full_update
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
 from providers.watchlist import WatchlistService
@@ -616,6 +618,20 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
         feed_service=service,
     )
     updater_service = UpdaterService(app_data_root, INSTALL_ROOT, ROOT)
+    application = full_update.FullUpdate(app_data_root, INSTALL_ROOT.parent)
+    server_id = secrets.token_hex(16)
+
+    def software_state():
+        state = updater_service.get_state()
+        state.update(application.display())
+        state['ai'] = ai_router.public_state(app_data_root)
+        state['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
+        return state
+
+    def stop_server():
+        application.close_event.set()
+        closing.set()
+        server.shutdown()
     live_quote_service = LiveQuoteService(stock_names=stock_names)
     channel_service = ChannelService(app_data_root, INSTALL_ROOT, stock_names=stock_names, feed_service=service)
     paper_service = PaperTradingService(
@@ -670,28 +686,44 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 self.wfile.write(html)
                 return
             if parsed.path == '/api/health':
-                mark_runtime_verified(app_data_root)
                 v_info = updater_service.get_version_info()
+                update_session = getattr(self.server, 'update_session', '')
+                authorized = bool(update_session) and secrets.compare_digest(
+                    self.headers.get('X-Chip-Update-Session', ''), update_session,
+                )
+                if authorized:
+                    # Keep a boot probe read-only and verify the view and datasets actually load.
+                    try:
+                        dashboard = DASHBOARD_FILE.read_bytes()
+                        if b'<!DOCTYPE html>' not in dashboard[:200] and b'<!doctype html>' not in dashboard[:200]:
+                            raise ValueError('畫面資源格式無效')
+                        json.loads(web_data_file.read_bytes())
+                    except (ValueError, OSError):
+                        self._send_json(503, {'app': 'ChipScreener', 'status': 'unhealthy'})
+                        return
+                elif not update_session:
+                    mark_runtime_verified(app_data_root)
                 self._send_json(200, {
                     'app': 'ChipScreener',
                     'status': 'ok',
-                    'latest': service.latest(),
+                    'latest': None if authorized else service.latest(),
                     'appVersion': v_info['appVersion'],
                     'shellVersion': v_info['shellVersion'],
                     'usingRuntime': v_info['usingRuntime'],
+                    'sourceCommit': (application.current or {}).get('commit'),
+                    'serverId': server_id,
+                    'updateSession': update_session if authorized else None,
+                    'updateResult': full_update.application_state(application.root).get('lastResult'),
                 })
                 return
             if parsed.path == '/api/software/ai':
                 self._send_json(200, ai_router.public_state(app_data_root))
                 return
             if parsed.path == '/api/software/state':
-                st = updater_service.get_state()
-                st['ai'] = ai_router.public_state(app_data_root)
-                st['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
-                self._send_json(200, st)
+                self._send_json(200, software_state())
                 return
             if parsed.path == '/api/software/update/progress':
-                self._send_json(200, updater_service.get_progress())
+                self._send_json(200, application.get_progress())
                 return
             if parsed.path == '/api/quotes/market-status':
                 params = urllib.parse.parse_qs(parsed.query)
@@ -810,9 +842,11 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 if origin != f"http://{self.headers.get('Host')}" or self._read_json_body().get('confirm') is not True:
                     self._send_json(403, {'error': '請從軟體設定確認停止服務'})
                     return
+                if application.is_busy():
+                    self._send_json(409, {'error': '更新進行中，請等待版本交接'})
+                    return
                 self._send_json(200, {'stopped': True})
-                closing.set()
-                self.server.shutdown()
+                stop_server()
                 return
             if parsed.path == '/api/cache/history/clear':
                 if self._read_json_body().get('confirm') is not True:
@@ -982,50 +1016,46 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 except OSError:
                     self._send_json(500, {'error': '無法儲存本機 AI 設定'})
                 return
-            if parsed.path == '/api/software/config':
+            if parsed.path in (
+                '/api/software/config', '/api/software/update/check', '/api/software/update/install',
+                '/api/software/update/apply', '/api/software/rollback',
+            ):
+                if origin != f"http://{self.headers.get('Host')}":
+                    self._send_json(403, {'error': '請從本機軟體設定操作'})
+                    return
                 body = self._read_json_body()
                 try:
-                    st = updater_service.update_config(body)
-                    st['ai'] = ai_router.public_state(app_data_root)
-                    st['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
-                    self._send_json(200, st)
-                except ValueError as exc:
+                    if not isinstance(body, dict):
+                        raise ValueError('無效軟體設定')
+                    if parsed.path == '/api/software/config':
+                        if 'channel' in body and (
+                            body.get('confirmChannel') is not True or application.is_busy()
+                        ):
+                            raise ValueError('請確認切換通道，並等待現有更新完成')
+                        updater_service.update_config(body)
+                        self._send_json(200, software_state())
+                    elif parsed.path == '/api/software/update/check':
+                        channel = updater_service.get_state()['config']['channel']
+                        version = updater_service.get_version_info()['appVersion']
+                        res = application.check(channel, version)
+                        self._send_json(200, {'check': res, 'state': software_state()})
+                    elif parsed.path == '/api/software/update/install':
+                        if body.get('confirm') is not True:
+                            raise ValueError('請先確認安裝固定入口')
+                        application.install()
+                        self._send_json(200, software_state())
+                    else:
+                        channel = updater_service.get_state()['config']['channel']
+                        action = 'apply' if parsed.path.endswith('/apply') else 'rollback'
+                        res = application.request(action, body, channel, self.server.server_port, stop_server)
+                        self._send_json(202, res)
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
                     self._send_json(400, {'error': str(exc)})
-                except Exception as exc:
-                    self._send_json(500, {'error': str(exc)})
-                return
-            if parsed.path == '/api/software/update/check':
-                body = self._read_json_body()
-                silent = bool(body.get('silent')) if isinstance(body, dict) else False
-                ch = body.get('channel') if isinstance(body, dict) else None
-                try:
-                    res = updater_service.check_for_updates(channel_override=ch)
-                    self._send_json(200, {'check': res, 'state': updater_service.get_state()})
-                except ValueError as exc:
-                    if silent:
-                        self._send_json(200, {
-                            'check': {'hasUpdate': False, 'silentError': str(exc)},
-                            'state': updater_service.get_state(),
-                        })
-                    else:
-                        self._send_json(400, {'error': str(exc)})
-                except Exception as exc:
-                    if silent:
-                        self._send_json(200, {
-                            'check': {'hasUpdate': False, 'silentError': str(exc)},
-                            'state': updater_service.get_state(),
-                        })
-                    else:
-                        self._send_json(500, {'error': str(exc)})
-                return
-            if parsed.path in ('/api/software/update/apply', '/api/software/rollback', '/api/software/restart'):
-                self._send_json(409, {'error': '此候選版請從私庫下載 ZIP，解壓至新資料夾換版。'})
                 return
             if parsed.path == '/api/software/notice/dismiss':
                 try:
-                    st = updater_service.dismiss_release_notice()
-                    st['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
-                    self._send_json(200, st)
+                    updater_service.dismiss_release_notice()
+                    self._send_json(200, software_state())
                 except Exception as exc:
                     self._send_json(500, {'error': str(exc)})
                 return
@@ -1051,8 +1081,7 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
         def service_actions(self):
             if self.stop_with_windows and leases.expired():
                 self.stop_with_windows = False
-                closing.set()
-                threading.Thread(target=self.shutdown, daemon=True).start()
+                threading.Thread(target=stop_server, daemon=True).start()
 
         def server_bind(self):
             if os.name == 'nt':
