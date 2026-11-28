@@ -50,3 +50,7 @@ RC5 原始發行包經隔離 Linux Chromium 使用官方集保和兩交易所名
 新 ZIP 因更換受支援的內嵌 Python 而增加容量。此為同一 Linux 主機、loopback-only 冷設定檔單次量測。RSS 包含 Chromium 程序，切股後 RC5 約 632.7 MB。PORT 18765 釋放，非本程式的 Python 存活，重新開啟成功。數值不能替代 Windows 11 資源驗收。原始量測見 [RC4](rc4-linux-benchmark.json) 與 [RC5](rc5-linux-benchmark.json)。
 
 資料中心日曆跨年月、按股票選擇、記憶體重用、時點修訂、雜湊拒絕與取消驗證，可重跑 `python -B desktop/qa/data_repository_test.py`。建立資料庫權限與 DOC-05 原件阻塞另見 PROJECT_STATE。
+
+## Windows 原生故障與回退
+
+以同一對已發布 ZIP 在 Windows Server 2022 隔離資料夾建立 RC6 使用中的狀態。受控複本的 RC5 畫面損壞時，原生更新助手判定健康失敗，恢復 RC6。還原 RC5 原始畫面後，由 UI 確認回退，成功執行 RC5 並保留設定。關窗後 Windows Python PID 結束、埠釋放。[CI 46134192714](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46134192714) · [回讀 JSON](native-rollback.json)

@@ -37,5 +37,5 @@ R01 分支 `docs/r01-architecture-governance`。文件候選 SHA 以 PR head 為
 - RC5 `89eef1ffb8ffea5c71bd367c6a1573267c2bf32e` 與 RC6 `d155578950b9e21ed437c39861f9544468782bff` 均已有預發行。各 ZIP、manifest、SHA256SUMS 與 Windows Server CI 見 [工程證據](docs/evidence/rc5/engineering.md)。主線產品仍待正式合併。README 協議已在 PR #18，公開 Beta 仍採 RC4。
 - 真實跨版透過 GitHub 隔離 README 完成 RC5 → RC6。核對固定入口、版號、健康與設定哨兵。[CI 46133876934](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133876934) · [回讀證據](docs/evidence/rc5/native-update.json)。
 - Linux 成品官源路徑於 11/27 實際匯出 1,991 筆。兩個資料中心庫的建立 API 回 403，[部署骨架](data-repository-skeleton/README.md)及驗證和發布工具已提交。共享 GitHub 真實分片、全歷史覆蓋與 DR 原文仍待驗。
-- 完成 Linux 訊號與資料完整性、更新器 7 案、資料路由 3 案及部署骨架驗證。Windows Server 成品及真實跨版通過。真實 Windows 11 獨立驗收、多種故障回退的 Windows 實測、程式信任及容量長跑仍待完成。
+- 完成 Linux 訊號與資料完整性、更新器 7 案、資料路由 3 案及部署骨架驗證。Windows Server 成品及真實跨版通過。Windows Server 原生健康故障自動恢復及手動回退已通過。Windows 11 獨立驗收、斷電與磁碟耗盡實測、程式信任及容量長跑仍待完成。
 - 本檢查點前一推送為 `d439ee8`，最新提交以 `git log -1 origin/develop` 為準。續跑先執行 `git fetch origin --tags && git log -1 origin/develop && gh run view 46133876934`。已完成的固定驗收以該次證據為準。

@@ -1,0 +1,34 @@
+{
+  "corruptTargetRecovery": {
+    "app": "ChipScreener",
+    "status": "ok",
+    "latest": "2026-11-20",
+    "appVersion": "0.6.5-rc.6",
+    "shellVersion": "0.6.5-rc.6",
+    "usingRuntime": false,
+    "sourceCommit": "d155578950b9e21ed437c39861f9544468782bff",
+    "updateResult": {
+      "id": "d5328f3cd07da1e7861f3b6f94e091f1",
+      "success": false,
+      "message": "指定版本未通過本機健康檢查",
+      "rolledBack": true
+    }
+  },
+  "userRollback": {
+    "app": "ChipScreener",
+    "status": "ok",
+    "latest": "2026-11-20",
+    "appVersion": "0.6.5-rc.5",
+    "shellVersion": "0.6.5-rc.5",
+    "usingRuntime": false,
+    "sourceCommit": "89eef1ffb8ffea5c71bd367c6a1573267c2bf32e",
+    "updateResult": {
+      "id": "d1884089185df84de25f81defdb9f4f4",
+      "success": true,
+      "version": "0.6.5-rc.5",
+      "previousVersion": "0.6.5-rc.6",
+      "message": "版本已通過健康檢查"
+    }
+  },
+  "portReleased": true
+}

@@ -36,7 +36,7 @@ python desktop/qa/real_update_windows.py .\ChipScreener-v0.6.5-rc.5-Windows-x64.
 | --- | --- |
 | U01–03、U05、U12 | Windows Server 真實 Release、官方隔離 README 連結變更與跨版通過。Stable 使用未指定案例。 |
 | U04 | Beta 與未指定 Stable 可切換。已發布 Stable 的相容降版須等合格正式資產。 |
-| U06、U08 | Linux 驗證截斷、雜湊、不安全 ZIP、取消、鎖、健康錯誤回退。另有 Windows 故障與手動回退工作流。斷電及磁碟真實耗盡仍待實機。 |
+| U06、U08 | Linux 驗證截斷、雜湊、不安全 ZIP、取消、鎖、健康錯誤回退。[Windows 原生故障與手動回退](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46134192714) 通過。斷電及磁碟真實耗盡仍待實機。 |
 | U07、U10 | Windows Server 逐包驗收、固定 CSV、A/B、AI 設定及重啟。跨版測試保存瀏覽器設定哨兵。完整舊使用者資料組合待獨立驗收。 |
 | U09 | Windows Server 原生 EXE、隨包環境、中文空格路徑、斷網測試通過。Windows 11 實機待驗。 |
 | U11 | 官源及程式更新分別驗證。兩者同時滿載的長跑與中斷待驗。 |
