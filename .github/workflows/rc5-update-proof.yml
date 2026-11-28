@@ -5,9 +5,57 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
+  prereleases:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - version: 0.6.5-rc.5
+            run: 46133591816
+            sha: 89eef1ffb8ffea5c71bd367c6a1573267c2bf32e
+          - version: 0.6.5-rc.6
+            run: 46133624913
+            sha: d155578950b9e21ed437c39861f9544468782bff
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ matrix.version }}
+      SHA: ${{ matrix.sha }}
+      RUN: ${{ matrix.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require the exact successful Windows candidate
+        run: |
+          test "$(gh run view "$RUN" --json conclusion,headSha --jq '.conclusion + " " + .headSha')" = "success $SHA"
+          test -z "$(git ls-remote origin "refs/tags/v$VERSION")"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then exit 1; fi
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.run }}
+          name: candidate-${{ matrix.version }}-${{ matrix.sha }}
+          path: candidate
+      - name: Upload test prerelease assets from the verified build
+        run: |
+          zip="ChipScreener-v$VERSION-Windows-x64.zip"
+          python desktop/qa/release_assets.py --zip "candidate/$zip" --manifest candidate/update-manifest.json --checksums candidate/SHA256SUMS.txt --commit "$SHA" --version "$VERSION"
+          cat > notes.md <<NOTES
+          Windows Server 2022 成品檢查通過的開發候選。此預發版用於隔離跨版驗收。正式通道與公開 Beta 由產品負責人另行指定。
+
+          完整解壓 ZIP，保留 resources，雙擊股票雷達.exe。從 RC4 遷移前先在舊版停止本機服務，沿用原 Windows 帳號及瀏覽器設定檔。新版的軟體設定可建立固定入口。
+
+          來源提交 $SHA。Windows 成品測試 https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/$RUN 。Windows 11 及獨立驗收待完成。
+          NOTES
+          gh release create "v$VERSION" "candidate/$zip" candidate/update-manifest.json candidate/SHA256SUMS.txt --target "$SHA" --prerelease --latest=false --title "籌碼雷達 v$VERSION｜開發驗收候選" --notes-file notes.md
   native_update:
+    needs: prereleases
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
