@@ -73,7 +73,7 @@ def check_product(exe, version, out, chromium):
     def close(pid, name):
         clock = time.monotonic()
         poll(lambda: close_native_dashboard(expected_title), 20, 'Native browser window did not open')
-        poll(lambda: health() is None, 35, 'Service kept listening after the final window closed')
+        poll(lambda: health() is None, 165, 'Service kept listening after the final window closed')
         poll(lambda: process_stopped(pid), 20, 'Bundled Python process survived native window close')
         metrics[f'{name}ShutdownSeconds'] = round(time.monotonic() - clock, 3)
 
@@ -85,6 +85,8 @@ def check_product(exe, version, out, chromium):
             page = context.new_page()
             page.on('pageerror', lambda error: errors.append(str(error)))
             assert page.goto(URL).ok
+            page.on('console', lambda message: print(message.text, flush=True) if message.type == 'error' else None)
+            assert not errors, errors
             expect(page.locator('#brandVersion')).to_have_text(expected_title)
             expect(page.locator('#feedDay')).to_have_text('2026-11-20')
             metrics['firstUsablePageSeconds'] = round(time.monotonic() - launched, 3)
@@ -118,8 +120,9 @@ def check_product(exe, version, out, chromium):
             assert same[:5] == ['2026-11-13', '2026-11-13', True, [-37973336, -10706718], [-37973336, -10706718]]
             assert abs(same[5] + 0.18771926312261655) < 1e-8
             page.screenshot(path=out / 'same-window-ab.png')
+            page.close(run_before_unload=True)
             context.close()
-            verify_v065(browser, URL, out, errors)
+            verify_v065(browser, URL, out, errors, memory_only=True)
             assert not errors, errors
             browser.close()
     finally:

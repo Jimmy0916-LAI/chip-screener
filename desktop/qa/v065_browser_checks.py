@@ -7,7 +7,7 @@ from pathlib import Path
 from playwright.sync_api import expect
 
 
-def verify_v065(browser, url, output, errors):
+def verify_v065(browser, url, output, errors, *, memory_only=False):
     context = browser.new_context()
     page = context.new_page()
     page.on('pageerror', lambda exc: errors.append(str(exc)))
@@ -20,12 +20,18 @@ def verify_v065(browser, url, output, errors):
     days = page.evaluate("""() => D.sessions.filter(day =>
         Date.parse(day + 'T13:30:00+08:00') <= Date.now()).slice(-35)""")
     assert len(days) == 35
-    cache = Path(os.environ['LOCALAPPDATA']) / 'ChipScreener/daily-cache-v1'
-    cache.mkdir(parents=True, exist_ok=True)
     bars = [[day, price, price, price, price] for day, price in zip(days, [100]*34 + [110])]
-    (cache / '2330.json').write_text(json.dumps({
+    fixture = {
         'code': '2330', 'source': 'synthetic QA fixture', 'fetched': days[-1] + 'T13:30:00+08:00', 'bars': bars,
-    }), encoding='utf-8')
+    }
+    if memory_only:
+        # Inject only the deterministic OHLCV response. The real product code
+        # still reads it through the normal page request and calculates CSV.
+        page.route('**/api/signals/prices', lambda route: route.fulfill(json={'2330': fixture}))
+    else:
+        cache = Path(os.environ['LOCALAPPDATA']) / 'ChipScreener/daily-cache-v1'
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / '2330.json').write_text(json.dumps(fixture), encoding='utf-8')
 
     go('settings')
     page.locator('#signalMacd').check()
@@ -111,4 +117,5 @@ def verify_v065(browser, url, output, errors):
     expect(page.locator('#page')).to_contain_text('操盤')
     page.screenshot(path=output / 'v065-paper.png')
     print('065-A01–05 EXE: provider/model/switch persistence and module entry points', flush=True)
+    page.close(run_before_unload=True)
     context.close()

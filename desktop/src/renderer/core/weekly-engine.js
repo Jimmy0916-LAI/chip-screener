@@ -119,8 +119,7 @@ function weeklySignal(code, ctx) {
 function screeningUniverse(end) {
   if (state.manualWeek || state.asOf || end !== dates().at(-1) || !officialWeeks[end]) return D.universe;
   const listed = ['TWSE-list', 'TPEx-list'].map(key => exchangeMarket[key]);
-  if (listed.some(record => !record?.rows || record.day < end ||
-      Date.parse(record.fetched) < Date.parse(D.observed[end]))) return D.universe;
+  if (listed.some(record => !record?.rows || record.day < end)) return D.universe;
   const codes = listed.flatMap(record => Object.keys(record.rows));
   return [...new Set(codes)].sort();
 }
