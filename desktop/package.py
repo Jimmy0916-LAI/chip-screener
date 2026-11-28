@@ -20,6 +20,11 @@ RUNTIME_VERSION = '3.13.14'
 RUNTIME_NAME = f'python-{RUNTIME_VERSION}-embed-amd64.zip'
 RUNTIME_URL = f'https://www.python.org/ftp/python/{RUNTIME_VERSION}/{RUNTIME_NAME}'
 RUNTIME_SHA256 = '90b4e5b9898b72d744650524bff92377c367f44bd5fbd09e3148656c080ad907'
+TRUSTSTORE_URL = ('https://files.pythonhosted.org/packages/19/97/'
+                  '56608b2249fe206a67cd573bc93cd9896e1efb9e98bce9c163bcdc704b88/'
+                  'truststore-0.10.4-py3-none-any.whl')
+TRUSTSTORE_SHA256 = 'adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981'
+
 RELEASE_REPO = 'Jimmy0916-LAI/chip-screener'
 ARCHITECTURE = 'windows-x64'
 DATA_COMPATIBILITY = {'readMin': 1, 'readMax': 1, 'write': 1}
@@ -77,6 +82,14 @@ def build(runtime_path=None):
         with ZipFile(io.BytesIO(runtime)) as embedded:
             for name in embedded.namelist():
                 files['resources/runtime-python/' + name] = embedded.read(name)
+        with urlopen(TRUSTSTORE_URL, timeout=30) as response:
+            truststore = response.read(256 * 1024)
+        if hashlib.sha256(truststore).hexdigest() != TRUSTSTORE_SHA256:
+            raise ValueError('Windows TLS 信任模組 SHA-256 不符')
+        with ZipFile(io.BytesIO(truststore)) as wheel:
+            for name in wheel.namelist():
+                if name.startswith(('truststore/', 'truststore-0.10.4.dist-info/')) and not name.endswith('/'):
+                    files['resources/scripts/' + name] = wheel.read(name)
         # Python's isolated Windows runtime must find the packaged app, independent
         # of the current working directory and its modules.
         files['resources/runtime-python/python313._pth'] = b'python313.zip\r\n.\r\n..\r\n..\\scripts\r\n'

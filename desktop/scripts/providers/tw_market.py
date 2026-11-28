@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from providers.verified_https import open_url
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -46,7 +47,7 @@ class TwMarketService:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT_SEC) as resp:
+            with open_url(req, timeout=self.REQUEST_TIMEOUT_SEC) as resp:
                 if resp.status != 200:
                     raise ValueError(f'上游資料 HTTP {resp.status}')
                 payload = json.loads(resp.read().decode('utf-8'))
@@ -67,7 +68,7 @@ class TwMarketService:
             headers={'Cache-Control': 'no-cache', 'User-Agent': 'Mozilla/5.0 ChipScreener/0.6'},
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT_SEC) as resp:
+            with open_url(req, timeout=self.REQUEST_TIMEOUT_SEC) as resp:
                 payload = json.loads(resp.read().decode('utf-8'))
             res = payload['chart']['result'][0]
             ts_list = res.get('timestamp') or []

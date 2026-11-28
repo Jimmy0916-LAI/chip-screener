@@ -16,6 +16,7 @@ import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from providers.verified_https import open_url
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -132,7 +133,7 @@ def _http_get(url: str, timeout: int = 12) -> bytes:
             'Cache-Control': 'no-cache',
         },
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with open_url(req, timeout=timeout) as resp:
         return resp.read()
 
 

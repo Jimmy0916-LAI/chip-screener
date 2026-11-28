@@ -27,3 +27,7 @@
 | DOC | 已完成文件修改與歷史留存，完整 Skill 原件待補。 |
 
 [RC5／RC6 工程驗證](evidence/rc5/engineering.md) · [獨立驗收重跑](evidence/rc5/independent-acceptance.md)
+
+## P0-UPD-TLS
+
+Windows 11 x64 實機回報 RC5 在「檢查程式更新」收到 `CERTIFICATE_VERIFY_FAILED — unable to get local issuer certificate (_ssl.c:1032)`，驗收 FAIL。發布指標仍維持原指定。修復驗收要比對實際 RC5 與候選 ZIP，核對 Windows 憑證鏈、HTTPS 代理、GitHub 及市場來源，以及固定入口離線遷移與跨版。原使用者所在網路的憑證與代理原因待在同一實機確認。

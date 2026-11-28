@@ -36,6 +36,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 from providers import ai_router, full_update
 from providers.data_repository import SharedDataClient, Unavailable
 from providers.market_cache import MarketCache
+from providers.verified_https import open_url
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
 from providers.watchlist import WatchlistService
@@ -94,7 +95,7 @@ def download_url(url: str) -> bytes:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SEC) as resp:
+        with open_url(req, timeout=REQUEST_TIMEOUT_SEC) as resp:
             if resp.status != 200:
                 raise ValueError(f'官方 HTTP {resp.status}')
             chunks = []

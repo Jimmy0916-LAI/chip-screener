@@ -2,7 +2,7 @@ name: Portable Windows candidate
 
 on:
   push:
-    branches: [develop, 'release/**', 'fix/rc5-packaging']
+    branches: [develop, 'release/**', 'fix/rc5-packaging', 'fix/p0-upd-tls']
   pull_request:
     branches: [develop, 'release/**']
   workflow_dispatch:
@@ -113,6 +113,37 @@ jobs:
           python -m pip install playwright==1.56.0
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python desktop/qa/candidate_windows.py $exe $env:VERSION evidence --chromium 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Compare the original RC5 and repair on Windows HTTPS
+        if: needs.build.outputs.version == '0.6.5-rc.7'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          ASSET: ${{ needs.build.outputs.asset }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $oldZip = Join-Path $env:RUNNER_TEMP 'rc5.zip'
+          $old = Join-Path $env:RUNNER_TEMP 'RC5 原始包'
+          $new = Join-Path $env:RUNNER_TEMP 'TLS 修復包'
+          Invoke-WebRequest -Uri 'https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.5/ChipScreener-v0.6.5-rc.5-Windows-x64.zip' -OutFile $oldZip
+          if ((Get-FileHash $oldZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne '0244b9495e448fe5ee0b2eb01422982a78b66489621af5be9ffe6404c3b64cc2') { throw 'Wrong RC5 release bytes' }
+          Expand-Archive -LiteralPath $oldZip -DestinationPath $old
+          Expand-Archive -LiteralPath "candidate/$env:ASSET.zip" -DestinationPath $new
+          python -m pip install cryptography==45.0.7
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:NO_PROXY = '127.0.0.1,localhost'
+          python desktop/qa/tls_windows_fixture.py $old $new evidence
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$old/resources/runtime-python/python.exe" -B desktop/qa/tls_probe.py "$old/resources/scripts" evidence/rc5-live-https.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$new/resources/runtime-python/python.exe" -B desktop/qa/tls_probe.py "$new/resources/scripts" evidence/repair-live-https.json --native
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $repair = Get-Content evidence/repair-live-https.json -Raw | ConvertFrom-Json
+          $bad = @($repair.endpoints | Where-Object { $_.tls -ne 'verified' })
+          if ($bad.Count -gt 0) { $bad | ConvertTo-Json; throw 'Repair HTTPS probe failed' }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'TLS 修復 使用者'
+          python desktop/qa/manual_repair_windows.py $oldZip "$new/股票雷達.exe" $env:VERSION evidence
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
