@@ -605,6 +605,7 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
         stock_names.setdefault(etf_code, [etf_name, 'TWSE'])
 
     briefing_service = BriefingService(app_data_root, INSTALL_ROOT, stock_names)
+    briefing_service.sync_shared_windows_task()
     us_market_service = UsMarketService(app_data_root / 'us-cache-v1')
     watchlist_service = WatchlistService(
         app_data_root,
