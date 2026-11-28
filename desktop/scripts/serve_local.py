@@ -34,6 +34,8 @@ import sys
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from providers import ai_router, full_update
+from providers.data_repository import SharedDataClient, Unavailable
+from providers.market_cache import MarketCache
 from providers.tw_market import TwMarketService
 from providers.news_briefing import BriefingService
 from providers.watchlist import WatchlistService
@@ -51,6 +53,7 @@ REQUEST_TIMEOUT_SEC = 40
 REQUIRED_TDCC_FIELDS = ['資料日期', '證券代號', '持股分級', '人數', '股數', '占集保庫存數比例%']
 BAND_START_LEVELS = (11, 12, 13, 15)
 ETF_CODE_RE = re.compile(r'^00\d{2,4}[A-Z]?$')
+COMMON_STOCK_CODE_RE = re.compile(r'^[1-9]\d{3}$')
 
 
 def calendar_url(month: str) -> str:
@@ -141,7 +144,7 @@ def parse_week(raw_bytes: bytes, universe: list[str], fetched: str) -> dict:
             weekday = date.fromisoformat(day).weekday()
             check(day <= fetched[:10] and weekday not in (5, 6), '未來或非營業日的統計日期')
         check(stamp == day.replace('-', ''), '同份集保檔混有不同日期')
-        if code not in pool and not ETF_CODE_RE.fullmatch(code):
+        if code not in pool and not (ETF_CODE_RE.fullmatch(code) or COMMON_STOCK_CODE_RE.fullmatch(code)):
             continue
 
         levels = groups.setdefault(code, {})
@@ -263,9 +266,11 @@ def parse_month(raw_bytes: bytes, month: str, fetched: str, known: list[str]) ->
 
 
 class LocalFeedService:
-    def __init__(self, cache_dir: Path, base: dict):
+    def __init__(self, cache_dir: Path, base: dict, *, persist_market=True, shared=None):
         self.cache_dir = cache_dir
         self.base = base
+        self.persist_market = persist_market
+        self.shared = shared
         self.weeks: dict[str, dict] = {}
         self.months: dict[str, dict] = {}
         self.notes: list[str] = []
@@ -308,6 +313,8 @@ class LocalFeedService:
     def _atomic_save(self, kind: str, key: str, value: dict) -> None:
         if closing.is_set():
             raise InterruptedError('籌碼雷達視窗已關閉')
+        if not self.persist_market:
+            return
         target = self._bucket_file(kind, key)
         target.parent.mkdir(parents=True, exist_ok=True)
         stage = target.with_suffix('.json.tmp')
@@ -398,19 +405,76 @@ class LocalFeedService:
             self._atomic_save('market', key, record)
             self.market[key] = record
 
+    def _shared_weeks(self) -> tuple[dict, str]:
+        if self.shared is None:
+            return {}, ''
+        now = taipei_now()
+        today = date.fromisoformat(now[:10])
+        sessions = set(self.base['sessions'])
+        for record in self.months.values():
+            sessions.update(record['days'])
+        week_ends = {}
+        for day in sorted(sessions):
+            trading_day = date.fromisoformat(day)
+            monday = trading_day - timedelta(days=trading_day.weekday())
+            week_ends[monday] = day
+        elapsed = [day for monday, day in sorted(week_ends.items())
+                   if monday + timedelta(days=4) < today or (day == now[:10] and now[11:16] >= '13:30'
+                       and today.weekday() == 4)]
+        target = max(elapsed, default='')
+        if not target:
+            return {}, ''
+        start = (today - timedelta(days=45)).isoformat()
+        if start > target:
+            return {}, ''
+        shards = self.shared.read('tdcc', start, target, market='TW',
+                                  skip_dates=self.base['hashes'].keys() | self.weeks.keys())
+        added = {}
+        for entry, raw in shards:
+            day = entry['statistic_date']
+            if (day not in elapsed or entry['date_from'] != day or entry['date_to'] != day
+                    or entry['code'] is not None or entry['source']['url'] != TDCC_URL
+                    or entry['asset']['format'] != 'csv'):
+                continue
+            week = parse_week(raw, self.base['universe'], entry['retrieved_at'])
+            check(day == week['day'], '共享集保統計日不符')
+            week['observed'] = entry['published_at'] or entry['observed_at']
+            if week['observed'] is None:
+                continue
+            week['quality'].update(publication=entry['published_at'], data_version=entry['data_version'],
+                                   revision=entry['revision'], shared=True)
+            added[day] = week
+        self.weeks.update(added)
+        return added, target
+
     def _refresh(self):
-        months, errors = {}, []
-        week, message = None, ''
+        months, errors, changed_weeks = {}, [], {}
+        message, shared_message = '', ''
         with CrawlerPool(max_workers=6) as pool:
-            weekly = pool.submit(download_url, TDCC_URL)
+            # Legacy tests and archived builds can exercise the original persistent update path.
+            weekly = pool.submit(download_url, TDCC_URL) if self.shared is None else None
             calendar = pool.submit(self._check_calendar, months)
             jobs = {key: pool.submit(self._refresh_market, key) for key in SOURCES}
             try:
                 calendar.result()
             except Exception as exc:
                 errors.append(f'交易日曆：{exc}')
+            target = ''
             try:
-                week, message = self._check_week(weekly.result())
+                shared, target = self._shared_weeks()
+                changed_weeks.update(shared)
+            except InterruptedError:
+                raise
+            except (OSError, ValueError) as exc:
+                shared_message = '共享集保暫不可用：' + str(exc)
+            try:
+                if target in changed_weeks:
+                    message = f'共享集保已取得 {target}'
+                else:
+                    raw = weekly.result() if weekly is not None else download_url(TDCC_URL)
+                    week, message = self._check_week(raw)
+                    if week:
+                        changed_weeks[week['day']] = week
             except Exception as exc:
                 errors.append('集保更新失敗，保留上次資料：' + str(exc))
             for key, task in jobs.items():
@@ -418,12 +482,12 @@ class LocalFeedService:
                     task.result()
                 except Exception as exc:
                     errors.append(f'{key}：{exc}')
-        status = '更新成功' if week else '新一期尚未發布' if message.startswith('新一期') else '已是最新'
+        status = '更新成功' if changed_weeks else '新一期尚未發布' if message.startswith('新一期') else '已是最新'
         if errors:
             status = '更新失敗，已保留上次資料' if len(errors) == len(jobs)+2 else '部分成功'
-        return {'weeks': {week['day']: week} if week else {}, 'months': months,
+        return {'weeks': changed_weeks, 'months': months,
                 'market': self.market.copy(), 'status': status,
-                'message': '｜'.join(filter(None, [message, *errors])), 'checked': taipei_now()}
+                'message': '｜'.join(filter(None, [message, shared_message, *errors])), 'checked': taipei_now()}
 
 
 class DailyService:
@@ -432,9 +496,11 @@ class DailyService:
     FINMIND_API = 'https://api.finmindtrade.com/api/v4/data'
     CACHE_TTL_SEC = 12 * 3600
 
-    def __init__(self, cache_dir: Path, feed_service: LocalFeedService):
+    def __init__(self, cache_dir: Path, feed_service: LocalFeedService, *, persist_market=True):
         self.cache_dir = cache_dir
         self.feed_service = feed_service
+        self.persist_market = persist_market
+        self._ram = MarketCache(capacity=72)
         self._lock = threading.RLock()
 
     def _fetch_finmind(self, dataset: str, code: str, start_date: str = '2024-01-01') -> list[dict]:
@@ -451,15 +517,19 @@ class DailyService:
 
         cache_file = self.cache_dir / f'{code}.json'
         with self._lock:
-            cached = None
-            try:
-                candidate = json.loads(cache_file.read_bytes())
-                if candidate['code'] == code and candidate['bars']:
-                    cached = candidate
-                    if time.time() - cache_file.stat().st_mtime < self.CACHE_TTL_SEC:
-                        return cached
-            except (ValueError, OSError, KeyError, TypeError):
-                pass
+            fresh = self._ram.get(code, self.CACHE_TTL_SEC)
+            if fresh is not None:
+                return fresh
+            cached = self._ram.get(code)
+            if cached is None:
+                try:
+                    candidate = json.loads(cache_file.read_bytes())
+                    if candidate['code'] == code and candidate['bars']:
+                        cached = candidate
+                        if self.persist_market and time.time() - cache_file.stat().st_mtime < self.CACHE_TTL_SEC:
+                            return cached
+                except (ValueError, OSError, KeyError, TypeError):
+                    pass
             try:
                 return self._download_daily(code, cache_file)
             except (ValueError, OSError) as exc:
@@ -470,16 +540,20 @@ class DailyService:
     def screening_prices(self):
         prices = {}
         with self._lock:
-            for path in self.cache_info()['files']:
-                try:
-                    item = json.loads(path.read_bytes())
-                    if item['code'] == path.stem and isinstance(item['bars'], list):
-                        prices[path.stem] = {
-                            'bars': [bar[:5] for bar in item['bars'] if isinstance(bar, list)],
-                            'fetched': item.get('fetched'),
-                        }
-                except (OSError, ValueError, KeyError, TypeError):
-                    continue
+            packets = self._ram.items()
+            if self.persist_market:
+                for path in self.cache_info()['files']:
+                    try:
+                        item = json.loads(path.read_bytes())
+                        if item['code'] == path.stem and isinstance(item['bars'], list):
+                            packets.setdefault(path.stem, item)
+                    except (OSError, ValueError, KeyError, TypeError):
+                        continue
+            for code, item in packets.items():
+                prices[code] = {
+                    'bars': [bar[:5] for bar in item['bars'] if isinstance(bar, list)],
+                    'fetched': item.get('fetched'),
+                }
         return prices
 
     def cache_info(self):
@@ -487,8 +561,11 @@ class DailyService:
             files = [p for p in self.cache_dir.glob('*.json')
                      if re.fullmatch(r'(?:\d{4}|00\d{2,4}[A-Z]?)', p.stem) and p.is_file() and not p.is_symlink()]
             entries = [(p, p.stat()) for p in files]
+            ram = self._ram.items()
             return {
                 'path': str(self.cache_dir),
+                'ramCount': len(ram),
+                'memoryOnly': not self.persist_market,
                 'bytes': sum(stat.st_size for _, stat in entries),
                 'count': len(entries),
                 'last': max((datetime.fromtimestamp(stat.st_mtime, TAIPEI_TZ).isoformat(timespec='seconds')
@@ -499,8 +576,11 @@ class DailyService:
     def clear_cache(self):
         with self._lock:
             info = self.cache_info()
-            for path in info.pop('files'):
-                path.unlink()
+            files = info.pop('files')
+            self._ram.clear()
+            if self.persist_market:
+                for path in files:
+                    path.unlink()
             return info
 
     def _download_daily(self, code, cache_file):
@@ -550,11 +630,16 @@ class DailyService:
             'source': 'FinMind (TaiwanStockPrice + TaiwanStockShareholding)',
             'fetched': taipei_now(),
         }
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        stage = cache_file.with_suffix('.json.tmp')
-        stage.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-        os.replace(stage, cache_file)
+        self._save_daily(cache_file, result)
         return result
+
+    def _save_daily(self, cache_file, result):
+        if self.persist_market:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            stage = cache_file.with_suffix('.json.tmp')
+            stage.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+            os.replace(stage, cache_file)
+        self._ram.put(result['code'], result)
 
 
 class WindowLeases:
@@ -586,9 +671,10 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     base = json.loads(FEED_BASE_FILE.read_text(encoding='utf-8'))
     local_app_data = Path(os.environ.get('LOCALAPPDATA') or Path.home())
     app_data_root = local_app_data / 'ChipScreener'
-    service = LocalFeedService(app_data_root / 'tdcc-local-v1', base)
-    daily_service = DailyService(app_data_root / 'daily-cache-v1', service)
-    tw_market_service = TwMarketService(app_data_root / 'tw-detail-v1')
+    shared_data = SharedDataClient(cancel=closing)
+    service = LocalFeedService(app_data_root / 'tdcc-local-v1', base, persist_market=False, shared=shared_data)
+    daily_service = DailyService(app_data_root / 'daily-cache-v1', service, persist_market=False)
+    tw_market_service = TwMarketService(app_data_root / 'tw-detail-v1', persist_market=False)
     stock_names = {}
     base_series = {}
     web_data_file = INSTALL_ROOT / 'data' / 'web_data.json'
@@ -608,7 +694,7 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
 
     briefing_service = BriefingService(app_data_root, INSTALL_ROOT, stock_names)
     briefing_service.sync_shared_windows_task()
-    us_market_service = UsMarketService(app_data_root / 'us-cache-v1')
+    us_market_service = UsMarketService(app_data_root / 'us-cache-v1', persist_market=False)
     watchlist_service = WatchlistService(
         app_data_root,
         INSTALL_ROOT,
@@ -729,6 +815,21 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                 params = urllib.parse.parse_qs(parsed.query)
                 probe = (params.get('probe') or ['0'])[0] == '1'
                 self._send_json(200, live_quote_service.get_market_status(probe_live=probe))
+                return
+            if parsed.path == '/api/data/read':
+                params = urllib.parse.parse_qs(parsed.query)
+                def param(key, default=None):
+                    return (params.get(key) or [default])[0]
+                try:
+                    shards = shared_data.read(param('dataset'), param('from'), param('to'),
+                                              market=param('market'), code=param('code'),
+                                              instrument_id=param('instrument_id'), as_of=param('as_of'))
+                    rows = [{'metadata': entry, 'data': raw.decode('utf-8-sig')} for entry, raw in shards]
+                    self._send_json(200, {'status': 'available' if rows else 'missing', 'shards': rows})
+                except (Unavailable, InterruptedError) as exc:
+                    self._send_json(503, {'status': 'unavailable', 'error': str(exc), 'shards': []})
+                except ValueError as exc:
+                    self._send_json(400, {'status': 'invalid', 'error': str(exc), 'shards': []})
                 return
             if parsed.path == '/api/official/read':
                 self._send_json(200, service.initial())

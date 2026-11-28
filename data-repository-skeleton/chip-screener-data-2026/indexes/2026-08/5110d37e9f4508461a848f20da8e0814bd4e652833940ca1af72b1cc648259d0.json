@@ -1,0 +1,14 @@
+{
+  "datasets": {
+    "broker": [],
+    "calendar": [],
+    "corporate-actions": [],
+    "daily": [],
+    "tdcc": [],
+    "universe": [],
+    "volume-profile": []
+  },
+  "kind": "month",
+  "month": "2026-08",
+  "schema_version": 1
+}

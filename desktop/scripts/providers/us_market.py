@@ -22,6 +22,8 @@ from crawler_pool import CrawlerPool, closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .market_cache import MarketCache
+
 from providers.news_briefing import _fetch_yahoo_quote, _http_get
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -560,8 +562,10 @@ class UsMarketService:
     SCREENER_TTL = 4 * 3600
     DETAIL_TTL = 2 * 3600
 
-    def __init__(self, cache_dir: Path):
+    def __init__(self, cache_dir: Path, *, persist_market=True):
         self.cache_dir = cache_dir
+        self.persist_market = persist_market
+        self._ram = MarketCache()
         self._lock = threading.Lock()
         self._scan_lock = threading.Lock()
         self._scanning = False
@@ -571,7 +575,10 @@ class UsMarketService:
         self._scan_updated_at = ''
 
     def _read_fresh(self, path: Path, ttl: int) -> dict | None:
-        if not path.exists():
+        memory = self._ram.get(path.name, ttl)
+        if memory is not None:
+            return memory
+        if not self.persist_market or not path.exists():
             return None
         try:
             if time.time() - path.stat().st_mtime < ttl:
@@ -581,6 +588,9 @@ class UsMarketService:
         return None
 
     def _read_any(self, path: Path) -> dict | None:
+        memory = self._ram.get(path.name)
+        if memory is not None:
+            return memory
         if not path.exists():
             return None
         try:
@@ -589,6 +599,9 @@ class UsMarketService:
             return None
 
     def _write_json(self, path: Path, payload: dict) -> None:
+        self._ram.put(path.name, payload)
+        if not self.persist_market:
+            return
         path.parent.mkdir(parents=True, exist_ok=True)
         stage = path.with_suffix('.json.tmp')
         stage.write_text(json.dumps(payload, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
@@ -648,7 +661,13 @@ class UsMarketService:
             if cached and 'cmf20' in (cached.get('tech') or {}):
                 return cached
 
-        bars, meta = self._fetch_chart_raw(sym, range_str='2y')
+        try:
+            bars, meta = self._fetch_chart_raw(sym, range_str='2y')
+        except (OSError, ValueError) as exc:
+            previous = self._read_any(cache_file)
+            if previous and previous.get('code') == sym and previous.get('bars'):
+                return {**previous, 'stale': True, 'warning': str(exc)}
+            raise
         tech = analyze_us_bars(bars, meta)
         preset_name, preset_sector = US_UNIVERSE_MAP.get(sym, ('', ''))
         display_name = preset_name or meta.get('longName') or meta.get('shortName') or sym
@@ -767,7 +786,8 @@ class UsMarketService:
                 self._write_json(cache_file, payload)
                 # 完整掃描完成後清除舊的 32 檔總覽快取，確保總覽與全市場篩選數字完全同步
                 ov_file = self.cache_dir / 'overview.json'
-                if ov_file.exists():
+                self._ram.discard(ov_file.name)
+                if self.persist_market and ov_file.exists():
                     try:
                         ov_file.unlink()
                     except Exception:
