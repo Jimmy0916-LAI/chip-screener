@@ -116,8 +116,17 @@ function weeklySignal(code, ctx) {
   };
 }
 
+function screeningUniverse(end) {
+  if (state.manualWeek || state.asOf || end !== dates().at(-1) || !officialWeeks[end]) return D.universe;
+  const listed = ['TWSE-list', 'TPEx-list'].map(key => exchangeMarket[key]);
+  if (listed.some(record => !record?.rows || record.day < end ||
+      Date.parse(record.fetched) < Date.parse(D.observed[end]))) return D.universe;
+  const codes = listed.flatMap(record => Object.keys(record.rows));
+  return [...new Set(codes)].sort();
+}
+
 function scan(cfg = applied, ctx = evaluation(cfg)) {
-  return D.universe.map(code => ({
+  return screeningUniverse(ctx.end).map(code => ({
     code,
     name: D.stocks[code][0],
     market: D.stocks[code][1],
@@ -139,7 +148,7 @@ function comparison() {
   return {
     a,
     b,
-    rows: D.universe.map(code => ({
+    rows: screeningUniverse(a.end).map(code => ({
       code,
       name: D.stocks[code][0],
       a: weeklySignal(code, a),

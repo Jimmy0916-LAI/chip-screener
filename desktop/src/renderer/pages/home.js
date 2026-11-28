@@ -67,9 +67,9 @@ function home() {
       '以集保分級股數計算，先找到異動，再辨別證據是否足以支持交易。',
       '<button class="btn main" data-nav="screen">查看完整篩選結果 →</button>'
     ) +
-    '<div class="notice warn"><b>研究範圍聲明：</b>篩選需要連續且已驗證的集保週資料。母體採 11/13 行情備份，可能有存活偏差。除漢唐外，逐檔公司行動與正式回測未通過驗收。不是即時報價或買賣訊號。</div>' +
+    '<div class="notice warn"><b>研究範圍聲明：</b>篩選需要連續且已驗證的集保週資料。歷史視窗採固定研究母體，可能有存活偏差。除漢唐外，逐檔公司行動與正式回測未通過驗收。不是即時報價或買賣訊號。</div>' +
     '<div class="metricgrid">' +
-    metric('目前候選股票池', fmt(D.universe.length), '四碼非零開頭、上市櫃行情備份') +
+    metric('目前候選股票池', fmt(t.all), '四碼非零開頭、上市櫃普通股') +
     metric('所選窗口通過數', fmt(t.pass), `級距 ${applied.band} 張 · 門檻 ${fmt(applied.minPp, 2)} pp`, 'green') +
     metric('資料／條件待證', fmt(t.unknown), '不列為正式有效進場') +
     metric('日 K 已核對', fmt(D.daily2404.length), '漢唐 2404 · 2024–2026') +

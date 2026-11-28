@@ -9,7 +9,7 @@ const frozenLast = Object.keys(frozenWeeks).sort().at(-1);
 const officialWeeks = {};
 const officialMonths = {};
 let feedBusy = false;
-let feedStatus = '尚未下載官方更新';
+let feedStatus = '需要連線取得最新市場資料';
 let feedMessage = '';
 let checkedAt = '';
 
@@ -162,7 +162,7 @@ if (typeof window !== 'undefined' && window.officialFeed) {
       receiveOfficial(cached);
       if (cached.notes?.length) feedMessage = cached.notes.join('；');
       if (hadUpdates && !state.manualWeek) useDefaultWeek();
-      if (Object.keys(cached.weeks || {}).length) feedStatus = '已載入上次驗證資料';
+      if (Object.keys(cached.weeks || {}).length) feedStatus = '已載入本工作階段驗證資料';
       setTimeout(refreshTDCC,1500);
       if (hadUpdates) render();
       else paintFeed();

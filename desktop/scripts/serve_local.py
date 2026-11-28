@@ -277,16 +277,17 @@ class LocalFeedService:
         self._lock = threading.Lock()
         self._active = None
         self.market = {}
-        self._load_cache()
-        for key in SOURCES:
-            path = self._bucket_file('market', key)
-            if path.exists():
-                try:
-                    data = json.loads(path.read_bytes())
-                    if data['source'] == SOURCES[key] and data['rows']:
-                        self.market[key] = data
-                except (ValueError, KeyError, OSError):
-                    self.notes.append(f'{key} 快取待重新下載')
+        if self.persist_market:
+            self._load_cache()
+            for key in SOURCES:
+                path = self._bucket_file('market', key)
+                if path.exists():
+                    try:
+                        data = json.loads(path.read_bytes())
+                        if data['source'] == SOURCES[key] and data['rows']:
+                            self.market[key] = data
+                    except (ValueError, KeyError, OSError):
+                        self.notes.append(f'{key} 快取待重新下載')
 
     def _bucket_file(self, kind: str, key: str) -> Path:
         return self.cache_dir / kind / f'{key}.json'

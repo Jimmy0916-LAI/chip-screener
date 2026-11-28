@@ -27,9 +27,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test desktop/qa/signal-engine.test.cjs
+      - run: node --test desktop/qa/*.test.cjs
       - run: python -B -X utf8 desktop/qa/feed_test.py
       - run: python -B -X utf8 desktop/qa/ai_router_test.py
+      - run: python -B -X utf8 desktop/qa/full_update_test.py
+      - run: python -B -X utf8 desktop/qa/daily_denominator_test.py
       - name: Build twice and verify update assets
         id: package
         shell: bash

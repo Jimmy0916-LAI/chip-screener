@@ -38,7 +38,7 @@ function screen() {
       priceRules ? '依所選集保與個股日 K 條件篩選。' : '從集保原始股數計算。',
       '<button class="btn" data-nav="settings">⚙ 調整篩選參數</button>'
     ) +
-    `<div class="notice">目前母體：${fmt(D.universe.length)} 檔候選股票。所選窗口可判定：${fmt(t.all - t.unknown)} 檔，資料不足：${fmt(t.unknown)} 檔。<b>注意：</b>來自 2026-11-13 的股票名單，未重建歷史逐日母體，也尚未逐檔完成公司行動核對；篩選通過僅代表算術條件符合。</div>` +
+    `<div class="notice">目前母體：${fmt(t.all)} 檔候選股票。所選窗口可判定：${fmt(t.all - t.unknown)} 檔，資料不足：${fmt(t.unknown)} 檔。<b>注意：</b>${screeningUniverse(win.end) === D.universe ? '目前使用 2026-11-13 研究名單。' : '目前使用兩交易所已驗證名單。'} 歷史逐日母體與公司行動待核對。</div>` +
     (priceRules ? signalCoverage(raw, cfg.signals, time, t.all - tally(weeklyRows).unknown) : '') +
     '<div class="metricgrid">' +
     metric('符合現行條件', fmt(t.pass), priceRules ? '依所選條件組合' : '通過股數 + 比例 + 門檻', 'green') +

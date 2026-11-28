@@ -23,6 +23,7 @@ MODULE_ORDER = [
     'components/ui-kit.js',
     'components/charts.js',
     'components/holding-chart.js',
+    'core/market-overlay.js',
     'components/kline-chart.js',
     'components/official-feed-panel.js',
     'components/preset-dialog.js',
