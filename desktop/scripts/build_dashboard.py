@@ -23,7 +23,6 @@ MODULE_ORDER = [
     'components/ui-kit.js',
     'components/charts.js',
     'components/holding-chart.js',
-    'core/light-export.js',
     'components/kline-chart.js',
     'components/official-feed-panel.js',
     'components/preset-dialog.js',
@@ -79,33 +78,14 @@ def build(
         enriched['tdccChartHistory'] = json.loads(chart_history.read_bytes())
 
 
-    pkg_file = ROOT / 'package.json'
-    shell_ver = shell_version or '0.6.0-b05.1'
-    if not shell_version and pkg_file.exists():
-        try:
-            shell_ver = str(json.loads(pkg_file.read_text(encoding='utf-8')).get('version') or shell_ver)
-        except Exception:
-            pass
-    meta_file = ROOT / 'scripts' / 'release_meta.json'
-    app_ver = app_version or shell_ver
-    code_channel = channel or 'stable'
-    candidate_download = ''
-    if meta_file.exists():
-        try:
-            rmeta = json.loads(meta_file.read_text(encoding='utf-8'))
-            if not app_version:
-                app_ver = str(rmeta.get('appVersion') or app_ver)
-            if not channel:
-                code_channel = str(rmeta.get('channel') or code_channel)
-            if app_ver == rmeta.get('appVersion'):
-                candidate_download = rmeta.get('candidateDownload') or ''
-        except Exception:
-            pass
+    rmeta = json.loads((ROOT / 'scripts/release_meta.json').read_text(encoding='utf-8'))
+    app_ver = app_version or rmeta['appVersion']
+    shell_ver = shell_version or rmeta['appVersion']
+    code_channel = channel or rmeta['channel']
     enriched['versionInfo'] = {
         'shellVersion': shell_ver,
         'appVersion': app_ver,
         'channel': code_channel,
-        'candidateDownload': candidate_download,
     }
 
     sp500_file = DATA_DIR / 'sp500_universe.json'

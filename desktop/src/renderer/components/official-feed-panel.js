@@ -98,7 +98,6 @@ function feedPanel() {
     '</div>' +
     `<button id="refreshTDCC" class="btn sm"${feedBusy ? ' disabled' : ''}>更新市場資料</button>` +
     '</div>' +
-    '<button id="exportLight" class="btn sm">匯出輕量資料</button>' +
     details +
     '</div>'
   );
