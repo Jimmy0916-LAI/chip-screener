@@ -5,75 +5,75 @@
   "logicalCpus": 3,
   "systemRam": 10452459520,
   "version": "0.6.5-rc.5",
-  "zipBytes": 12881573,
-  "unpackedBytes": 26129719,
+  "zipBytes": 12881933,
+  "unpackedBytes": 26130822,
   "network": "loopback only; cold browser profile and app data",
-  "coldSeconds": 1.4020331560022896,
+  "coldSeconds": 1.42358829099976,
   "idleSampleSeconds": 5,
-  "idleCpuCorePercent": 0.2,
-  "idleCombinedRss": 568967168,
+  "idleCpuCorePercent": 0.0,
+  "idleCombinedRss": 568115200,
   "idleProcesses": {
-    "6880": {
-      "rss": 45010944,
-      "cpu": 0.35,
+    "8681": {
+      "rss": 44421120,
+      "cpu": 0.33,
       "name": "python3",
-      "parent": 6783
+      "parent": 8579
     },
-    "6796": {
-      "rss": 134496256,
-      "cpu": 0.57,
+    "8592": {
+      "rss": 135200768,
+      "cpu": 0.59,
       "name": "chromium",
-      "parent": 6784
+      "parent": 8580
     },
-    "6911": {
-      "rss": 35381248,
-      "cpu": 0.03,
+    "8700": {
+      "rss": 35479552,
+      "cpu": 0.02,
       "name": "chromium",
-      "parent": 6817
+      "parent": 8613
     },
-    "6914": {
-      "rss": 116367360,
-      "cpu": 0.44,
+    "8702": {
+      "rss": 115560448,
+      "cpu": 0.42000000000000004,
       "name": "chromium",
-      "parent": 6817
+      "parent": 8613
     },
-    "6902": {
-      "rss": 96137216,
-      "cpu": 0.62,
+    "8689": {
+      "rss": 96141312,
+      "cpu": 0.64,
       "name": "chromium",
-      "parent": 6817
+      "parent": 8613
     },
-    "6840": {
-      "rss": 54648832,
-      "cpu": 0.11,
+    "8635": {
+      "rss": 54480896,
+      "cpu": 0.09,
       "name": "chromium",
-      "parent": 6816
+      "parent": 8612
     },
-    "6841": {
-      "rss": 63307776,
-      "cpu": 0.11,
+    "8636": {
+      "rss": 63246336,
+      "cpu": 0.07,
       "name": "chromium",
-      "parent": 6796
+      "parent": 8592
     },
-    "6856": {
-      "rss": 23617536,
+    "8663": {
+      "rss": 23584768,
       "cpu": 0.0,
       "name": "chromium",
-      "parent": 6817
+      "parent": 8613
     }
   },
-  "screenSamplePeakCombinedRss": 591314944,
-  "postSwitchCombinedRss": 624476160,
+  "screenSamplePeakCombinedRss": 590438400,
+  "postSwitchCombinedRss": 632709120,
   "stockSwitchMillis": [
-    92,
-    82,
+    109,
+    85,
     75,
-    63,
-    71
+    68,
+    67
   ],
   "holdingHistoryRangeClickMillis": {
-    "recent": 55,
-    "all": 46
+    "recent": 39,
+    "all": 43
   },
   "requestsPerRouteIncludingRestart": {
     "GET http://127.0.0.1:18765/dashboard.html": 4,
@@ -82,22 +82,16 @@
     "GET http://127.0.0.1:18765/api/software/state": 2,
     "GET http://127.0.0.1:18765/api/quotes/market-status": 2,
     "POST http://127.0.0.1:18765/api/official/update": 2,
-    "POST http://127.0.0.1:18765/api/software/update/check": 2,
-    "GET http://127.0.0.1:18765/api/briefing": 2,
-    "POST http://127.0.0.1:18765/api/briefing/generate": 1,
-    "GET http://127.0.0.1:18765/api/watchlist": 2,
-    "GET http://127.0.0.1:18765/api/channels": 2
+    "POST http://127.0.0.1:18765/api/software/update/check": 2
   },
-  "httpResponseBytesBeforeClose": 7296696,
-  "appDataFilesAfterRestart": {
-    "ChipScreener/briefings-v1/2026-11-28.json": 3912,
-    "ChipScreener/briefings-v1/2026-11-28.md": 1208
-  },
-  "servicePid": 6880,
+  "httpResponseBytesBeforeClose": 7286740,
+  "appDataFilesAfterRestart": {},
+  "servicePid": 8681,
   "exitCode": 0,
-  "closeSeconds": 4.084482887999911,
+  "closeSeconds": 4.089712901000894,
   "port18765AfterClose": "released",
   "unrelatedProcess": "alive",
-  "restartPid": 7021,
-  "sourceCommit": "45ecee0da1a6532839b4664198a4790308e226d5"
+  "restartPid": 8792,
+  "sourceCommit": "89eef1ffb8ffea5c71bd367c6a1573267c2bf32e",
+  "zipSha256": "0244b9495e448fe5ee0b2eb01422982a78b66489621af5be9ffe6404c3b64cc2"
 }

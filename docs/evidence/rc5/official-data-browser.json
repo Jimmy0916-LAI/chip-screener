@@ -6,7 +6,7 @@
     "appVersion": "0.6.5-rc.5",
     "shellVersion": "0.6.5-rc.5",
     "usingRuntime": false,
-    "sourceCommit": "45ecee0da1a6532839b4664198a4790308e226d5",
+    "sourceCommit": "89eef1ffb8ffea5c71bd367c6a1573267c2bf32e",
     "updateResult": null
   },
   "status": "更新成功",
@@ -17,16 +17,12 @@
       "valid": 1985,
       "invalid": 0,
       "universe": 1985,
-      "fetched": "2026-11-28T18:03:08.851+08:00",
+      "fetched": "2026-11-28T18:10:28.145+08:00",
       "publication": null,
       "validation": "1–17 級日期、股數、戶數與固定母體覆蓋驗證通過"
     }
   },
   "market": {
-    "TPEx-day": {
-      "day": "2026-11-27",
-      "rows": 862
-    },
     "TWSE-day": {
       "day": "2026-11-27",
       "rows": 1091
@@ -38,9 +34,13 @@
     "TPEx-list": {
       "day": "2026-11-28",
       "rows": 899
+    },
+    "TPEx-day": {
+      "day": "2026-11-27",
+      "rows": 862
     }
   },
-  "csvRows": 1985,
+  "csvRows": 1991,
   "csvWindow": "2026-11-27",
   "statusText": "預設嚴格篩選週 2026-11-27",
   "marketCacheFiles": []

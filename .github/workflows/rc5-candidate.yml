@@ -32,6 +32,7 @@ jobs:
       - run: python -B -X utf8 desktop/qa/ai_router_test.py
       - run: python -B -X utf8 desktop/qa/full_update_test.py
       - run: python -B -X utf8 desktop/qa/daily_denominator_test.py
+      - run: python -B -X utf8 desktop/qa/data_repository_test.py
       - name: Build twice and verify update assets
         id: package
         env:
