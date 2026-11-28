@@ -5,13 +5,12 @@ import json
 from pathlib import Path
 import re
 import struct
+import sys
 from zipfile import ZipFile
 
 REPOSITORY = 'Jimmy0916-LAI/chip-screener'
 RELEASES = f'https://github.com/{REPOSITORY}/releases'
 IDENTITY_KEYS = {'schemaVersion', 'version', 'commit', 'architecture', 'dataCompatibility'}
-BEGIN = '<!-- CHIPSCREENER_UPDATE_CHANNELS_BEGIN -->'
-END = '<!-- CHIPSCREENER_UPDATE_CHANNELS_END -->'
 
 
 def require(condition, message):
@@ -38,28 +37,31 @@ def asset_url(version, name):
     return f'{RELEASES}/download/v{version}/{name}'
 
 
-def readme_channels(path):
-    text = path.read_text(encoding='utf-8')
-    require(text.count(BEGIN) == text.count(END) == 1, 'README must have exactly one update block')
-    block = text.split(BEGIN, 1)[1].split(END, 1)[0].strip().splitlines()
-    require(len(block) == 4 and block[:2] == ['| 通道 | 下載 |', '| --- | --- |'], 'Invalid README channel table')
-    channels = {}
-    for channel, row in zip(('Stable', 'Beta'), block[2:]):
-        prefix = f'| {channel} | '
-        require(row.startswith(prefix) and row.endswith(' |'), f'Invalid {channel} row')
-        target = row[len(prefix):-2]
-        if target == '—':
-            channels[channel.lower()] = None
+def verify_channels(path):
+    # Use the production parser and release trust checks for the README gate.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+    from providers.full_update import Source, readme_channels
+
+    channels = readme_channels(path.read_text(encoding='utf-8'))
+    source = Source()
+    for channel, entry in channels.items():
+        if entry is None:
             continue
-        match = re.fullmatch(
-            r'\[Windows x64 ZIP\]\((https://github\.com/Jimmy0916-LAI/chip-screener/releases/download/'
-            r'v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*)?)/'
-            r'ChipScreener-v(?P=version)-Windows-x64\.zip)\)', target,
-        )
-        require(match is not None, f'Invalid {channel} ZIP URL')
-        version = match.group('version')
-        require((channel == 'Stable') == ('-' not in version), f'Invalid {channel} version')
-        channels[channel.lower()] = match.group(1)
+        if channel == 'beta' and entry['version'] == '0.6.5-rc.4':
+            release = source.api('/releases/tags/v0.6.5-rc.4')
+            require(release.get('draft') is False and release.get('prerelease') is True
+                    and release.get('tag_name') == 'v0.6.5-rc.4',
+                    'Legacy RC4 download must point to the published prerelease')
+            ref = source.api('/git/ref/tags/v0.6.5-rc.4').get('object', {})
+            require(ref.get('type') == 'commit'
+                    and ref.get('sha') == 'fe0a5fd4530ca83906f5ba2f28aef0f590cfe109',
+                    'Legacy RC4 source tag differs from the verified candidate')
+            assets = [asset for asset in release['assets'] if asset.get('browser_download_url') == entry['zipUrl']]
+            require(len(assets) == 1 and assets[0].get('size') == 10532048
+                    and assets[0].get('digest') == 'sha256:384a30beeb4b2fe5b99cd9f453fe3bcfb11f3d41c78623713d967e60fd8e81c3',
+                    'Legacy RC4 ZIP differs from the verified download')
+        else:
+            source.selected(entry, channel)
     return channels
 
 
@@ -115,7 +117,7 @@ def main():
     parser.add_argument('--version')
     args = parser.parse_args()
     if args.readme:
-        print(json.dumps(readme_channels(args.readme)))
+        print(json.dumps(verify_channels(args.readme)))
     if args.zip:
         print(json.dumps(check_package(args.zip, args.manifest, args.checksums, args.commit, args.version)))
 

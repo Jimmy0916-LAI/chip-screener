@@ -208,6 +208,16 @@ class Source:
         info, archive = manifest_info(raw, {**entry, 'commit': ref['sha'], 'manifestSha256': manifest_hash})
         require(release_asset(archive['url']) == (archive['sha256'], archive['size']),
                 '官方 ZIP 資產雜湊或大小與 manifest 不符')
+        sums_url = asset_url(version, 'SHA256SUMS.txt')
+        sums_hash, sums_size = release_asset(sums_url)
+        require(sums_size <= 4096, 'SHA256SUMS.txt 過大')
+        with self.open_asset(sums_url) as response:
+            sums = response.read(sums_size + 1)
+        require(len(sums) == sums_size and hashlib.sha256(sums).hexdigest() == sums_hash,
+                'SHA256SUMS.txt 與官方資產不符')
+        zip_name = archive['url'].rsplit('/', 1)[1]
+        expected_sum = f"{archive['sha256']}  {zip_name}".encode('ascii')
+        require(sums.strip() == expected_sum, 'SHA256SUMS.txt 與 manifest 不符')
         notes = [line.strip() for line in str(release.get('body') or '').splitlines() if line.strip()][:4]
         return info, archive, notes
 
@@ -637,7 +647,7 @@ class FullUpdate:
             selected, archive, notes = self.source.selected(entry, channel)
             version = selected['version']
             result.update(remoteAppVersion=version, sourceCommit=selected['commit'], zipSha256=archive['sha256'], changelog=notes,
-                          releaseUrl=f'{RELEASES}/tag/v{version}')
+                          releaseUrl=f'{RELEASES}/tag/v{version}', size=archive['size'])
             comparison = version_order(version) > version_order(current_version)
             lower = version_order(version) < version_order(current_version)
             if not comparison and not lower and self.current:

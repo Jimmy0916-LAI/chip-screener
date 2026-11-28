@@ -72,7 +72,10 @@ class GitHubFixture(update.Source):
         self.manifest_url = update.asset_url(NEW_VERSION, 'update-manifest.json')
         archive = {'url': self.zip_url, 'size': len(self.archive), 'sha256': self.archive_hash}
         self.manifest = json.dumps({**identity(), 'assets': {'zip': archive}}).encode()
+        self.sums_url = update.asset_url(NEW_VERSION, 'SHA256SUMS.txt')
+        self.sums = f"{self.archive_hash}  {self.zip_url.rsplit('/', 1)[1]}\n".encode()
         self.assets = [
+            self.asset(self.sums_url, self.sums),
             self.asset(self.manifest_url, self.manifest),
             self.asset(self.zip_url, self.archive),
         ]
@@ -97,7 +100,7 @@ class GitHubFixture(update.Source):
         raise AssertionError(path)
 
     def open_asset(self, url):
-        return BytesIO({self.zip_url: self.archive, self.manifest_url: self.manifest}[url])
+        return BytesIO({self.zip_url: self.archive, self.manifest_url: self.manifest, self.sums_url: self.sums}[url])
 
 
 class FullUpdateTest(unittest.TestCase):
@@ -131,11 +134,11 @@ class FullUpdateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '提交'):
             self.source.selected(entry, 'beta')
         self.source.ref_sha = NEW_SHA
-        self.source.assets[0].pop('digest')
+        self.source.assets[1].pop('digest')
         with self.assertRaisesRegex(ValueError, 'SHA-256'):
             self.source.selected(entry, 'beta')
-        self.source.assets[0] = self.source.asset(self.source.manifest_url, self.source.manifest)
-        self.source.assets[1]['size'] += 1
+        self.source.assets[1] = self.source.asset(self.source.manifest_url, self.source.manifest)
+        self.source.assets[2]['size'] += 1
         with self.assertRaisesRegex(ValueError, '大小'):
             self.source.selected(entry, 'beta')
 
