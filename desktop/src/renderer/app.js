@@ -3723,13 +3723,14 @@ if (hasHttpFeed) {
   });
 
   if (state.page === 'us_home') setTimeout(() => loadUsOverview(false), 120);
-  setTimeout(() => loadBriefing('', true), 2600);
-  setTimeout(() => loadWatchlist(true), 3200);
-  setTimeout(() => loadChannels(false), 3600);
   setTimeout(() => loadSoftwareState(true), 900);
   setTimeout(() => checkForUpdates(true), 2200);
-  setInterval(() => loadBriefing('', true), 15 * 60 * 1000);
-  setInterval(() => loadWatchlist(true), 15 * 60 * 1000);
+  setInterval(() => {
+    if (state.page === 'briefing' && state.briefingTab !== 'channels' && !document.hidden) loadBriefing('', true);
+  }, 15 * 60 * 1000);
+  setInterval(() => {
+    if (state.page === 'watchlist' && !document.hidden) loadWatchlist(true);
+  }, 15 * 60 * 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (liveQuoteTimer) {

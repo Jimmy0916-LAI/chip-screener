@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import struct
@@ -44,6 +45,10 @@ def verify_channels(path):
 
     channels = readme_channels(path.read_text(encoding='utf-8'))
     source = Source()
+    token = os.environ.get('CHIP_CI_GITHUB_TOKEN')
+    if token:
+        # The read-only Actions credential applies only to fixed-host API calls.
+        source.api_opener.addheaders = [('Authorization', f'Bearer {token}')]
     for channel, entry in channels.items():
         if entry is None:
             continue

@@ -711,6 +711,8 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
     def software_state():
         state = updater_service.get_state()
         state.update(application.display())
+        for key in ('hasToken', 'tokenHint'):
+            state['config'].pop(key, None)
         state['ai'] = ai_router.public_state(app_data_root)
         state['marketStatus'] = live_quote_service.get_market_status(probe_live=False)
         return state
@@ -1134,7 +1136,8 @@ def create_server(host: str = '127.0.0.1', port: int = 18765) -> ThreadingHTTPSe
                             body.get('confirmChannel') is not True or application.is_busy()
                         ):
                             raise ValueError('請確認切換通道，並等待現有更新完成')
-                        updater_service.update_config(body)
+                        fields = {'channel', 'liveQuoteEnabled', 'liveQuoteIntervalSec'}
+                        updater_service.update_config({key: body[key] for key in fields & body.keys()})
                         self._send_json(200, software_state())
                     elif parsed.path == '/api/software/update/check':
                         channel = updater_service.get_state()['config']['channel']

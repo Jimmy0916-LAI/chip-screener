@@ -3,6 +3,7 @@
 import base64
 from contextlib import contextmanager
 import hashlib
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -638,6 +639,7 @@ class FullUpdate:
         result = {
             'channel': channel, 'currentAppVersion': current_version, 'remoteAppVersion': None,
             'hasUpdate': False, 'requiresShellUpgrade': False, 'releaseUrl': RELEASES,
+            'checkedAt': datetime.now(timezone.utc).isoformat(),
         }
         if entry is None:
             result['status'] = 'unavailable'

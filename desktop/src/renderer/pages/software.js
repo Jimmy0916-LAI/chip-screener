@@ -61,6 +61,7 @@ function softwarePage() {
     : state.updateError
       ? `<p class="notice warn">${esc(state.updateError)}</p>`
       : `<p>${esc(updateCheckDescription(chk))}</p>` +
+        (chk?.checkedAt ? `<p class="mini">最後檢查 ${esc(new Date(chk.checkedAt).toLocaleString())}${chk.size ? ` · ${fmt(chk.size / 1048576, 1)} MiB` : ''}</p>` : '') +
         (changeLogs ? `<ul class="brief-list">${changeLogs}</ul>` : '') +
         (chk?.releaseUrl ? `<a class="btn ghost sm" href="${esc(chk.releaseUrl)}" target="_blank" rel="noopener noreferrer">開啟官方發行頁</a>` : '') +
         (chk?.hasUpdate && installer.installed
