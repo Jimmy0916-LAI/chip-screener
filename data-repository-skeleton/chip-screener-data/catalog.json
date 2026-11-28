@@ -1,0 +1,10 @@
+{
+  "kind": "catalog",
+  "schema_version": 1,
+  "years": {
+    "2026": {
+      "manifest": "manifest.json",
+      "repository": "chip-screener-data-2026"
+    }
+  }
+}

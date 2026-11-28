@@ -1,0 +1,76 @@
+{
+  "datasets": [
+    "tdcc",
+    "universe",
+    "daily",
+    "broker",
+    "volume-profile",
+    "calendar",
+    "corporate-actions"
+  ],
+  "kind": "year",
+  "months": {
+    "2026-01": {
+      "bytes": 233,
+      "path": "indexes/2026-01/c16cad217fc6739c917bcaa5ccf0a11fe8e0738e789377e47a7b0a75f403252d.json",
+      "sha256": "c16cad217fc6739c917bcaa5ccf0a11fe8e0738e789377e47a7b0a75f403252d"
+    },
+    "2026-02": {
+      "bytes": 233,
+      "path": "indexes/2026-02/0e55cf051686cacdea63da34abd18a70e4160928cff005470cb742ce2c17242b.json",
+      "sha256": "0e55cf051686cacdea63da34abd18a70e4160928cff005470cb742ce2c17242b"
+    },
+    "2026-03": {
+      "bytes": 233,
+      "path": "indexes/2026-03/7ed3aaea875777a590ee3982ea0af6ab07b0a002744e8ce8cf0c41aedda11fc7.json",
+      "sha256": "7ed3aaea875777a590ee3982ea0af6ab07b0a002744e8ce8cf0c41aedda11fc7"
+    },
+    "2026-04": {
+      "bytes": 233,
+      "path": "indexes/2026-04/78e83f3508967e1f00353e2191327bcf2a5197afeb1202e688fd8b7f380aa0f5.json",
+      "sha256": "78e83f3508967e1f00353e2191327bcf2a5197afeb1202e688fd8b7f380aa0f5"
+    },
+    "2026-05": {
+      "bytes": 233,
+      "path": "indexes/2026-05/ba5ca74178d41299a43a5293888a6934f059cb8cb14f6d6650266ebb4eb10ccf.json",
+      "sha256": "ba5ca74178d41299a43a5293888a6934f059cb8cb14f6d6650266ebb4eb10ccf"
+    },
+    "2026-06": {
+      "bytes": 233,
+      "path": "indexes/2026-06/a2898164092f6b3194ce70459e210f8bdda51e13b1a7a05b1f741e3bf58c6a62.json",
+      "sha256": "a2898164092f6b3194ce70459e210f8bdda51e13b1a7a05b1f741e3bf58c6a62"
+    },
+    "2026-07": {
+      "bytes": 233,
+      "path": "indexes/2026-07/e25dfc4280ad298bebad4096da2ef7735f25d3dfecd75db1e1d08c65072f512c.json",
+      "sha256": "e25dfc4280ad298bebad4096da2ef7735f25d3dfecd75db1e1d08c65072f512c"
+    },
+    "2026-08": {
+      "bytes": 233,
+      "path": "indexes/2026-08/5110d37e9f4508461a848f20da8e0814bd4e652833940ca1af72b1cc648259d0.json",
+      "sha256": "5110d37e9f4508461a848f20da8e0814bd4e652833940ca1af72b1cc648259d0"
+    },
+    "2026-09": {
+      "bytes": 233,
+      "path": "indexes/2026-09/6e5fc1d8a0a1374dd4203c441d4f139a0bab4ca43e1af484acc9321a302b9f29.json",
+      "sha256": "6e5fc1d8a0a1374dd4203c441d4f139a0bab4ca43e1af484acc9321a302b9f29"
+    },
+    "2026-10": {
+      "bytes": 233,
+      "path": "indexes/2026-10/9b18082f60de95ceeedd1d151d0a161a55a8e78b4ece50bd6f832accdcfc6648.json",
+      "sha256": "9b18082f60de95ceeedd1d151d0a161a55a8e78b4ece50bd6f832accdcfc6648"
+    },
+    "2026-11": {
+      "bytes": 233,
+      "path": "indexes/2026-11/1225c5311c10de8f07e2d0b12b33015ff7cf9b977a009a0522eb4883e19280f2.json",
+      "sha256": "1225c5311c10de8f07e2d0b12b33015ff7cf9b977a009a0522eb4883e19280f2"
+    },
+    "2026-12": {
+      "bytes": 233,
+      "path": "indexes/2026-12/7dfa26898576eb8c84480a3c83fae558198a7c905328bcc893c597d94b8de9cb.json",
+      "sha256": "7dfa26898576eb8c84480a3c83fae558198a7c905328bcc893c597d94b8de9cb"
+    }
+  },
+  "schema_version": 1,
+  "year": "2026"
+}
