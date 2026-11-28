@@ -3,11 +3,31 @@
  * 所有選項變更後即時自動儲存，本機機密與熱更檔案仍於背景隔離管理。
  */
 
+function updateCheckDescription(check) {
+  if (!check) return '尚未檢查指定版本';
+  const channel = check.channel === 'beta' ? 'Beta' : 'Stable';
+  const version = check.remoteAppVersion || '';
+  switch (check.status) {
+    case 'unavailable':
+      return `${channel} 尚未發布指定版本。可繼續使用目前版本。`;
+    case 'manual':
+      return `${channel} 指定 ${version}，請由官方發行頁手動下載。`;
+    case 'incompatible':
+      return `${channel} 指定 ${version}，目前安裝或資料格式不支援自動切換。`;
+    case 'downgrade':
+      return `${channel} 指定較早版本 ${version}，需確認後才能降版。`;
+    case 'update':
+      return `${channel} 指定可安裝版本 ${version}。`;
+    default:
+      return `目前已是 ${channel} 指定版本 ${version}。`;
+  }
+}
+
 function softwarePage() {
   const sw = state.softwareState || {};
   const cfg = sw.config || {};
   const ver = sw.version || D.versionInfo || {};
-  const rt = sw.runtime || {};
+  const installer = sw.appUpdate || {};
   const chk = state.updateCheckResult || sw.lastCheck || null;
   const mkt = state.liveQuoteStatus || sw.marketStatus || {};
   const twMkt = mkt.TW || {};
@@ -17,48 +37,39 @@ function softwarePage() {
   const isBeta = cfg.channel === 'beta';
   const candidateUrl = ver.candidateDownload || D.versionInfo?.candidateDownload;
   const manualDownload = candidateUrl
-    ? `<p><a id="swCandidateDownload" href="${esc(candidateUrl)}" target="_blank" rel="noopener">開啟 ${esc(appVer)} 封測 ZIP 下載與校驗頁</a>。請用有私庫權限的 GitHub 帳號登入，頁內附 Windows x64 ZIP 與 SHA-256。</p>`
+    ? `<p><a id="swCandidateDownload" href="${esc(candidateUrl)}" target="_blank" rel="noopener">開啟 ${esc(appVer)} 封測 ZIP 下載與校驗頁</a>。頁內附 Windows x64 ZIP 與 SHA-256。</p>`
     : '<p><a href="https://github.com/Jimmy0916-LAI/chip-screener/releases" target="_blank" rel="noopener">開啟 GitHub 下載頁</a></p>';
   const liveEnabled = cfg.liveQuoteEnabled !== false;
   const liveInterval = Number(cfg.liveQuoteIntervalSec || 30);
 
-  const rollbackNotice = rt.rolledBackFrom
-    ? '<div class="notice warn">偵測到新版啟動異常，已自動還原至上一可用版本。</div>'
+  const result = installer.lastResult;
+  const updateResult = result
+    ? `<div class="notice ${result.success ? '' : 'warn'}">${esc(result.message || '')}${result.rolledBack ? '，已回到上一可用版本。' : ''}</div>`
     : '';
-
-  let updateStatusHtml = '';
-  if (state.updateBusy) {
-    updateStatusHtml = '<div class="mini" style="margin-top:14px">正在檢查最新版本，請稍候...</div>';
-  } else if (state.updateError) {
-    updateStatusHtml = `<div class="notice warn" style="margin-top:14px;margin-bottom:0">${esc(state.updateError)}</div>`;
-  } else if (chk && chk.hasUpdate) {
-    const logs = (chk.changelog || []).slice(0, 4).map(x => `<li>${esc(x)}</li>`).join('');
-    const actionBtn = chk.requiresShellUpgrade
-      ? `<a class="btn warn sm" href="${esc(chk.releaseUrl || 'https://github.com/' + (chk.repo || '') + '/releases')}" target="_blank" rel="noopener noreferrer">↗ 前往下載正式版</a>`
-      : `<button type="button" class="btn main sm" id="swApplyUpdateBtn">立即更新並重啟</button>`;
-    updateStatusHtml =
-      '<div class="sw-check-card" style="margin-top:14px">' +
-      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>發現新版本 ${esc(chk.remoteAppVersion)}</b>${badge(chk.channel === 'beta' ? '測試版' : '正式版', chk.channel === 'beta' ? 'warn' : 'good')}</div>` +
-      (logs ? `<ul class="brief-list" style="margin:8px 0 10px">${logs}</ul>` : '') +
-      `<div style="margin-top:10px">${actionBtn}</div>` +
-      '</div>';
-  } else if (chk) {
-    updateStatusHtml = `<div style="margin-top:14px">${badge(`目前已是最新版本（${chk.currentAppVersion}）`, 'good')}</div>`;
-  }
-
-  const noticeLogs =
-    rt.recentReleaseNotice && rt.recentReleaseNotice.version === appVer && Array.isArray(rt.recentReleaseNotice.changelog)
-      ? rt.recentReleaseNotice.changelog
-      : Array.isArray(ver.changelog)
-        ? ver.changelog
-        : [];
-  const currentNotesHtml =
-    !(chk && chk.hasUpdate) && noticeLogs.length
-      ? '<div class="sw-check-card" style="margin-top:12px">' +
-        `<div class="mini" style="margin-bottom:6px">目前版本更新項目（${esc(appVer)}）</div>` +
-        `<ul class="brief-list" style="margin:0">${noticeLogs.slice(0, 6).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` +
-        '</div>'
+  const installStatus = installer.installed
+    ? `<p class="mini">固定啟動入口已安裝。<br>${esc(installer.entry || '')}</p>`
+    : installer.canInstall
+      ? '<p>安裝一次固定入口，之後透過桌面捷徑啟動及更新。</p><button class="btn sm" type="button" id="swInstallEntryBtn">安裝固定入口</button>'
       : '';
+  const rollback = installer.previousVersion
+    ? `<button class="btn warn sm" type="button" id="swRollbackUpdateBtn">回到 ${esc(installer.previousVersion)}</button>`
+    : '';
+  const changeLogs = (chk?.changelog || []).slice(0, 4)
+    .map(line => `<li>${esc(line)}</li>`).join('');
+  const updateStatusHtml = state.updateBusy
+    ? '<p class="mini">正在核對官方通道指定的版本…</p>'
+    : state.updateError
+      ? `<p class="notice warn">${esc(state.updateError)}</p>`
+      : `<p>${esc(updateCheckDescription(chk))}</p>` +
+        (changeLogs ? `<ul class="brief-list">${changeLogs}</ul>` : '') +
+        (chk?.releaseUrl ? `<a class="btn ghost sm" href="${esc(chk.releaseUrl)}" target="_blank" rel="noopener noreferrer">開啟官方發行頁</a>` : '') +
+        (chk?.hasUpdate && installer.installed
+          ? `<button class="btn main sm" type="button" id="swApplyUpdateBtn">${chk.isDowngrade ? '確認降版' : '安裝指定版本'}</button>` : '');
+  const noticeLogs = Array.isArray(ver.changelog) ? ver.changelog : [];
+  const currentNotesHtml = noticeLogs.length
+    ? '<div class="sw-check-card"><div class="mini">目前版本更新項目</div><ul class="brief-list">' +
+      noticeLogs.slice(0, 6).map(line => `<li>${esc(line)}</li>`).join('') + '</ul></div>'
+    : '';
 
   const twBadge = twMkt.isOpen ? badge('台股盤中', 'good') : badge(twMkt.reason || '台股非盤中', '');
   const usBadge = usMkt.isOpen ? badge('美股盤中', 'good') : badge(usMkt.reason || '美股非盤中', '');
@@ -67,7 +78,7 @@ function softwarePage() {
 
   return (
     title('軟體設定', '管理版本更新、盤中即時股價頻率、AI 供應商與本機加密金鑰。') +
-    rollbackNotice +
+    updateResult +
     '<div class="grid2 equal">' +
     '<div class="card">' +
     cardhead('版本與更新', `目前版本 ${appVer}`, badge(isBeta ? '測試版' : '正式版', isBeta ? 'warn' : 'good')) +
@@ -81,9 +92,11 @@ function softwarePage() {
     '<div class="toolbar" style="margin-top:16px;margin-bottom:0">' +
     `<button type="button" class="btn main sm" id="swCheckUpdateBtn"${state.updateBusy ? ' disabled' : ''}>${state.updateBusy ? '檢查中...' : '檢查程式更新'}</button>` +
     '</div>' +
+    installStatus +
+    rollback +
     manualDownload +
     (hasHttpFeed
-      ? '<p><button type="button" class="btn ghost sm" id="swStopLocalService">停止本機服務</button> 換版或回退時先停止服務，再雙擊要使用的版本。請保留舊版資料夾。</p>'
+      ? '<p><button type="button" class="btn ghost sm" id="swStopLocalService">停止本機服務</button> 手動換版前請先停止服務。</p>'
       : '') +
     updateStatusHtml +
     currentNotesHtml +

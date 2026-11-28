@@ -34,7 +34,7 @@ DEFAULT_PORT = int(os.environ.get('CHIP_PORT', '18765'))
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 import build_dashboard  # noqa: E402
-from providers import updater  # noqa: E402
+from providers import full_update, updater  # noqa: E402
 
 
 def needs_rebuild() -> bool:
@@ -167,7 +167,8 @@ def _boot_server_from_root(app_root: Path, host: str, port: int):
     scripts_path = str(app_root / 'scripts')
     sys.path = [p for p in sys.path if p != scripts_path]
     sys.path.insert(0, scripts_path)
-    _purge_server_modules()
+    if app_root != ROOT:
+        _purge_server_modules()
     import serve_local  # noqa: E402
     return serve_local.create_server(host, port)
 
@@ -186,10 +187,21 @@ def main() -> None:
     parser.add_argument('--use-runtime', action='store_true', help='強制在開發環境中允許載入熱更 runtime 目錄（測試用）')
     parser.add_argument('--no-runtime', action='store_true', help='強制略過熱更 runtime 目錄並以安裝目錄啟動')
     parser.add_argument('--portable', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--managed-child', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--update-probe', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     cli_override = True if args.use_runtime else (False if args.no_runtime else None)
     app_data_dir = Path(os.environ.get('LOCALAPPDATA') or Path.home()) / 'ChipScreener'
+    managed = full_update.app_root(app_data_dir)
+    if args.portable and not args.managed_child and full_update.installed_root(managed):
+        with full_update.platform_lock(managed / 'transition.lock'):
+            target = full_update.selected_root(managed)
+            if target.resolve() != ROOT.parent.resolve():
+                options = (['--no-open'] if args.no_open else []) + (['--browser'] if args.browser else [])
+                full_update.start_version(target, args.port, *options)
+                return
+
     runtime_root, runtime_ver, boot_note = updater.resolve_boot_runtime(ROOT, app_data_dir, cli_runtime_override=cli_override)
 
     print('========================================', flush=True)
@@ -214,7 +226,7 @@ def main() -> None:
     active_root = runtime_root or ROOT
     expected_version = updater.read_code_meta(active_root)['appVersion']
     existing_version = None if wait_release else existing_server_version(DEFAULT_HOST, args.port)
-    if existing_version == expected_version:
+    if existing_version == expected_version and not args.update_probe:
         url = f'http://{DEFAULT_HOST}:{args.port}/dashboard.html'
         print(f'[2/3] 偵測到籌碼雷達服務已在運行：{url}', flush=True)
         if not args.no_open:
@@ -254,10 +266,27 @@ def main() -> None:
 
     
 
-    if args.portable and not args.no_open and hasattr(server, 'stop_with_windows'):
+    if args.portable and not args.no_open:
         server.stop_with_windows = True
 
-    if not args.no_open:
+    if args.update_probe:
+        server.update_session = args.update_probe.stem
+
+        def wait_for_activation():
+            deadline = time.monotonic() + 32
+            while time.monotonic() < deadline:
+                try:
+                    args.update_probe.unlink()
+                except FileNotFoundError:
+                    time.sleep(0.15)
+                    continue
+                if not args.no_open:
+                    open_interface(url, force_browser=args.browser)
+                return
+            server.shutdown()
+
+        threading.Thread(target=wait_for_activation, daemon=True).start()
+    elif not args.no_open:
         def delayed_open():
             time.sleep(0.4)
             print(f'[3/3] 正在開啟籌碼雷達：{url}', flush=True)

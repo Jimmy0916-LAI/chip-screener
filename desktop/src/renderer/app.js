@@ -393,7 +393,7 @@ function renderUpdateBanner() {
   const chk = state.updateCheckResult;
   if (chk && chk.hasUpdate && !state.updateBannerDismissed) {
     const chBadge = badge(chk.channel === 'beta' ? '測試版 beta' : '正式版 stable', chk.channel === 'beta' ? 'warn' : 'good');
-    const note = (chk.changelog || [])[0] || `可熱更為 ${chk.remoteAppVersion}`;
+    const note = chk.isDowngrade ? '切換至較舊版本需要確認' : (chk.changelog || [])[0] || '已可安裝完整 Windows 更新包';
     const actionBtn = chk.requiresShellUpgrade
       ? `<a class="btn warn sm" href="${esc(chk.releaseUrl || 'https://github.com/' + (chk.repo || '') + '/releases')}" target="_blank" rel="noopener noreferrer">↗ 前往下載正式版</a>`
       : `<button type="button" class="btn main sm" id="bannerApplyUpdateBtn">立即更新並重啟</button>`;
@@ -464,35 +464,26 @@ function renderRestartOverlay() {
     '</div>';
 }
 
-async function waitForServerAndReload() {
-  for (let i = 0; i < 45; i++) {
-    await new Promise(r => setTimeout(r, i === 0 ? 700 : 500));
+async function waitForServerAndReload(transaction) {
+  const deadline = Date.now() + 55000;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
-      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timer = ctrl ? setTimeout(() => ctrl.abort(), 2000) : null;
-      const resp = await fetch('/api/health', { cache: 'no-store', signal: ctrl?.signal });
-      if (timer) clearTimeout(timer);
-      if (resp.ok) {
-        const doc = await resp.json();
-        if (doc && doc.app === 'ChipScreener') {
-          state.restartingOverlay = {
-            title: '本機服務已就緒',
-            detail: `正在載入版本 ${doc.appVersion || ''}...`,
-            percent: 100,
-            stageLabel: '完成重啟'
-          };
-          renderRestartOverlay();
-          window.location.reload();
-          return;
-        }
+      const response = await fetch('/api/health', {
+        cache: 'no-store', signal: AbortSignal.timeout(2000)
+      });
+      const health = response.ok ? await response.json() : null;
+      if (health?.app !== 'ChipScreener' || health.updateResult?.id !== transaction) continue;
+      if (!health.updateResult.success && !health.updateResult.rolledBack) {
+        return health.updateResult.message || '未能啟動更新';
       }
+      window.location.reload();
+      return null;
     } catch {
-      // 服務重啟空窗期略過錯誤
+      // The loopback connection is briefly unavailable during the handoff.
     }
   }
-  state.restartingOverlay = null;
-  renderRestartOverlay();
-  toast('重啟逾時，請手動重新整理瀏覽器或確認本機服務狀態');
+  return '重啟驗證逾時。請從桌面的股票雷達捷徑重開並查看更新結果。';
 }
 
 function syncSharedGeminiMeta(meta) {
@@ -607,29 +598,23 @@ async function checkForUpdates(silent = false) {
     });
     const data = await resp.json();
     if (!resp.ok || data.error) throw Error(data.error || '檢查更新失敗');
-    if (data.check && !data.check.silentError) {
-      state.updateCheckResult = data.check;
-    }
+    state.updateCheckResult = data.check;
     if (data.state) state.softwareState = data.state;
     if (data.check?.hasUpdate) {
       state.updateBannerDismissed = false;
     }
     renderUpdateBanner();
     if (!silent) {
-      toast(
-        data.check?.hasUpdate
-          ? `發現新版本 ${data.check.remoteAppVersion} (${data.check.channel})`
-          : `目前已是 ${data.check?.channel || ''} 最新版本`
-      );
+      toast(updateCheckDescription(data.check));
     }
   } catch (e) {
-    if (!silent) {
-      state.updateError = e.message;
-      toast(e.message);
-    }
+    state.updateCheckResult = null;
+    state.updateError = e.message;
+    renderUpdateBanner();
+    if (!silent) toast(e.message);
   } finally {
     state.updateBusy = false;
-    if (!silent && state.page === 'software') render();
+    if (state.page === 'software') render();
   }
 }
 
@@ -643,113 +628,88 @@ const UPDATE_STAGE_LABELS = {
   error: '發生錯誤'
 };
 
-async function applyUpdateAndRestart() {
-  if (!hasHttpFeed) return;
-  state.updateError = '';
-  state.restartingOverlay = {
-    title: '正在準備檢查與下載更新...',
-    detail: '正在連線 GitHub Releases',
-    percent: 6,
-    stageLabel: '檢查版本'
-  };
-  renderRestartOverlay();
+async function installFixedEntry() {
+  if (!confirm('安裝固定入口並建立目前 Windows 帳號的桌面與開始功能表捷徑？')) return;
   try {
-    const startCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const startTimer = startCtrl ? setTimeout(() => startCtrl.abort(), 12000) : null;
-    const resp = await fetch('/api/software/update/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ async: true }),
-      signal: startCtrl?.signal
+    const response = await fetch('/api/software/update/install', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({confirm: true})
     });
-    if (startTimer) clearTimeout(startTimer);
-    const data = await resp.json();
-    if (!resp.ok || data.error) throw Error(data.error || '套用更新失敗');
-
-    const startedAt = Date.now();
-    let seenDownloadOrApply = false;
-    while (Date.now() - startedAt < 90000) {
-      await new Promise(r => setTimeout(r, 250));
-      let prog = null;
-      try {
-        const pCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const pTimer = pCtrl ? setTimeout(() => pCtrl.abort(), 5000) : null;
-        const pResp = await fetch('/api/software/update/progress', { cache: 'no-store', signal: pCtrl?.signal });
-        if (pTimer) clearTimeout(pTimer);
-        if (pResp.ok) prog = await pResp.json();
-      } catch {
-        // 若已進入套用並開始重啟，連線中斷代表舊服務正在重啟
-        if (seenDownloadOrApply) {
-          state.restartingOverlay = {
-            title: '正在重啟本機服務...',
-            detail: '請稍候，就緒後將自動重新整理頁面',
-            percent: 96,
-            stageLabel: '重啟服務'
-          };
-          renderRestartOverlay();
-          await waitForServerAndReload();
-          return;
-        }
-        continue;
-      }
-      if (!prog) continue;
-      if (['verifying', 'extracting', 'restarting'].includes(prog.stage)) {
-        seenDownloadOrApply = true;
-      }
-      if (prog.stage === 'error') {
-        throw Error(prog.error || prog.detail || '更新失敗');
-      }
-      state.restartingOverlay = {
-        title: prog.title || '正在更新...',
-        detail: prog.detail || '',
-        percent: prog.percent ?? 10,
-        stageLabel: UPDATE_STAGE_LABELS[prog.stage] || '更新中'
-      };
-      renderRestartOverlay();
-      if (prog.stage === 'restarting') {
-        await waitForServerAndReload();
-        return;
-      }
-      if (!prog.active && prog.stage === 'idle' && seenDownloadOrApply) {
-        await waitForServerAndReload();
-        return;
-      }
-    }
-    throw Error('下載或套用更新逾時（超過 90 秒），請確認網路連線後重試');
-  } catch (e) {
-    state.restartingOverlay = null;
-    state.updateError = e.message;
-    renderRestartOverlay();
-    toast(e.message);
+    const data = await response.json();
+    if (!response.ok) throw Error(data.error || '無法建立固定入口');
+    state.softwareState = data;
+    toast('已建立股票雷達捷徑');
     if (state.page === 'software') render();
+  } catch (error) {
+    toast(error.message);
   }
 }
 
-async function rollbackSoftwareUpdate() {
-  if (!hasHttpFeed) return;
-  state.restartingOverlay = {
-    title: '正在回滾至上一版本...',
-    detail: '還原後將自動重啟本機服務與畫面'
-  };
+async function applyUpdateAndRestart(rollback = false) {
+  if (!hasHttpFeed || state.restartingOverlay) return;
+  const app = state.softwareState?.appUpdate;
+  if (!app?.installed) {
+    go('software');
+    toast('請先在軟體設定安裝固定入口');
+    return;
+  }
+  const candidate = state.updateCheckResult;
+  const version = rollback ? app.previousVersion : candidate?.remoteAppVersion;
+  if (!version || (!rollback && !candidate.hasUpdate)) return;
+  const downgrade = rollback || candidate.isDowngrade;
+  const question = downgrade
+    ? `確認將完整程式切換至相容的較早版本 ${version}？服務將中斷重啟，使用者資料會保留。`
+    : `確認下載並安裝完整 Windows 版本 ${version}？服務將中斷重啟。`;
+  if (!confirm(question)) return;
+
+  state.updateError = '';
+  state.restartingOverlay = { title: '準備更新', percent: 5, stageLabel: '核對指定版本' };
   renderRestartOverlay();
   try {
-    const resp = await fetch('/api/software/rollback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
+    const response = await fetch(rollback ? '/api/software/rollback' : '/api/software/update/apply', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({confirm: true, confirmDowngrade: downgrade === true,
+                            version, commit: candidate?.sourceCommit}),
+      signal: AbortSignal.timeout(12000)
     });
-    const data = await resp.json();
-    if (!resp.ok || data.error) throw Error(data.error || '回滾失敗');
-    state.restartingOverlay = {
-      title: `正在重啟至 ${data.targetVersion || '上一版本'}...`,
-      detail: '請稍候，完成後將自動重整頁面'
-    };
-    renderRestartOverlay();
-    await waitForServerAndReload();
-  } catch (e) {
+    const data = await response.json();
+    if (!response.ok || !data.transaction) throw Error(data.error || '套用版本失敗');
+
+    const deadline = Date.now() + 300000;
+    let unreachable = 0;
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      let status;
+      try {
+        const poll = await fetch('/api/software/update/progress', {
+          cache: 'no-store', signal: AbortSignal.timeout(2500)
+        });
+        if (poll.ok) status = await poll.json();
+        unreachable = 0;
+      } catch {
+        unreachable += 1;
+      }
+      if (status?.transaction === data.transaction) {
+        if (status.stage === 'error') throw Error(status.error || status.detail || '更新失敗');
+        state.restartingOverlay = {
+          title: status.title || '更新中', detail: status.detail,
+          percent: status.percent, stageLabel: UPDATE_STAGE_LABELS[status.stage] || '更新中'
+        };
+        renderRestartOverlay();
+      }
+      if (status?.stage === 'restarting' || unreachable >= 2) {
+        const error = await waitForServerAndReload(data.transaction);
+        if (error) throw Error(error);
+        return;
+      }
+    }
+    throw Error('下載或套用更新逾時。請回軟體設定檢查目前進度。');
+  } catch (error) {
     state.restartingOverlay = null;
+    state.updateError = error.message;
     renderRestartOverlay();
-    toast(e.message);
+    toast(error.message);
+    if (state.page === 'software') render();
   }
 }
 
@@ -2872,6 +2832,12 @@ document.body.addEventListener('click', e => {
     case 'swCheckUpdateBtn':
       checkForUpdates(false);
       break;
+    case 'swInstallEntryBtn':
+      installFixedEntry();
+      break;
+    case 'swRollbackUpdateBtn':
+      applyUpdateAndRestart(true);
+      break;
     case 'swStopLocalService':
       if (!confirm('停止後可以關閉此視窗，再雙擊要使用的版本。確定停止本機服務？')) break;
       fetch('/api/software/stop', {
@@ -3322,12 +3288,25 @@ document.body.addEventListener('change', async e => {
     case 'signalLookback':
       updateSignalDraft();
       break;
-    case 'swChannelSelect':
-      saveSoftwareConfig(
-        { channel: el.value },
-        el.value === 'beta' ? '已切換為測試版更新通道' : '已切換為正式版更新通道'
-      );
+    case 'swChannelSelect': {
+      const target = el.value;
+      const current = state.softwareState?.config?.channel || 'stable';
+      const label = target === 'beta' ? 'Beta 測試版' : 'Stable 正式版';
+      if (!confirm(`要切換到 ${label} 通道嗎？程式會檢查該通道，安裝時仍需另行確認。`)) {
+        el.value = current;
+        break;
+      }
+      saveSoftwareConfig({channel: target, confirmChannel: true}, `已切換至 ${label}`).then(saved => {
+        if (!saved) {
+          el.value = current;
+          return;
+        }
+        state.updateCheckResult = null;
+        render();
+        checkForUpdates(false);
+      });
       break;
+    }
     case 'swLiveQuoteToggle':
       saveSoftwareConfig(
         { liveQuoteEnabled: el.checked },
