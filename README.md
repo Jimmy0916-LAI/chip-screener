@@ -6,7 +6,7 @@ Windows 11 x64 台股研究工具，提供集保週篩、個股研究及策略�
 | 通道 | 下載 |
 | --- | --- |
 | Stable | — |
-| Beta | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.7/ChipScreener-v0.6.5-rc.7-Windows-x64.zip) |
+| Beta | [Windows x64 ZIP](https://github.com/Jimmy0916-LAI/chip-screener/releases/download/v0.6.5-rc.8/ChipScreener-v0.6.5-rc.8-Windows-x64.zip) |
 <!-- CHIPSCREENER_UPDATE_CHANNELS_END -->
 
 完整解壓 ZIP，保留 `resources`，雙擊 `股票雷達.exe`。換版前在舊版軟體設定停止本機服務，將新版解壓至新資料夾。沿用原 Windows 帳號及瀏覽器設定檔讀取既有資料。
