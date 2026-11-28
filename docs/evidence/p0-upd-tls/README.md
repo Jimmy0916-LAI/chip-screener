@@ -22,3 +22,12 @@ Windows 修復版使用固定版本 truststore 0.10.4，以 Windows 原生憑證
 - 用同一 Windows 11 帳號、同一網路和代理重跑原 RC5 步驟，再以 RC7 對 GitHub 檢查更新。記錄畫面、日期與網路類型。若仍出現憑證錯誤，記錄主機、代理存在狀態與驗證代碼。
 - 在實際 ZIP 執行 Windows 比對、受控未知發行者與主機名拒絕、當前使用者可信 CA 正向、官源 TLS、手動修復、固定入口和關窗。跨版 RC7 → RC8 使用兩個獨立 Release 資產與隔離 README。測試證據由各次 CI 留存。
 - U01–03、U05、U07、U08、U09、U10、U11、U12 依新成品記錄。U04 的已發布 Stable 降版另需正式資產。U06 的真實磁碟耗盡、斷電與使用者代理網路仍需 Windows 11 實機。
+
+## Windows Server 2022 已取得的結果
+
+- 原 RC5 完整發行包通過 SHA-256 比對，隨包 Python 3.13.14／OpenSSL 3.0.21。受控缺少信任根時，RC5 實際回報 OpenSSL 驗證代碼 20 和相同的 `unable to get local issuer certificate`。
+- RC7 對未信任 CA 回繁體中文錯誤。加入受控測試信任根後 TLS 成功，錯誤主機名稱仍被拒絕。該試驗僅修改測試 Runner 存放區，完成後移除測試 CA。
+- RC7 真實網路驗證 GitHub API／Release CDN、集保、TWSE、TPEx、FinMind 均成功。資料中心主機 TLS 成功，指定 catalog 回 HTTP 404。Runner 沒有固定 HTTPS 代理，使用者的代理路徑需在實機重驗。
+- 真實 Windows RC5 固定入口原封保留。用 RC7 解壓後的 EXE 確認離線修復，檢查版號、上一可用版、舊市場資料與原入口重開相符。最後關窗後埠和服務程序退出。
+
+[Windows 端點與離線修復證據](windows-tls.json) · [診斷 CI 46137047372](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46137047372)
