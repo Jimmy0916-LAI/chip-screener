@@ -4,7 +4,7 @@
 - 聚合 Yahoo 奇摩股市、中央社財經、CNBC 財經公開 RSS，過濾生活雜訊並去重（強制保留原始來源與 URL）
 - 追蹤固定驗收案例與自訂關注清單最新價量（台股自動附帶最近一期 TDCC 大戶週動向）
 - 支援免 Key 規則式摘要與選填 Gemini API Key AI 濃縮（金鑰隔離保存於 %LOCALAPPDATA%，絕不進專案目錄）
-- 支援手動開關每日 10:00 自動晨報（同步管理 Windows Task Scheduler）與隨時一鍵馬上製作
+- 支援手動開關每日 10:00 自動晨報（視窗開啟期間）與隨時一鍵馬上製作
 """
 
 import email.utils
@@ -12,14 +12,14 @@ import json
 import os
 import re
 import subprocess
-import sys
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from functools import lru_cache
+from pathlib import Path, PureWindowsPath
 
 from providers import ai_router
 from providers.secret_store import (
@@ -407,6 +407,44 @@ def _render_markdown(report: dict) -> str:
     return '\n'.join(lines)
 
 
+def is_legacy_daily_task(xml: bytes) -> bool:
+    root = ET.fromstring(xml)
+    actions = root.findall('{*}Actions/*')
+    if len(actions) != 1 or actions[0].tag.split('}')[-1] != 'Exec':
+        return False
+    command = PureWindowsPath(actions[0].findtext('{*}Command', '').strip('"'))
+    args = actions[0].findtext('{*}Arguments', '').strip()
+    script = re.fullmatch(r'-B\s+-X\s+utf8\s+"([^"]+)"', args)
+    if not script or command.name.lower() not in {'pyw.exe', 'pythonw.exe', 'python.exe'}:
+        return False
+    runner = PureWindowsPath(script.group(1))
+    return runner.is_absolute() and runner.parts[-2:] == ('scripts', 'daily_briefing_runner.py')
+
+
+@lru_cache(maxsize=1)
+def retire_legacy_schedule() -> str:
+    """Disable the previous release's known action. Keep all user preferences."""
+    status = '僅在程式開啟時執行'
+    if os.name != 'nt':
+        return status
+    try:
+        result = subprocess.run(
+            ['schtasks', '/Query', '/TN', TASK_NAME, '/XML'],
+            capture_output=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW)
+        if result.returncode:
+            return status + '（舊系統排程未找到或無查詢權限）'
+        if not is_legacy_daily_task(result.stdout):
+            return status + '（同名工作內容不同，請查核工作排程器）'
+        if ET.fromstring(result.stdout).findtext('{*}Settings/{*}Enabled') == 'false':
+            return status
+        subprocess.run(['schtasks', '/Change', '/TN', TASK_NAME, '/Disable'],
+                       capture_output=True, check=True, timeout=5,
+                       creationflags=subprocess.CREATE_NO_WINDOW)
+        return status
+    except (ET.ParseError, subprocess.SubprocessError, OSError):
+        return status + '（舊系統排程停用未確認，請查核工作排程器）'
+
+
 class BriefingService:
     def __init__(self, app_data_dir: Path, project_root: Path, stock_names: dict | None = None):
         self.app_data_dir = app_data_dir
@@ -434,68 +472,10 @@ class BriefingService:
         os.replace(stage, path)
 
     def _query_windows_task(self) -> str:
-        if os.name != 'nt':
-            return '非 Windows 環境'
-        try:
-            proc = subprocess.run(
-                ['schtasks', '/Query', '/TN', TASK_NAME],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            return '已註冊每日 10:00 Windows 排程' if proc.returncode == 0 else '未註冊 Windows 排程'
-        except Exception:
-            return '無法查詢 Windows 排程'
-
-    def _has_daily_paper_ai_slot(self) -> bool:
-        slots_dir = self.app_data_dir / 'paper-trading-v1' / 'slots'
-        if not slots_dir.exists():
-            return False
-        for file in slots_dir.glob('*.json'):
-            doc = self._read_json(file, {})
-            if doc.get('mode') == 'ai' and (doc.get('aiConfig') or {}).get('scheduleMode') == 'daily':
-                return True
-        return False
+        return retire_legacy_schedule()
 
     def sync_shared_windows_task(self) -> str:
-        """若晨報、收藏夾自動分析、訂閱頻道自動檢查或模擬操盤每日 AI 排程任一開啟，保留每日 10:00 Windows 排程；皆關閉才刪除。"""
-        b_cfg = self._read_json(self.config_file, {})
-        w_cfg = self._read_json(self.user_dir / 'watchlists.json', {})
-        c_cfg = self._read_json(self.user_dir / 'channels-config.json', {})
-        need_task = (
-            bool(b_cfg.get('enabled', True))
-            or bool(w_cfg.get('autoEnabled', True))
-            or bool(c_cfg.get('autoDailyEnabled', False))
-            or self._has_daily_paper_ai_slot()
-        )
-        return self._sync_windows_task(need_task)
-
-    def _sync_windows_task(self, enabled: bool) -> str:
-        if os.name != 'nt':
-            return '非 Windows 環境'
-        if not enabled:
-            try:
-                subprocess.run(['schtasks', '/Delete', '/TN', TASK_NAME, '/F'], capture_output=True, timeout=6)
-            except Exception:
-                pass
-            return '已停用 Windows 排程'
-
-        runner = self.project_root / 'scripts' / 'daily_briefing_runner.py'
-        pyw = Path(os.environ.get('WINDIR', r'C:\Windows')) / 'pyw.exe'
-        exe = str(pyw) if pyw.exists() else sys.executable
-        cmd = f'"{exe}" -B -X utf8 "{runner}"'
-        try:
-            proc = subprocess.run(
-                ['schtasks', '/Create', '/TN', TASK_NAME, '/SC', 'DAILY', '/ST', '10:00', '/TR', cmd, '/F'],
-                capture_output=True,
-                text=True,
-                timeout=8,
-            )
-            if proc.returncode == 0:
-                return '已註冊每日 10:00 Windows 排程'
-            return '軟體內 10:00 自動排程已啟用（系統排程註冊受限）'
-        except Exception:
-            return '軟體內 10:00 自動排程已啟用'
+        return retire_legacy_schedule()
 
     def get_config(self) -> dict:
         raw = self._read_json(self.config_file, {})
