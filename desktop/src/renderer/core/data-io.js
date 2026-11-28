@@ -110,6 +110,7 @@ function parseCSV(text) {
       str += ch;
     }
   }
+  if (inQuotes) throw Error('CSV 引號未結束');
   if (row.length || str) {
     row.push(str);
     lines.push(row);
@@ -125,7 +126,7 @@ async function importTDCC(files) {
     try {
       const content = await file.text();
       const lines = parseCSV(content.replace(/^\uFEFF/, ''));
-      const head = lines.shift();
+      const head = lines.shift() || [];
       const indexes = {};
       for (const k of ['資料日期', '證券代號', '持股分級', '人數', '股數']) {
         indexes[k] = head.indexOf(k);
@@ -137,13 +138,16 @@ async function importTDCC(files) {
       for (const cols of lines) {
         const readCol = k => cols[indexes[k]]?.trim();
         const rawday = readCol('資料日期');
-        if (!/^\d{8}$/.test(rawday)) continue;
+        if (!/^\d{8}$/.test(rawday)) throw Error('統計日格式錯誤');
         if (day && day !== rawday) throw Error('同一檔案含有不同統計日');
         day = rawday;
 
         const code = readCol('證券代號');
         if (!/^\d{4}$/.test(code) || code[0] === '0') continue;
 
+        for (const field of ['持股分級', '股數', '人數']) {
+          if (!/^\d+$/.test(readCol(field) || '')) throw Error(code + ' 的' + field + '缺漏或格式無效');
+        }
         const lvl = Number(readCol('持股分級'));
         const shares = Number(readCol('股數'));
         const holders = Number(readCol('人數'));
@@ -162,6 +166,10 @@ async function importTDCC(files) {
 
       if (!day) throw Error('沒有符合的資料日期');
       const ds = `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`;
+      const time = Date.parse(ds + 'T00:00:00Z');
+      if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== ds) {
+        throw Error('不存在的統計日 ' + ds);
+      }
       if (D.series[ds] && (!officialWeeks[ds] || savedWeeks[ds])) {
         throw Error('日期 ' + ds + ' 已存在，不允許覆蓋原始版本');
       }
@@ -191,9 +199,14 @@ async function importTDCC(files) {
 
       if (!Object.keys(valid).length) throw Error('沒有通過股數／戶數核對的股票');
 
+      const summary = `${ds}：${Object.keys(valid).length} 檔通過，${excluded} 檔排除`;
+      if (!window.confirm(`匯入預覽｜${file.name}\n${summary}\n確認儲存手動快照？`)) {
+        errors.push(file.name + '：已取消');
+        continue;
+      }
       saveWeek(ds, valid, excluded, file.name);
       if (officialWeeks[ds]) applyWeek(ds, officialWeeks[ds]);
-      successes.push(`${ds}：${Object.keys(valid).length} 檔通過，${excluded} 檔排除`);
+      successes.push(summary);
     } catch (e) {
       errors.push(`${file.name}：${e.message}`);
     }

@@ -37,9 +37,10 @@ function legacy(key, fallback) {
 }
 
 function getConfig() {
-  const appliedCfg = configFile.value?.applied ?? legacy('applied', {});
-  const draftCfg = configFile.value?.draft ?? legacy('draft', appliedCfg);
-  const presetList = configFile.value?.presets ?? legacy('presets', [{ name: '原始 v0.4', settings: DEFAULT }]);
+  const stored = configFile.value ?? legacy('settings', null);
+  const appliedCfg = stored?.applied ?? legacy('applied', {});
+  const draftCfg = stored?.draft ?? legacy('draft', appliedCfg);
+  const presetList = stored?.presets ?? legacy('presets', [{ name: '原始 v0.4', settings: DEFAULT }]);
   return {
     format: 'chip-screener-config-v1',
     applied: validateSettings(appliedCfg),
@@ -68,15 +69,7 @@ let { applied, draft, presets } = structuredClone(savedConfig);
 function persist(kind, value) {
   if (!hasDesktopStore) {
     if (kind === 'snapshot') localStorage.setItem('chipscr_snapshot', JSON.stringify(value));
-    if (kind === 'settings') {
-      try {
-        localStorage.setItem('chipscr_applied', JSON.stringify(value.applied));
-        localStorage.setItem('chipscr_draft', JSON.stringify(value.draft));
-        localStorage.setItem('chipscr_presets', JSON.stringify(value.presets));
-      } catch {
-        // 忽略獨立瀏覽器模式下的 storage 限制
-      }
-    }
+    if (kind === 'settings') localStorage.setItem('chipscr_settings', JSON.stringify(value));
     return;
   }
   const result = window.desktopStore.save(kind, value);
@@ -104,7 +97,7 @@ if (
   !configFile.value &&
   configFile.ok &&
   !configFile.damaged &&
-  ['applied', 'draft', 'presets'].some(key => legacy(key, null) !== null)
+  ['settings', 'applied', 'draft', 'presets'].some(key => legacy(key, null) !== null)
 ) {
   try {
     persist('settings', savedConfig);
