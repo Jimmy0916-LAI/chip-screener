@@ -7,3 +7,7 @@
 | v0.6.5-rc.2 | 6e824d3a8ba0d9b4c00e9e55870d1dd50d60eb79 | [RC2](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.2) | [Windows CI](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46054234686) |
 
 [目前下載](../README.md) · [版本變更](CHANGELOG.md) · [當前基準](../PROJECT_STATE.md) · [完整歷史索引](archive/main-20261128/VERSION_INDEX.md)
+
+## RC5 與 RC6 開發候選
+
+兩個候選的 Tag、提交、ZIP SHA-256、Windows Server 及實際跨版證據集中於 [工程紀錄](evidence/rc5/engineering.md)。

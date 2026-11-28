@@ -29,9 +29,9 @@ RC4 Release 只有 Windows x64 ZIP 與 SHA256SUMS.txt。首次移至支援完整
 | [RC5 開發驗收包](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.5) | 89eef1ffb8ffea5c71bd367c6a1573267c2bf32e | 0244b9495e448fe5ee0b2eb01422982a78b66489621af5be9ffe6404c3b64cc2 | [46133591816](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133591816) 通過 |
 | [RC6 跨版驗收目標](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.6) | d155578950b9e21ed437c39861f9544468782bff | d66b64a594536f7bc9812e4056474ab4151f969df9d9db938b5ea3e600a2c04e | [46133624913](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133624913) 通過 |
 
-兩個 Release 均為預發版。以匿名下載讀回的 ZIP 和對應 CI Artifact 逐位元相同。公開通道仍為 RC4。RC5／RC6 使用固定官方儲存庫 HTTPS、Release 資產 digest、Tag commit 及雙重雜湊清單。Authenti­code 及獨立簽章金鑰未配置，信任取決於官方儲存庫發布權限與 GitHub HTTPS。
+兩個 Release 均為預發版。以匿名下載讀回的 ZIP 和對應 CI Artifact 逐位元相同。公開通道仍為 RC4。RC5／RC6 使用固定官方儲存庫 HTTPS、Release 資產 digest、Tag commit 及雙重雜湊清單。Authenticode 及獨立簽章金鑰未配置，信任取決於官方儲存庫發布權限與 GitHub HTTPS。
 
-原生跨版須用 [Windows 測試工作流](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133876934) 查結果。測試僅將同一官方儲存庫的 README 讀取轉向隔離分支，其餘下載、雜湊、套用、服務停止、資源驗證、重啟及固定入口走實際包內程式。跨版與 Windows 11 驗收分開記錄。
+RC5 → RC6 原生跨版通過 [Windows 測試工作流](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133876934) 。調整隔離 README 的 Beta ZIP 指標前，RC5 保持目前版，儘管 RC6 已發布。改連結後，程式按鈕下載 RC6，完成健康檢查並由固定 EXE 重開。瀏覽器設定哨兵保留。新版關窗後 Python 與埠均釋放。測試僅將同一官方儲存庫的 README 讀取轉向隔離分支，其餘下載、雜湊、套用、服務停止、資源驗證、重啟及固定入口走實際包內程式。跨版與 Windows 11 驗收分開記錄。
 
 ## 真實市場與程序證據
 

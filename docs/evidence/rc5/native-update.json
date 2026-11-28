@@ -1,0 +1,93 @@
+{
+  "baseline": {
+    "app": "ChipScreener",
+    "status": "ok",
+    "latest": "2026-11-20",
+    "appVersion": "0.6.5-rc.5",
+    "shellVersion": "0.6.5-rc.5",
+    "usingRuntime": false,
+    "sourceCommit": "89eef1ffb8ffea5c71bd367c6a1573267c2bf32e",
+    "updateResult": null
+  },
+  "stable": {
+    "channel": "stable",
+    "currentAppVersion": "0.6.5-rc.5",
+    "remoteAppVersion": null,
+    "hasUpdate": false,
+    "requiresShellUpgrade": false,
+    "releaseUrl": "https://github.com/Jimmy0916-LAI/chip-screener/releases",
+    "checkedAt": "2026-11-28T10:11:16.979202+00:00",
+    "status": "unavailable"
+  },
+  "betaBefore": {
+    "channel": "beta",
+    "currentAppVersion": "0.6.5-rc.5",
+    "remoteAppVersion": "0.6.5-rc.5",
+    "hasUpdate": false,
+    "requiresShellUpgrade": false,
+    "releaseUrl": "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.5",
+    "checkedAt": "2026-11-28T10:11:17.278604+00:00",
+    "sourceCommit": "89eef1ffb8ffea5c71bd367c6a1573267c2bf32e",
+    "zipSha256": "0244b9495e448fe5ee0b2eb01422982a78b66489621af5be9ffe6404c3b64cc2",
+    "changelog": [
+      "Windows Server 2022 成品檢查通過的開發候選。此預發版用於隔離跨版驗收。正式通道與公開 Beta 由產品負責人另行指定。",
+      "完整解壓 ZIP，保留 resources，雙擊股票雷達.exe。從 RC4 遷移前先在舊版停止本機服務，沿用原 Windows 帳號及瀏覽器設定檔。新版的軟體設定可建立固定入口。",
+      "來源提交 89eef1ffb8ffea5c71bd367c6a1573267c2bf32e。Windows 成品測試 https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133591816 。Windows 11 及獨立驗收待完成。"
+    ],
+    "size": 12881933,
+    "status": "current",
+    "isDowngrade": false
+  },
+  "betaAfter": {
+    "channel": "beta",
+    "currentAppVersion": "0.6.5-rc.5",
+    "remoteAppVersion": "0.6.5-rc.6",
+    "hasUpdate": true,
+    "requiresShellUpgrade": false,
+    "releaseUrl": "https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.6",
+    "checkedAt": "2026-11-28T10:11:30.755609+00:00",
+    "sourceCommit": "d155578950b9e21ed437c39861f9544468782bff",
+    "zipSha256": "d66b64a594536f7bc9812e4056474ab4151f969df9d9db938b5ea3e600a2c04e",
+    "changelog": [
+      "Windows Server 2022 成品檢查通過的開發候選。此預發版用於隔離跨版驗收。正式通道與公開 Beta 由產品負責人另行指定。",
+      "完整解壓 ZIP，保留 resources，雙擊股票雷達.exe。從 RC4 遷移前先在舊版停止本機服務，沿用原 Windows 帳號及瀏覽器設定檔。新版的軟體設定可建立固定入口。",
+      "來源提交 d155578950b9e21ed437c39861f9544468782bff。Windows 成品測試 https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133624913 。Windows 11 及獨立驗收待完成。"
+    ],
+    "size": 12881786,
+    "status": "update",
+    "isDowngrade": false
+  },
+  "handoff": {
+    "app": "ChipScreener",
+    "status": "ok",
+    "latest": "2026-11-20",
+    "appVersion": "0.6.5-rc.6",
+    "shellVersion": "0.6.5-rc.6",
+    "usingRuntime": false,
+    "sourceCommit": "d155578950b9e21ed437c39861f9544468782bff",
+    "updateResult": {
+      "id": "dd5b3bdc834a75f512cd843d423ded23",
+      "success": true,
+      "version": "0.6.5-rc.6",
+      "previousVersion": "0.6.5-rc.5",
+      "message": "版本已通過健康檢查"
+    }
+  },
+  "fixedEntry": {
+    "app": "ChipScreener",
+    "status": "ok",
+    "latest": "2026-11-20",
+    "appVersion": "0.6.5-rc.6",
+    "shellVersion": "0.6.5-rc.6",
+    "usingRuntime": false,
+    "sourceCommit": "d155578950b9e21ed437c39861f9544468782bff",
+    "updateResult": {
+      "id": "dd5b3bdc834a75f512cd843d423ded23",
+      "success": true,
+      "version": "0.6.5-rc.6",
+      "previousVersion": "0.6.5-rc.5",
+      "message": "版本已通過健康檢查"
+    }
+  },
+  "portReleased": true
+}

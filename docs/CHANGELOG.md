@@ -6,3 +6,6 @@
 - [v0.6.5-rc.1](https://github.com/Jimmy0916-LAI/chip-screener/tree/v0.6.5-rc.1) 多條件篩選、四家 AI 設定與三入口的歷史候選。
 
 [歷史基準與完整分支索引](archive/main-20261128/VERSION_INDEX.md) · [歷史功能對照](archive/rc4-20261128/V065_SCOPE.md)
+
+- [RC5 開發驗收候選](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.5) 提供完整 ZIP 更新器、可重啟固定入口、RAM 市場快取、儲存修復及資料中心骨架。停止獨立 HTML 新版封裝與舊晨報排程。
+- [RC6 跨版驗收候選](https://github.com/Jimmy0916-LAI/chip-screener/releases/tag/v0.6.5-rc.6) 為不同合法版本的更新驗收目標，實際由 RC5 下載及切換成功。 [成品與跨版證據](evidence/rc5/engineering.md)

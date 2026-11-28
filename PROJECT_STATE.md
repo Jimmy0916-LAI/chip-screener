@@ -30,3 +30,12 @@ R01 分支 `docs/r01-architecture-governance`。文件候選 SHA 以 PR head 為
 - 已更新一般使用者網路優先與預設不永久保存市場資料、關窗停止、開發與公開通道權限，新增[缺陷台帳](docs/BUG_TRACKER.md)及專項[驗收](ACCEPTANCE.md)。文件測試執行 `git diff --check`、檢查有效相對連結與驗收 ID。
 - DOC-05 阻塞。工作區附件未見 Skill v1.0 原件，全部 Git refs 中指定路徑只有前次摘要。管理 Page 的連結文件檢索也未找到該 Skill 或 DR 原條文。收到原件後依原文保存並核對雜湊與所有驗收 ID。
 - 本批紀錄的程式狀態為 RC4。新候選須附完整成品及個別結果。下一步先執行 `git fetch origin --tags && git branch -r && gh pr view 18 --json headRefOid`，在產品整合分支對照本檢查點。
+
+## 批次 B–G 開發檢查點（2026-11-28 UTC）
+
+- 整合分支 `develop` 由 RC4 完整產品及 PR #18 文件接續。插件帳戶限制中斷代理工作後，分支進度由主代理恢復。R01 文件 PR 最新 README 提交為 `3b3a6ab`。
+- RC5 `89eef1ffb8ffea5c71bd367c6a1573267c2bf32e` 與 RC6 `d155578950b9e21ed437c39861f9544468782bff` 均已有預發行。各 ZIP、manifest、SHA256SUMS 與 Windows Server CI 見 [工程證據](docs/evidence/rc5/engineering.md)。主線產品仍待正式合併。README 協議已在 PR #18，公開 Beta 仍採 RC4。
+- 真實跨版透過 GitHub 隔離 README 完成 RC5 → RC6。核對固定入口、版號、健康與設定哨兵。[CI 46133876934](https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/46133876934) · [回讀證據](docs/evidence/rc5/native-update.json)。
+- Linux 成品官源路徑於 11/27 實際匯出 1,991 筆。兩個資料中心庫的建立 API 回 403，[部署骨架](data-repository-skeleton/README.md)及驗證和發布工具已提交。共享 GitHub 真實分片、全歷史覆蓋與 DR 原文仍待驗。
+- 完成 Linux 訊號與資料完整性、更新器 7 案、資料路由 3 案及部署骨架驗證。Windows Server 成品及真實跨版通過。真實 Windows 11 獨立驗收、多種故障回退的 Windows 實測、程式信任及容量長跑仍待完成。
+- 本檢查點前一推送為 `d439ee8`，最新提交以 `git log -1 origin/develop` 為準。續跑先執行 `git fetch origin --tags && git log -1 origin/develop && gh run view 46133876934`。已完成的固定驗收以該次證據為準。
