@@ -1,5 +1,6 @@
 """Opt-in Windows test with released ZIPs and an isolated official README branch."""
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,26 @@ def check_version(page):
     return doc['check']
 
 
+def advance_test_pointer(ref, version, target):
+    if ref != 'release/update-qa-channel':
+        raise ValueError('Automated pointer writes are limited to the isolated test branch')
+    endpoint = 'repos/Jimmy0916-LAI/chip-screener/contents/README.md'
+    endpoint_with_ref = f'{endpoint}?ref={ref}'
+    record = json.loads(subprocess.check_output(['gh', 'api', endpoint_with_ref], text=True))
+    content = base64.b64decode(record['content']).decode('utf-8')
+
+    def link(candidate):
+        return ('https://github.com/Jimmy0916-LAI/chip-screener/releases/download/'
+                f'v{candidate}/ChipScreener-v{candidate}-Windows-x64.zip')
+
+    if content.count(link(version)) != 1 or link(target) in content:
+        raise ValueError('Expected one baseline link on the isolated test branch')
+    payload = {'message': 'Advance isolated update QA pointer', 'branch': ref, 'sha': record['sha'],
+               'content': base64.b64encode(content.replace(link(version), link(target)).encode()).decode()}
+    subprocess.run(['gh', 'api', '--method', 'PUT', endpoint, '--input', '-', '--silent'],
+                   input=json.dumps(payload), text=True, check=True)
+
+
 def run(args, work):
     from playwright.sync_api import expect, sync_playwright
     from candidate_windows import URL, health, listen_process, poll, process_stopped
@@ -45,7 +66,7 @@ def run(args, work):
     proc = subprocess.Popen([
         str(root / 'resources/runtime-python/python.exe'), '-B', str(Path(__file__).resolve()),
         '--child', args.ref, str(root / 'resources/scripts'),
-    ])
+    ], env={key: value for key, value in os.environ.items() if key not in ('GH_TOKEN', 'GITHUB_TOKEN')})
     try:
         initial = poll(health, 35, 'Baseline service failed to start')
         assert initial['appVersion'] == version and initial['sourceCommit'] == meta['commit']
@@ -66,6 +87,9 @@ def run(args, work):
             check = first.value.json()['check']
             assert check['status'] == 'current' and check['remoteAppVersion'] == version, check
             print('QA READY: change only the isolated README Beta link now', flush=True)
+
+            if args.advance:
+                advance_test_pointer(args.ref, version, args.target)
 
             def new_target():
                 result = check_version(page)
@@ -129,5 +153,6 @@ if __name__ == '__main__':
         parser.add_argument('output', type=Path)
         parser.add_argument('--chromium', required=True)
         parser.add_argument('--ref', default='release/update-qa-channel')
+        parser.add_argument('--advance', action='store_true')
         with TemporaryDirectory() as directory:
             run(parser.parse_args(), Path(directory))

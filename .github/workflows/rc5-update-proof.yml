@@ -1,0 +1,44 @@
+name: Native update between official test assets
+on:
+  push:
+    branches: [release/run-native-update-proof]
+
+permissions:
+  contents: write
+
+jobs:
+  native_update:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.56.0
+      - name: Check approved test assets and run the old-to-new installation
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHIP_CI_GITHUB_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = 'Jimmy0916-LAI/chip-screener'
+          foreach ($v in @('0.6.5-rc.5', '0.6.5-rc.6')) {
+            gh release download "v$v" -R $repo -D "test-$v"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $manifest = Get-Content "test-$v/update-manifest.json" -Raw | ConvertFrom-Json
+            python desktop/qa/release_assets.py --zip "test-$v/ChipScreener-v$v-Windows-x64.zip" --manifest "test-$v/update-manifest.json" --checksums "test-$v/SHA256SUMS.txt" --commit $manifest.commit --version $v
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          python desktop/qa/real_update_windows.py test-0.6.5-rc.5/ChipScreener-v0.6.5-rc.5-Windows-x64.zip 0.6.5-rc.6 evidence --advance --chromium 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-native-update-evidence
+          path: evidence/
+          if-no-files-found: warn
