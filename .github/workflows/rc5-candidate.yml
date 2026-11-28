@@ -1,0 +1,118 @@
+name: Portable Windows candidate
+
+on:
+  push:
+    branches: [develop, 'release/**', 'fix/rc5-packaging']
+  pull_request:
+    branches: [develop, 'release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      asset: ${{ steps.package.outputs.asset }}
+      version: ${{ steps.package.outputs.version }}
+      commit: ${{ steps.package.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test desktop/qa/signal-engine.test.cjs
+      - run: python -B -X utf8 desktop/qa/feed_test.py
+      - run: python -B -X utf8 desktop/qa/ai_router_test.py
+      - name: Build twice and verify update assets
+        id: package
+        shell: bash
+        run: |
+          python -m pip install ziglang==0.13.0
+          export ZIG="$(python -c 'import pathlib,ziglang; print(pathlib.Path(ziglang.__file__).with_name("zig"))')"
+          version="$(python desktop/package.py --version)"
+          commit="$(git rev-parse HEAD)"
+          asset="ChipScreener-v${version}-Windows-x64"
+          python desktop/package.py
+          cp desktop/dist/"$asset".zip "$RUNNER_TEMP/"
+          python desktop/package.py
+          cmp desktop/dist/"$asset".zip "$RUNNER_TEMP/$asset.zip"
+          python desktop/qa/release_assets.py --readme README.md
+          python desktop/qa/release_assets.py --zip "desktop/dist/$asset.zip" \
+            --manifest desktop/dist/update-manifest.json --checksums desktop/dist/SHA256SUMS.txt \
+            --commit "$commit" --version "$version" | tee desktop/dist/channel-entry.json
+          {
+            echo "asset=$asset"
+            echo "version=$version"
+            echo "commit=$commit"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-${{ steps.package.outputs.version }}-${{ steps.package.outputs.commit }}
+          path: |
+            desktop/dist/${{ steps.package.outputs.asset }}.zip
+            desktop/dist/update-manifest.json
+            desktop/dist/SHA256SUMS.txt
+            desktop/dist/channel-entry.json
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    runs-on: windows-2022
+    needs: build
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-${{ needs.build.outputs.version }}-${{ needs.build.outputs.commit }}
+          path: candidate
+      - name: Verify and launch the exact native candidate
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+          ASSET: ${{ needs.build.outputs.asset }}
+          VERSION: ${{ needs.build.outputs.version }}
+          COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = "candidate/$env:ASSET.zip"
+          python desktop/qa/release_assets.py --zip $zip --manifest candidate/update-manifest.json --checksums candidate/SHA256SUMS.txt --commit $env:COMMIT --version $env:VERSION
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $out = Join-Path $env:RUNNER_TEMP '候選 驗收'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP '驗收 使用者'
+          Expand-Archive -LiteralPath $zip -DestinationPath $out
+          $exe = Join-Path $out '股票雷達.exe'
+          $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+          if ($info.FileVersion -ne $env:VERSION -or $info.ProductVersion -ne $env:VERSION) { throw 'Windows EXE version resource mismatch' }
+          Add-Type -AssemblyName System.Drawing
+          $icon = [Drawing.Icon]::ExtractAssociatedIcon($exe)
+          if ($null -eq $icon) { throw 'Missing Windows icon' }
+          $runtime = Join-Path $out 'resources/runtime-python/python.exe'
+          & $runtime --version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $runtime -B -X utf8 desktop/qa/ai_router_test.py "$out/resources/scripts"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip install playwright==1.56.0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python desktop/qa/candidate_windows.py $exe $env:VERSION evidence --chromium 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-Server-2022-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30

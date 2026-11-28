@@ -3094,9 +3094,6 @@ document.body.addEventListener('click', e => {
     case 'clearHistory':
       inspectHistoryCache(true);
       break;
-    case 'exportLight':
-      exportLight();
-      break;
     case 'refreshTDCC':
       refreshTDCC();
       break;
