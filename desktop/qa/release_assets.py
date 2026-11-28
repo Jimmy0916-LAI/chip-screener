@@ -9,7 +9,6 @@ from zipfile import ZipFile
 
 REPOSITORY = 'Jimmy0916-LAI/chip-screener'
 RELEASES = f'https://github.com/{REPOSITORY}/releases'
-POINTER_KEYS = {'version', 'commit', 'manifestUrl', 'manifestSha256'}
 IDENTITY_KEYS = {'schemaVersion', 'version', 'commit', 'architecture', 'dataCompatibility'}
 BEGIN = '<!-- CHIPSCREENER_UPDATE_CHANNELS_BEGIN -->'
 END = '<!-- CHIPSCREENER_UPDATE_CHANNELS_END -->'
@@ -42,30 +41,26 @@ def asset_url(version, name):
 def readme_channels(path):
     text = path.read_text(encoding='utf-8')
     require(text.count(BEGIN) == text.count(END) == 1, 'README must have exactly one update block')
-    block = text.split(BEGIN, 1)[1].split(END, 1)[0].strip()
-    require(block.startswith('```json\n') and block.endswith('\n```'), 'Invalid update block fence')
-    channel_map = strict_json(block[8:-4])
-    require(set(channel_map) == {'schemaVersion', 'stable', 'beta'} and
-            type(channel_map['schemaVersion']) is int and channel_map['schemaVersion'] == 1, 'Invalid channel schema')
-    for channel in ('stable', 'beta'):
-        entry = channel_map[channel]
-        if entry is None:
+    block = text.split(BEGIN, 1)[1].split(END, 1)[0].strip().splitlines()
+    require(len(block) == 4 and block[:2] == ['| 通道 | 下載 |', '| --- | --- |'], 'Invalid README channel table')
+    channels = {}
+    for channel, row in zip(('Stable', 'Beta'), block[2:]):
+        prefix = f'| {channel} | '
+        require(row.startswith(prefix) and row.endswith(' |'), f'Invalid {channel} row')
+        target = row[len(prefix):-2]
+        if target == '—':
+            channels[channel.lower()] = None
             continue
-        require(isinstance(entry, dict), f'Invalid {channel} pointer')
-        version = entry['version']
-        require(re.fullmatch(r'\d+\.\d+\.\d+(?:-[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*)?', version),
-                f'Invalid {channel} version')
-        if entry.get('legacyManual') is True:
-            require(set(entry) == {'version', 'legacyManual', 'releaseUrl'}, 'Invalid legacy pointer')
-            require(entry['releaseUrl'] == release_url(version), 'Invalid legacy release URL')
-            require(entry['releaseUrl'] in text.split(BEGIN, 1)[0], 'Legacy download link missing from README')
-        else:
-            require(set(entry) == POINTER_KEYS, f'Invalid {channel} pointer fields')
-            require(re.fullmatch('[a-f0-9]{40}', entry['commit']), 'Invalid source SHA')
-            require(re.fullmatch('[a-f0-9]{64}', entry['manifestSha256']), 'Invalid manifest SHA-256')
-            require(entry['manifestUrl'] == asset_url(version, 'update-manifest.json'), 'Invalid manifest URL')
-        require(channel != 'stable' or '-' not in version, 'Stable cannot select a prerelease')
-    return channel_map
+        match = re.fullmatch(
+            r'\[Windows x64 ZIP\]\((https://github\.com/Jimmy0916-LAI/chip-screener/releases/download/'
+            r'v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*)?)/'
+            r'ChipScreener-v(?P=version)-Windows-x64\.zip)\)', target,
+        )
+        require(match is not None, f'Invalid {channel} ZIP URL')
+        version = match.group('version')
+        require((channel == 'Stable') == ('-' not in version), f'Invalid {channel} version')
+        channels[channel.lower()] = match.group(1)
+    return channels
 
 
 def check_package(zip_path, manifest_path, checksum_path, expected_commit, expected_version):
