@@ -42,7 +42,7 @@ function dataPage() {
     '<div class="section"><h2>匯入更多集保歷史資料</h2></div>' +
     '<div class="grid2">' +
     '<div class="card">' +
-    cardhead('匯入官方 1-5 集保 CSV', '驗證 1–17 級股數、戶數與分母，通過後自動持久化於本機') +
+    cardhead('匯入官方 1-5 集保 CSV', '驗證 1–17 級股數、戶數與分母，預覽後由您確認是否保存') +
     '<div class="filezone">' +
     '<b>選擇集保原始 CSV 檔案</b>' +
     '<p class="mini" style="margin:4px 0 8px">需含：資料日期、證券代號、持股分級、人數、股數</p>' +

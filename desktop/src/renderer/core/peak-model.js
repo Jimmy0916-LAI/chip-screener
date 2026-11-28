@@ -47,11 +47,12 @@ function modeledDistribution(base, compare, cfg, bars = D.daily2404) {
   try {
     allocate(bars[start], 1);
     initial = 1;
+    if (i === start) baseline = new Map(bins);
 
     for (let k = start + 1; k <= j; k++) {
       const row = bars[k];
       const r = row[7];
-      if (!(r >= 0 && r <= 1)) return { error: '存在日換手率不在 0～100% 之間，停止模型' };
+      if (!Number.isFinite(r) || r < 0 || r > 1) return { error: '存在日換手率不在 0～100% 之間，停止模型' };
       if (row[8]) events.push([row[0], row[8]]);
 
       for (const [n, v] of bins) {
@@ -65,7 +66,6 @@ function modeledDistribution(base, compare, cfg, bars = D.daily2404) {
       if (k === i) baseline = new Map(bins);
     }
 
-    if (i === start) baseline = baseline || new Map(bins);
     if (!baseline) return { error: '基準日未完成計算' };
   } catch (e) {
     return { error: e.message };
@@ -78,7 +78,9 @@ function modeledDistribution(base, compare, cfg, bars = D.daily2404) {
   function findPeaks(dist) {
     const smooth = k => ((dist.get(k - 1) || 0) + (dist.get(k) || 0) + (dist.get(k + 1) || 0)) / 3;
     const peaks = [];
-    for (let k = minKey + 7; k <= maxKey - 7; k++) {
+    const first = Math.min(...dist.keys()) + 7;
+    const last = Math.max(...dist.keys()) - 7;
+    for (let k = first; k <= last; k++) {
       const s = smooth(k);
       if (s <= 0 || s < smooth(k - 1) || s <= smooth(k + 1)) continue;
       const left = Math.min(...[3, 4, 5, 6].map(n => smooth(k - n)));

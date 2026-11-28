@@ -443,14 +443,6 @@ class DailyService:
             raise ValueError(payload.get('msg') or f'FinMind 回應異常 ({payload.get("status")})')
         return payload.get('data', [])
 
-    def _fallback_issued_shares(self, code: str) -> int:
-        for day in sorted(self.feed_service.weeks.keys(), reverse=True):
-            week = self.feed_service.weeks[day]
-            row = week.get('rows', {}).get(code) or week.get('extraRows', {}).get(code)
-            if row and row[0] > 0:
-                return int(row[0])
-        return 0
-
     def get_daily(self, code: str) -> dict:
         if not re.fullmatch(r'(?:\d{4}|00\d{2,4}[A-Z]?)', code):
             raise ValueError('請輸入有效四碼股票或 ETF 代號')
@@ -525,12 +517,11 @@ class DailyService:
                     stock_name = r['stock_name']
         issued_by_date.sort(key=lambda x: x[0])
 
-        fallback_den = self._fallback_issued_shares(code)
         bars = []
         idx = 0
-        last_issued = issued_by_date[0][1] if issued_by_date else fallback_den
+        last_issued = None
 
-        for p in prices:
+        for p in sorted(prices, key=lambda item: item.get('date', '')):
             d = p.get('date', '')
             o = float(p.get('open') or 0)
             h = float(p.get('max') or 0)
@@ -542,13 +533,10 @@ class DailyService:
                 last_issued = issued_by_date[idx][1]
                 idx += 1
 
-            issued = last_issued or fallback_den
-            if l <= 0 or h < l or c <= 0 or o <= 0 or vol < 0 or issued <= 0:
+            if l <= 0 or h < l or c <= 0 or o <= 0 or vol < 0:
                 continue
-            turnover = vol / issued
-            if turnover < 0 or turnover > 1:
-                continue
-            bars.append([d, o, h, l, c, vol, issued, turnover, '', False])
+            turnover = vol / last_issued if last_issued else None
+            bars.append([d, o, h, l, c, vol, last_issued, turnover, '', False])
 
         if not bars:
             raise ValueError(f'{code} 缺少有效日 K 或發行股數資料')
