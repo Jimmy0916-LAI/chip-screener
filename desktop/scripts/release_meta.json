@@ -1,8 +1,7 @@
 {
-  "appVersion": "0.6.5-rc.7",
+  "appVersion": "0.6.5-rc.8",
   "channel": "beta",
   "changelog": [
-    "修復 Windows HTTPS 憑證鏈相容性，保留完整憑證與主機名稱驗證。",
-    "支援以已解壓的修復版更新既有固定入口。"
+    "P0-UPD-TLS 修復候選的隔離跨版下載驗收目標。"
   ]
 }
