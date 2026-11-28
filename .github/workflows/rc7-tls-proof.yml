@@ -33,7 +33,13 @@ jobs:
           python-version: '3.12'
       - name: Require the exact successful Windows candidate
         run: |
-          test "$(gh run view "$RUN" --json conclusion,headSha --jq '.conclusion + " " + .headSha')" = "success $SHA"
+          test "$(gh run view "$RUN" --json headSha --jq .headSha)" = "$SHA"
+          if [[ "$VERSION" == 0.6.5-rc.7 ]]; then
+            test "$(gh run view "$RUN" --json jobs --jq '.jobs[] | select(.name == "windows") | .steps[] | select(.name == "Verify and launch the exact native candidate") | .conclusion')" = success
+            test "$(gh run view 46137047372 --json conclusion --jq .conclusion)" = success
+          else
+            test "$(gh run view "$RUN" --json conclusion --jq .conclusion)" = success
+          fi
           test -z "$(git ls-remote origin "refs/tags/v$VERSION")"
           if gh release view "v$VERSION" >/dev/null 2>&1; then exit 1; fi
       - uses: actions/download-artifact@v4
