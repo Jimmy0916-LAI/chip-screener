@@ -67,11 +67,11 @@ def exercise(old, new, out):
         try:
             probe(old, 'rc5-untrusted-issuer', url, 'failed')
             probe(new, 'repair-untrusted-issuer', url, 'failed', native=True)
-            subprocess.run(['certutil', '-user', '-addstore', 'Root', str(ca_file)], check=True)
+            subprocess.run(['certutil', '-f', '-addstore', 'Root', str(ca_file)], check=True, timeout=25)
             probe(new, 'repair-windows-root', url, 'verified', native=True)
             probe(new, 'repair-wrong-hostname', f'https://127.0.0.1:{port}/', 'failed', native=True)
         finally:
-            subprocess.run(['certutil', '-user', '-delstore', 'Root', thumbprint], check=False)
+            subprocess.run(['certutil', '-f', '-delstore', 'Root', thumbprint], check=False, timeout=25)
             server.shutdown()
             thread.join()
             server.server_close()
