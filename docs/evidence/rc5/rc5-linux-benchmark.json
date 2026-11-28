@@ -1,0 +1,103 @@
+{
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "chromium": "156.0.8078.79",
+  "logicalCpus": 3,
+  "systemRam": 10452459520,
+  "version": "0.6.5-rc.5",
+  "zipBytes": 12881573,
+  "unpackedBytes": 26129719,
+  "network": "loopback only; cold browser profile and app data",
+  "coldSeconds": 1.4020331560022896,
+  "idleSampleSeconds": 5,
+  "idleCpuCorePercent": 0.2,
+  "idleCombinedRss": 568967168,
+  "idleProcesses": {
+    "6880": {
+      "rss": 45010944,
+      "cpu": 0.35,
+      "name": "python3",
+      "parent": 6783
+    },
+    "6796": {
+      "rss": 134496256,
+      "cpu": 0.57,
+      "name": "chromium",
+      "parent": 6784
+    },
+    "6911": {
+      "rss": 35381248,
+      "cpu": 0.03,
+      "name": "chromium",
+      "parent": 6817
+    },
+    "6914": {
+      "rss": 116367360,
+      "cpu": 0.44,
+      "name": "chromium",
+      "parent": 6817
+    },
+    "6902": {
+      "rss": 96137216,
+      "cpu": 0.62,
+      "name": "chromium",
+      "parent": 6817
+    },
+    "6840": {
+      "rss": 54648832,
+      "cpu": 0.11,
+      "name": "chromium",
+      "parent": 6816
+    },
+    "6841": {
+      "rss": 63307776,
+      "cpu": 0.11,
+      "name": "chromium",
+      "parent": 6796
+    },
+    "6856": {
+      "rss": 23617536,
+      "cpu": 0.0,
+      "name": "chromium",
+      "parent": 6817
+    }
+  },
+  "screenSamplePeakCombinedRss": 591314944,
+  "postSwitchCombinedRss": 624476160,
+  "stockSwitchMillis": [
+    92,
+    82,
+    75,
+    63,
+    71
+  ],
+  "holdingHistoryRangeClickMillis": {
+    "recent": 55,
+    "all": 46
+  },
+  "requestsPerRouteIncludingRestart": {
+    "GET http://127.0.0.1:18765/dashboard.html": 4,
+    "GET http://127.0.0.1:18765/api/official/read": 4,
+    "POST http://127.0.0.1:18765/api/window/lease": 4,
+    "GET http://127.0.0.1:18765/api/software/state": 2,
+    "GET http://127.0.0.1:18765/api/quotes/market-status": 2,
+    "POST http://127.0.0.1:18765/api/official/update": 2,
+    "POST http://127.0.0.1:18765/api/software/update/check": 2,
+    "GET http://127.0.0.1:18765/api/briefing": 2,
+    "POST http://127.0.0.1:18765/api/briefing/generate": 1,
+    "GET http://127.0.0.1:18765/api/watchlist": 2,
+    "GET http://127.0.0.1:18765/api/channels": 2
+  },
+  "httpResponseBytesBeforeClose": 7296696,
+  "appDataFilesAfterRestart": {
+    "ChipScreener/briefings-v1/2026-11-28.json": 3912,
+    "ChipScreener/briefings-v1/2026-11-28.md": 1208
+  },
+  "servicePid": 6880,
+  "exitCode": 0,
+  "closeSeconds": 4.084482887999911,
+  "port18765AfterClose": "released",
+  "unrelatedProcess": "alive",
+  "restartPid": 7021,
+  "sourceCommit": "45ecee0da1a6532839b4664198a4790308e226d5"
+}
