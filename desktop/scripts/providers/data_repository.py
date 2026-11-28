@@ -16,6 +16,8 @@ from collections import OrderedDict
 from concurrent.futures import Future, TimeoutError as FutureTimeout
 from datetime import date, datetime
 
+from providers.verified_https import VerifiedHTTPS
+
 DATASETS = ('tdcc', 'universe', 'daily', 'broker', 'volume-profile', 'calendar', 'corporate-actions')
 REPOSITORY_OWNER = 'Jimmy0916-LAI'
 CATALOG_REPOSITORY = 'chip-screener-data'
@@ -308,7 +310,7 @@ class SharedDataClient:
     def download_asset(self, url, limit, deadline):
         self._check_cancel()
         request = urllib.request.Request(url, headers={'User-Agent': 'ChipScreener market data'})
-        opener = urllib.request.build_opener(_NoRedirect)
+        opener = urllib.request.build_opener(VerifiedHTTPS(), _NoRedirect)
         with opener.open(request, timeout=max(0.1, min(self.timeout, deadline - self.clock()))) as response:
             data = bytearray()
             while chunk := response.read1(min(65536, limit + 1 - len(data))):

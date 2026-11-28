@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 import re
 import secrets
 import shutil
+import socket
 import stat
 import struct
 import subprocess
@@ -22,6 +23,7 @@ from urllib.request import (
     HTTPRedirectHandler, ProxyHandler, Request, build_opener,
 )
 from zipfile import ZipFile
+from providers.verified_https import VerifiedHTTPS
 
 REPO = 'Jimmy0916-LAI/chip-screener'
 API = f'https://api.github.com/repos/{REPO}'
@@ -153,8 +155,8 @@ class NoRedirect(HTTPRedirectHandler):
 
 class Source:
     def __init__(self):
-        self.api_opener = build_opener(NoRedirect())
-        self.asset_opener = build_opener(ReleaseRedirect())
+        self.api_opener = build_opener(VerifiedHTTPS(), NoRedirect())
+        self.asset_opener = build_opener(VerifiedHTTPS(), ReleaseRedirect())
 
     def api(self, path):
         with self.api_opener.open(Request(API + path, headers={
@@ -497,6 +499,42 @@ def install_entry(root, source_root):
     return entry / EXE
 
 
+def port_in_use(port):
+    with socket.socket() as probe:
+        probe.settimeout(0.5)
+        return probe.connect_ex(('127.0.0.1', port)) == 0
+
+
+def repair_from_extracted_package(root, source_root, port):
+    """Install a user-confirmed local candidate beside the current version."""
+    expected = validate_package(source_root)
+    with platform_lock(root / 'transition.lock'):
+        require(not port_in_use(port), '請先從舊版的軟體設定停止本機服務，再開啟修復版。')
+        state = application_state(root)
+        previous = state['active']
+        old = validate_package(version_root(root, previous))
+        require(version_order(expected['version']) > version_order(old['version']), '修復版必須比目前版新。')
+        require(compatible(expected, old, state['dataSchema']), '修復版與目前資料格式不相容。')
+        versions = root / 'versions'
+        versions.mkdir(parents=True, exist_ok=True)
+        key = f"{expected['commit']}-{secrets.token_hex(6)}"
+        names = [source_root / EXE, source_root / 'resources']
+        required = names[0].stat().st_size + sum(
+            file.stat().st_size for file in names[1].rglob('*') if file.is_file()
+        )
+        require(shutil.disk_usage(versions).free > required + 1024**2, '修復所需磁碟空間不足。')
+        with tempfile.TemporaryDirectory(prefix='.stage-', dir=versions) as temporary:
+            stage = Path(temporary) / 'package'
+            stage.mkdir()
+            shutil.copy2(names[0], stage / EXE)
+            shutil.copytree(names[1], stage / 'resources', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+            validate_package(stage, expected)
+            os.replace(stage, version_root(root, key))
+        journal = root / 'handoff' / f'{secrets.token_hex(16)}.json'
+        atomic_json(journal, {'target': key, 'previous': previous, 'port': port, 'pid': None})
+    run_handoff(root, journal)
+
+
 def stage_download(root, source, info, archive, publish, cancelled):
     versions = root / 'versions'
     versions.mkdir(parents=True, exist_ok=True)
@@ -554,10 +592,16 @@ def run_handoff(root, transaction_file):
     process = None
     old_exited = False
     committed = False
-    state = application_state(root)
+    state = None
     try:
         with platform_lock(root / 'transition.lock'):
-            wait_previous(transaction['pid'], ready)
+            current_state = application_state(root)
+            require(current_state['active'] == previous, '使用中的版本已變更，請重新確認。')
+            state = current_state
+            if transaction['pid'] is None:
+                require(not port_in_use(port), '請先停止舊版服務，再使用修復版。')
+            else:
+                wait_previous(transaction['pid'], ready)
             old_exited = True
             target_root = version_root(root, target)
             expected = validate_package(target_root)
@@ -578,7 +622,7 @@ def run_handoff(root, transaction_file):
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         if process and not committed:
             stop_process(process)
-        if not committed:
+        if not committed and state is not None:
             atomic_json(root / 'state.json', {**state, 'lastResult': {
                 'id': session, 'success': False, 'message': str(exc), 'rolledBack': old_exited,
             }})
@@ -635,7 +679,14 @@ class FullUpdate:
     def check(self, channel, current_version):
         require(channel in ('stable', 'beta'), '未知更新通道')
         self.last_check = None
-        entry = readme_channels(self.source.readme())[channel]
+        readme = self.source.readme()
+        if BEGIN not in readme and END not in readme:
+            result = {'channel': channel, 'currentAppVersion': current_version, 'hasUpdate': False,
+                      'status': 'unconfigured', 'releaseUrl': RELEASES,
+                      'checkedAt': datetime.now(timezone.utc).isoformat()}
+            self.last_check = result
+            return result
+        entry = readme_channels(readme)[channel]
         result = {
             'channel': channel, 'currentAppVersion': current_version, 'remoteAppVersion': None,
             'hasUpdate': False, 'requiresShellUpgrade': False, 'releaseUrl': RELEASES,

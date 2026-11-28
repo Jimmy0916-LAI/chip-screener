@@ -32,7 +32,7 @@ def check_version(page):
 
 
 def advance_test_pointer(ref, version, target):
-    if ref != 'release/update-qa-channel':
+    if ref not in {'release/update-qa-channel', 'release/tls-update-qa-channel'}:
         raise ValueError('Automated pointer writes are limited to the isolated test branch')
     endpoint = 'repos/Jimmy0916-LAI/chip-screener/contents/README.md'
     endpoint_with_ref = f'{endpoint}?ref={ref}'

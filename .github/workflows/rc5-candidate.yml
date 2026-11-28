@@ -2,7 +2,7 @@ name: Portable Windows candidate
 
 on:
   push:
-    branches: [develop, 'release/**', 'fix/rc5-packaging']
+    branches: [develop, 'release/**', 'fix/rc5-packaging', 'fix/p0-upd-tls']
   pull_request:
     branches: [develop, 'release/**']
   workflow_dispatch:

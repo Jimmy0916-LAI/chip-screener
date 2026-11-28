@@ -8,6 +8,8 @@ function updateCheckDescription(check) {
   const channel = check.channel === 'beta' ? 'Beta' : 'Stable';
   const version = check.remoteAppVersion || '';
   switch (check.status) {
+    case 'unconfigured':
+      return '已連線 GitHub。官方首頁尚未設定自動更新通道，請使用官方發行頁手動下載。';
     case 'unavailable':
       return `${channel} 尚未發布指定版本。可繼續使用目前版本。`;
     case 'manual':

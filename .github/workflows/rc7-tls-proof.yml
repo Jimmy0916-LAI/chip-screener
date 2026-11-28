@@ -1,0 +1,135 @@
+name: Native P0 TLS repair cross-version verification
+on:
+  push:
+    branches: [release/run-p0-tls-proof]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prereleases:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - version: 0.6.5-rc.7
+            run: 46136502694
+            sha: d4a29a952fb3143a6e590e8ff30a58fd15cae4c0
+          - version: 0.6.5-rc.8
+            run: 46136563458
+            sha: ab14118482b34f725bb54778728a128438b572be
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ matrix.version }}
+      SHA: ${{ matrix.sha }}
+      RUN: ${{ matrix.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require the exact successful Windows candidate
+        run: |
+          test "$(gh run view "$RUN" --json headSha --jq .headSha)" = "$SHA"
+          if [[ "$VERSION" == 0.6.5-rc.7 ]]; then
+            test "$(gh run view "$RUN" --json jobs --jq '.jobs[] | select(.name == "windows") | .steps[] | select(.name == "Verify and launch the exact native candidate") | .conclusion')" = success
+            test "$(gh run view 46137047372 --json conclusion --jq .conclusion)" = success
+          else
+            test "$(gh run view "$RUN" --json conclusion --jq .conclusion)" = success
+          fi
+          test -z "$(git ls-remote origin "refs/tags/v$VERSION")"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then exit 1; fi
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.run }}
+          name: candidate-${{ matrix.version }}-${{ matrix.sha }}
+          path: candidate
+      - name: Upload test prerelease assets from the verified build
+        run: |
+          zip="ChipScreener-v$VERSION-Windows-x64.zip"
+          python desktop/qa/release_assets.py --zip "candidate/$zip" --manifest candidate/update-manifest.json --checksums candidate/SHA256SUMS.txt --commit "$SHA" --version "$VERSION"
+          cat > notes.md <<NOTES
+          Windows Server 2022 成品檢查通過的開發候選。此預發版用於隔離跨版驗收。正式通道與公開 Beta 由產品負責人另行指定。
+
+          完整解壓 ZIP，保留 resources，雙擊股票雷達.exe。從 RC5／RC6 遷移時，在舊版軟體設定停止本機服務。若已安裝固定入口，開啟修復包的 EXE 時確認離線修復。若尚未安裝固定入口，直接啟動後可從軟體設定安裝。沿用原 Windows 帳號及瀏覽器設定檔。
+
+          來源提交 $SHA。Windows 成品測試 https://github.com/Jimmy0916-LAI/chip-screener/actions/runs/$RUN 。Windows 11 及獨立驗收待完成。
+          NOTES
+          gh release create "v$VERSION" "candidate/$zip" candidate/update-manifest.json candidate/SHA256SUMS.txt --target "$SHA" --prerelease --latest=false --title "籌碼雷達 v$VERSION｜開發驗收候選" --notes-file notes.md
+  native_update:
+    needs: prereleases
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.56.0
+      - name: Check approved test assets and run the old-to-new installation
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHIP_CI_GITHUB_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = 'Jimmy0916-LAI/chip-screener'
+          foreach ($v in @('0.6.5-rc.7', '0.6.5-rc.8')) {
+            gh release download "v$v" -R $repo -D "test-$v"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $manifest = Get-Content "test-$v/update-manifest.json" -Raw | ConvertFrom-Json
+            python desktop/qa/release_assets.py --zip "test-$v/ChipScreener-v$v-Windows-x64.zip" --manifest "test-$v/update-manifest.json" --checksums "test-$v/SHA256SUMS.txt" --commit $manifest.commit --version $v
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          python desktop/qa/real_update_windows.py test-0.6.5-rc.7/ChipScreener-v0.6.5-rc.7-Windows-x64.zip 0.6.5-rc.8 evidence --advance --ref release/tls-update-qa-channel --chromium 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-native-update-evidence
+          path: evidence/
+          if-no-files-found: warn
+  native_rollback:
+    needs: prereleases
+    permissions:
+      contents: read
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.56.0
+      - name: Reproduce failed target health and verify recovery
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = 'Jimmy0916-LAI/chip-screener'
+          foreach ($v in @('0.6.5-rc.7', '0.6.5-rc.8')) {
+            gh release download "v$v" -R $repo -D "test-$v"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $manifest = Get-Content "test-$v/update-manifest.json" -Raw | ConvertFrom-Json
+            python desktop/qa/release_assets.py --zip "test-$v/ChipScreener-v$v-Windows-x64.zip" --manifest "test-$v/update-manifest.json" --checksums "test-$v/SHA256SUMS.txt" --commit $manifest.commit --version $v
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          python desktop/qa/rollback_windows.py test-0.6.5-rc.7/ChipScreener-v0.6.5-rc.7-Windows-x64.zip test-0.6.5-rc.8/ChipScreener-v0.6.5-rc.8-Windows-x64.zip evidence --chromium 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-native-rollback-evidence
+          path: evidence/
+          if-no-files-found: warn

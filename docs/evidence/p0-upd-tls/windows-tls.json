@@ -1,0 +1,179 @@
+{
+  "manual-repair": {
+    "oldAppVersion": "0.6.5-rc.5",
+    "repair": "0.6.5-rc.7",
+    "reopened": "0.6.5-rc.7",
+    "sourceCommit": "d4a29a952fb3143a6e590e8ff30a58fd15cae4c0",
+    "keptEntry": "0e1329fca4246e7b9b478c59ccce4ff34ad3ee4aa63ddb254f4ab28fc74ae0f8",
+    "previous": "entry",
+    "marketDataPreserved": true,
+    "portReleased": true
+  },
+  "rc5-live-https": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 554,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": false,
+    "endpoints": [
+      {
+        "host": "api.github.com",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "api.github.com"
+      },
+      {
+        "host": "github.com",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "release-assets.githubusercontent.com"
+      },
+      {
+        "host": "opendata.tdcc.com.tw",
+        "tls": "verified",
+        "http": 200,
+        "finalHost": "opendata.tdcc.com.tw"
+      },
+      {
+        "host": "openapi.twse.com.tw",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "openapi.twse.com.tw"
+      },
+      {
+        "host": "www.tpex.org.tw",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "www.tpex.org.tw"
+      },
+      {
+        "host": "api.finmindtrade.com",
+        "tls": "verified",
+        "http": 200,
+        "finalHost": "api.finmindtrade.com"
+      },
+      {
+        "host": "raw.githubusercontent.com",
+        "tls": "verified",
+        "http": 404
+      }
+    ]
+  },
+  "rc5-untrusted-issuer": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 554,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": false,
+    "endpoints": [
+      {
+        "host": "localhost",
+        "tls": "failed",
+        "errorType": "SSLCertVerificationError",
+        "verifyCode": 20,
+        "verifyMessage": "unable to get local issuer certificate"
+      }
+    ]
+  },
+  "repair-live-https": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 554,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": true,
+    "endpoints": [
+      {
+        "host": "api.github.com",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "api.github.com"
+      },
+      {
+        "host": "github.com",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "release-assets.githubusercontent.com"
+      },
+      {
+        "host": "opendata.tdcc.com.tw",
+        "tls": "verified",
+        "http": 200,
+        "finalHost": "opendata.tdcc.com.tw"
+      },
+      {
+        "host": "openapi.twse.com.tw",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "openapi.twse.com.tw"
+      },
+      {
+        "host": "www.tpex.org.tw",
+        "tls": "verified",
+        "http": 206,
+        "finalHost": "www.tpex.org.tw"
+      },
+      {
+        "host": "api.finmindtrade.com",
+        "tls": "verified",
+        "http": 200,
+        "finalHost": "api.finmindtrade.com"
+      },
+      {
+        "host": "raw.githubusercontent.com",
+        "tls": "verified",
+        "http": 404
+      }
+    ]
+  },
+  "repair-untrusted-issuer": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 554,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": true,
+    "endpoints": [
+      {
+        "host": "localhost",
+        "tls": "failed",
+        "errorType": "CertificateError",
+        "message": "無法驗證 localhost 的 HTTPS 憑證。請確認 Windows 日期與時間，並請網路管理員確認代理及受信任的根和中繼憑證。（未偵測固定 HTTPS 代理，驗證代碼 2148204809）"
+      }
+    ]
+  },
+  "repair-windows-root": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 555,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": true,
+    "endpoints": [
+      {
+        "host": "localhost",
+        "tls": "verified",
+        "http": 200,
+        "finalHost": "localhost"
+      }
+    ]
+  },
+  "repair-wrong-hostname": {
+    "python": "3.13.14",
+    "openSSL": "OpenSSL 3.0.21 9 Jun 2026",
+    "windows": true,
+    "windowsRootEntries": 555,
+    "httpsProxyConfigured": false,
+    "windowsNativeTrust": true,
+    "endpoints": [
+      {
+        "host": "127.0.0.1",
+        "tls": "failed",
+        "errorType": "CertificateError",
+        "message": "無法驗證 127.0.0.1 的 HTTPS 憑證。請確認 Windows 日期與時間，並請網路管理員確認代理及受信任的根和中繼憑證。（未偵測固定 HTTPS 代理，驗證代碼 2148204815）"
+      }
+    ]
+  }
+}

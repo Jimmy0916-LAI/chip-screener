@@ -194,6 +194,23 @@ def main() -> None:
     cli_override = True if args.use_runtime else (False if args.no_runtime else None)
     app_data_dir = Path(os.environ.get('LOCALAPPDATA') or Path.home()) / 'ChipScreener'
     managed = full_update.app_root(app_data_dir)
+    source = ROOT.parent
+    if (sys.platform == 'win32' and args.portable and not args.managed_child and not args.no_open
+            and full_update.installed_root(managed) and not source.is_relative_to(managed)):
+        import ctypes
+        try:
+            extracted = full_update.validate_package(source)
+            current = full_update.validate_package(full_update.selected_root(managed))
+            if full_update.version_order(extracted['version']) > full_update.version_order(current['version']):
+                message = (f"使用此解壓版將 {current['version']} 修復至 {extracted['version']}？\n"
+                           '會保留原捷徑、設定、資料及可回退版本。請先關閉舊版服務。')
+                if ctypes.windll.user32.MessageBoxW(None, message, '籌碼雷達｜離線修復', 0x24) == 6:
+                    full_update.repair_from_extracted_package(managed, source, args.port)
+                    return
+        except (OSError, ValueError) as exc:
+            ctypes.windll.user32.MessageBoxW(None, str(exc), '籌碼雷達｜修復未完成', 0x10)
+            return
+
     if args.portable and not args.managed_child and full_update.installed_root(managed):
         with full_update.platform_lock(managed / 'transition.lock'):
             target = full_update.selected_root(managed)
